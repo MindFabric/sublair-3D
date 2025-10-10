@@ -543,34 +543,6 @@
 							`).join('')}
 						</div>
 					</div>
-
-					<div class="customization-section">
-						<div class="section-label">Texture</div>
-						<div class="texture-grid" id="texture-grid">
-							${textures.map((tex, i) => `
-								<div class="texture-option ${i === 0 ? 'selected' : ''}" data-texture="${tex.name}">
-									<canvas id="texture-preview-${tex.name}"></canvas>
-								</div>
-							`).join('')}
-						</div>
-						<div class="texture-controls">
-							<div class="control-row">
-								<label>Scale</label>
-								<input type="range" id="texture-scale" min="0.1" max="5" step="0.1" value="1">
-								<span class="control-value" id="scale-value">1.0</span>
-							</div>
-							<div class="control-row">
-								<label>Rotation</label>
-								<input type="range" id="texture-rotation" min="0" max="360" step="1" value="0">
-								<span class="control-value" id="rotation-value">0°</span>
-							</div>
-							<div class="control-row">
-								<label>Density</label>
-								<input type="range" id="texture-density" min="0.5" max="3" step="0.1" value="1">
-								<span class="control-value" id="density-value">1.0</span>
-							</div>
-						</div>
-					</div>
 				`;
 
 				document.body.appendChild(customizationDiv);
@@ -765,35 +737,16 @@
 				});
 
 				let currentColor = '#ff0000';
-				let currentTexture = 'solid';
-				let textureScale = 1.0;
-				let textureRotation = 0;
-				let textureDensity = 1.0;
-
 				let savedCameraTheta, savedCameraPhi, savedCameraRadius;
 
 				function updateCharacter() {
-					const texture = currentTexture === 'solid' ? null : generateTexture(currentTexture, currentColor, textureDensity);
-
 					character.traverse((child) => {
 						if (child.isMesh && child.material) {
 							// Apply color
 							child.material.color.set(currentColor);
-
-							// Apply texture
-							if (texture) {
-								texture.wrapS = THREE.RepeatWrapping;
-								texture.wrapT = THREE.RepeatWrapping;
-								texture.repeat.set(textureScale, textureScale);
-								texture.rotation = (textureRotation * Math.PI) / 180;
-								texture.center.set(0.5, 0.5);
-
-								child.material.map = texture;
-								child.material.needsUpdate = true;
-							} else {
-								child.material.map = null;
-								child.material.needsUpdate = true;
-							}
+							// Remove any texture
+							child.material.map = null;
+							child.material.needsUpdate = true;
 						}
 					});
 				}
@@ -914,43 +867,6 @@
 							preset.classList.add('selected');
 							updateCharacter();
 						});
-					});
-
-					// Texture click handlers
-					document.querySelectorAll('.texture-option').forEach(texture => {
-						texture.addEventListener('click', () => {
-							currentTexture = texture.getAttribute('data-texture');
-							document.querySelectorAll('.texture-option').forEach(t => t.classList.remove('selected'));
-							texture.classList.add('selected');
-							updateCharacter();
-						});
-					});
-
-					// Slider event listeners
-					const scaleSlider = document.getElementById('texture-scale');
-					const rotationSlider = document.getElementById('texture-rotation');
-					const densitySlider = document.getElementById('texture-density');
-
-					const scaleValue = document.getElementById('scale-value');
-					const rotationValue = document.getElementById('rotation-value');
-					const densityValue = document.getElementById('density-value');
-
-					scaleSlider.addEventListener('input', (e) => {
-						textureScale = parseFloat(e.target.value);
-						scaleValue.textContent = textureScale.toFixed(1);
-						updateCharacter();
-					});
-
-					rotationSlider.addEventListener('input', (e) => {
-						textureRotation = parseInt(e.target.value);
-						rotationValue.textContent = textureRotation + '°';
-						updateCharacter();
-					});
-
-					densitySlider.addEventListener('input', (e) => {
-						textureDensity = parseFloat(e.target.value);
-						densityValue.textContent = textureDensity.toFixed(1);
-						updateCharacter();
 					});
 				}, 1000);
 			});

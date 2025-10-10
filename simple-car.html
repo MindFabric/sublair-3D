@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Sketchbook - Simple Car World</title>
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+		}
+
+		/* Fix z-index hierarchy */
+		#canvas {
+			z-index: 1;
+		}
+
+		#ui-container {
+			z-index: 100 !important;
+			pointer-events: none;
+		}
+
+		#ui-container * {
+			pointer-events: auto;
+		}
+
+		/* Dark sleek customize button */
+		.customize-button {
+			position: fixed !important;
+			bottom: 30px !important;
+			right: 30px !important;
+			background: rgba(0, 0, 0, 0.8) !important;
+			color: #fff !important;
+			border: 1px solid rgba(255, 255, 255, 0.2) !important;
+			padding: 12px 24px !important;
+			border-radius: 8px !important;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif !important;
+			font-size: 12px !important;
+			font-weight: 600 !important;
+			cursor: pointer !important;
+			z-index: 10000 !important;
+			backdrop-filter: blur(10px) !important;
+			transition: all 0.2s ease !important;
+			text-transform: uppercase !important;
+			letter-spacing: 1px !important;
+			pointer-events: auto !important;
+		}
+
+		.customize-button:hover {
+			background: rgba(255, 255, 255, 0.15) !important;
+			border-color: rgba(255, 255, 255, 0.4) !important;
+			transform: translateY(-2px);
+		}
+
+		.customize-button:active {
+			transform: translateY(0px);
+		}
+
+		/* Custom character menu - LBP Style */
+		.character-customization {
+			position: fixed;
+			bottom: 90px;
+			right: 30px;
+			background: rgba(0, 0, 0, 0.95);
+			padding: 20px;
+			border-radius: 16px;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			color: #fff;
+			z-index: 999;
+			width: 360px;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+			backdrop-filter: blur(10px);
+			opacity: 0;
+			transform: translateY(20px);
+			pointer-events: none;
+			transition: all 0.3s ease;
+		}
+
+		.character-customization.active {
+			opacity: 1;
+			transform: translateY(0);
+			pointer-events: auto;
+		}
+
+		.character-customization h3 {
+			margin: 0 0 16px 0;
+			font-size: 13px;
+			font-weight: bold;
+			text-transform: uppercase;
+			letter-spacing: 1.5px;
+			color: #fff;
+			border-bottom: 2px solid rgba(102, 126, 234, 0.5);
+			padding-bottom: 12px;
+		}
+
+		.customization-section {
+			margin-bottom: 20px;
+		}
+
+		.customization-section:last-child {
+			margin-bottom: 0;
+		}
+
+		.section-label {
+			font-size: 10px;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			color: #888;
+			margin-bottom: 10px;
+			font-weight: 600;
+		}
+
+		.texture-grid {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 8px;
+			margin-bottom: 16px;
+		}
+
+		.texture-option {
+			aspect-ratio: 1;
+			border-radius: 8px;
+			cursor: pointer;
+			border: 2px solid rgba(255, 255, 255, 0.2);
+			transition: all 0.2s ease;
+			position: relative;
+			overflow: hidden;
+		}
+
+		.texture-option.selected {
+			border-color: rgba(102, 126, 234, 0.8);
+			box-shadow: 0 0 16px rgba(102, 126, 234, 0.4);
+		}
+
+		.texture-option:hover {
+			transform: scale(1.05);
+			border-color: rgba(255, 255, 255, 0.6);
+		}
+
+		.texture-controls {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			margin-top: 12px;
+		}
+
+		.control-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.control-row label {
+			font-size: 10px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: #aaa;
+			font-weight: 600;
+			min-width: 70px;
+		}
+
+		.control-row input[type="range"] {
+			flex: 1;
+			margin: 0 12px;
+			height: 4px;
+			border-radius: 2px;
+			background: rgba(255, 255, 255, 0.2);
+			outline: none;
+			-webkit-appearance: none;
+		}
+
+		.control-row input[type="range"]::-webkit-slider-thumb {
+			-webkit-appearance: none;
+			appearance: none;
+			width: 16px;
+			height: 16px;
+			border-radius: 50%;
+			background: rgba(102, 126, 234, 0.9);
+			cursor: pointer;
+			border: 2px solid #fff;
+		}
+
+		.control-row input[type="range"]::-moz-range-thumb {
+			width: 16px;
+			height: 16px;
+			border-radius: 50%;
+			background: rgba(102, 126, 234, 0.9);
+			cursor: pointer;
+			border: 2px solid #fff;
+		}
+
+		.control-value {
+			font-size: 11px;
+			color: #fff;
+			font-weight: 600;
+			min-width: 35px;
+			text-align: right;
+		}
+
+		.preset-colors {
+			display: grid;
+			grid-template-columns: repeat(6, 1fr);
+			gap: 8px;
+		}
+
+		.preset-color {
+			aspect-ratio: 1;
+			border-radius: 6px;
+			cursor: pointer;
+			border: 2px solid rgba(255, 255, 255, 0.2);
+			transition: all 0.2s ease;
+		}
+
+		.preset-color.selected {
+			border-color: rgba(102, 126, 234, 0.8);
+			box-shadow: 0 0 16px rgba(102, 126, 234, 0.4);
+		}
+
+		.preset-color:hover {
+			transform: scale(1.1);
+			border-color: rgba(255, 255, 255, 0.6);
+		}
+
+		/* Terminal Login Screen */
+		.terminal-login {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%) scale(0.9);
+			background: rgba(0, 0, 0, 0.92);
+			border: 3px solid #bee17b;
+			border-radius: 24px;
+			padding: 40px;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			color: #fff;
+			z-index: 10000;
+			min-width: 420px;
+			opacity: 0;
+			pointer-events: none;
+			transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+			backdrop-filter: blur(10px);
+		}
+
+		.terminal-login.active {
+			opacity: 1;
+			pointer-events: auto;
+			transform: translate(-50%, -50%) scale(1);
+		}
+
+		.terminal-header {
+			text-align: center;
+			margin-bottom: 30px;
+			font-size: 24px;
+			font-weight: 800;
+			color: #bee17b;
+			text-transform: uppercase;
+			letter-spacing: 2px;
+			padding-bottom: 20px;
+			border-bottom: 3px solid #bee17b;
+		}
+
+		.terminal-input-group {
+			margin-bottom: 20px;
+		}
+
+		.terminal-input-group label {
+			display: block;
+			margin-bottom: 8px;
+			font-size: 12px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			color: #bee17b;
+		}
+
+		.terminal-input-group input {
+			width: 100%;
+			background: rgba(255, 255, 255, 0.1);
+			border: 2px solid rgba(190, 225, 123, 0.3);
+			color: #fff;
+			padding: 14px 16px;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			font-size: 15px;
+			box-sizing: border-box;
+			border-radius: 12px;
+			transition: all 0.3s ease;
+		}
+
+		.terminal-input-group input:focus {
+			outline: none;
+			border-color: #bee17b;
+			background: rgba(255, 255, 255, 0.15);
+			box-shadow: 0 0 20px rgba(190, 225, 123, 0.3);
+			transform: translateY(-2px);
+		}
+
+		.terminal-input-group input::placeholder {
+			color: rgba(255, 255, 255, 0.4);
+		}
+
+		.terminal-buttons {
+			display: flex;
+			gap: 12px;
+			margin-top: 30px;
+		}
+
+		.terminal-button {
+			flex: 1;
+			background: rgba(255, 255, 255, 0.1);
+			border: 2px solid #bee17b;
+			color: #bee17b;
+			padding: 14px 24px;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			text-transform: uppercase;
+			font-weight: 700;
+			font-size: 13px;
+			letter-spacing: 1px;
+			border-radius: 12px;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+		}
+
+		.terminal-button:hover {
+			background: #bee17b;
+			color: #000;
+			transform: translateY(-2px);
+			box-shadow: 0 6px 20px rgba(190, 225, 123, 0.4);
+		}
+
+		.terminal-button:active {
+			transform: translateY(0px);
+		}
+
+		.terminal-error {
+			color: #ff6b6b;
+			font-size: 13px;
+			margin-top: 15px;
+			text-align: center;
+			display: none;
+			font-weight: 600;
+			background: rgba(255, 107, 107, 0.1);
+			padding: 10px;
+			border-radius: 8px;
+		}
+
+		.terminal-error.show {
+			display: block;
+			animation: shake 0.4s ease;
+		}
+
+		@keyframes shake {
+			0%, 100% { transform: translateX(0); }
+			25% { transform: translateX(-10px); }
+			75% { transform: translateX(10px); }
+		}
+
+		/* Interaction Prompt */
+		.interaction-prompt {
+			position: fixed;
+			bottom: 120px;
+			left: 50%;
+			transform: translateX(-50%);
+			background: rgba(0, 0, 0, 0.8);
+			color: #fff;
+			padding: 12px 24px;
+			border-radius: 8px;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			font-size: 14px;
+			z-index: 9999;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.3s ease;
+			border: 2px solid rgba(255, 255, 255, 0.3);
+		}
+
+		.interaction-prompt.show {
+			opacity: 1;
+		}
+
+		.interaction-prompt kbd {
+			background: #333;
+			border: 1px solid #555;
+			border-radius: 4px;
+			padding: 4px 8px;
+			margin: 0 4px;
+			font-weight: bold;
+		}
+	</style>
+</head>
+
+<body>
+	<script src="./build/sketchbook.min.js"></script>
+	<script>
+		// Create a simple flat world with a car
+		const world = new Sketchbook.World();
+
+		// We need to wait a moment for the world to initialize
+		setTimeout(() => {
+			// Create a canvas-based grid texture
+			const canvas = document.createElement('canvas');
+			canvas.width = 512;
+			canvas.height = 512;
+			const ctx = canvas.getContext('2d');
+
+			// Draw grid
+			ctx.fillStyle = '#444444';
+			ctx.fillRect(0, 0, 512, 512);
+
+			ctx.strokeStyle = '#666666';
+			ctx.lineWidth = 2;
+
+			// Draw grid lines
+			const gridSize = 64;
+			for (let i = 0; i <= 512; i += gridSize) {
+				ctx.beginPath();
+				ctx.moveTo(i, 0);
+				ctx.lineTo(i, 512);
+				ctx.stroke();
+
+				ctx.beginPath();
+				ctx.moveTo(0, i);
+				ctx.lineTo(512, i);
+				ctx.stroke();
+			}
+
+			// Create texture from canvas
+			const gridTexture = new THREE.CanvasTexture(canvas);
+			gridTexture.wrapS = THREE.RepeatWrapping;
+			gridTexture.wrapT = THREE.RepeatWrapping;
+			gridTexture.repeat.set(50, 50); // Repeat the texture 50x50 times
+
+			// Add a large ground plane (visual)
+			const groundGeometry = new THREE.PlaneGeometry(200, 200, 1, 1);
+			const groundMaterial = new THREE.MeshStandardMaterial({
+				map: gridTexture,
+				roughness: 0.8,
+				metalness: 0.2
+			});
+			const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+			groundMesh.rotation.x = -Math.PI / 2;
+			groundMesh.receiveShadow = true;
+			world.graphicsWorld.add(groundMesh);
+
+			// Setup ground material for shadows
+			world.sky.csm.setupMaterial(groundMaterial);
+
+			// Add physics ground (collision) - this is the important part for the car to drive on
+			const groundShape = new CANNON.Box(new CANNON.Vec3(100, 0.5, 100));
+			const groundBody = new CANNON.Body({
+				mass: 0,
+				shape: groundShape,
+				position: new CANNON.Vec3(0, -0.5, 0)
+			});
+			world.physicsWorld.addBody(groundBody);
+
+			// Load the car and character
+			const loadingManager = new Sketchbook.LoadingManager(world);
+
+			loadingManager.onFinishedCallback = () => {
+				world.update(1, 1);
+				world.setTimeScale(1);
+
+				Sketchbook.UIManager.setUserInterfaceVisible(true);
+				Sketchbook.UIManager.setLoadingScreenVisible(false);
+
+				Swal.fire({
+					title: 'Simple Flat World with Car',
+					html: '<b>Character Controls:</b><br/>WASD - Move<br/>Shift - Sprint<br/>Space - Jump<br/>F - Enter vehicle<br/><br/><b>Car Controls:</b><br/>W - Accelerate<br/>S - Brake/Reverse<br/>A/D - Steer<br/>Space - Handbrake<br/>F - Exit vehicle',
+					confirmButtonText: 'Start!',
+					buttonsStyling: false
+				});
+			};
+
+			loadingManager.loadGLTF('build/assets/car.glb', (carModel) => {
+				const car = new Sketchbook.Car(carModel);
+				car.setPosition(0, 2, 0);
+				world.add(car);
+			});
+
+			let character; // Store character reference globally
+			let customizationOpen = false; // Global scope for terminal to access
+			let terminalOpen = false; // Global scope for C key check
+
+			// Create a dummy input receiver that does nothing - global scope
+			const dummyInputReceiver = {
+				handleKeyboardEvent: () => {},
+				handleMouseButton: () => {},
+				handleMouseMove: () => {},
+				handleMouseWheel: () => {},
+				inputReceiverInit: () => {},
+				inputReceiverUpdate: () => {}
+			};
+
+			loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
+				character = new Sketchbook.Character(charModel);
+				character.setPosition(5, 2, 0);
+				world.add(character);
+				character.takeControl();
+
+				// Set initial camera to face front of character
+				setTimeout(() => {
+					world.cameraOperator.theta = 180; // Front facing
+				}, 100);
+
+				// Create dark sleek floating button in bottom-right
+				setTimeout(() => {
+					const customizeButton = document.createElement('button');
+					customizeButton.className = 'customize-button';
+					customizeButton.innerHTML = 'Customize';
+					document.body.appendChild(customizeButton);
+					console.log('✅ Dark sleek button created!');
+
+				// Create custom character customization UI
+				const customizationDiv = document.createElement('div');
+				customizationDiv.className = 'character-customization';
+
+				const presetColors = [
+					'#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff',
+					'#ff8800', '#88ff00', '#0088ff', '#8800ff', '#ff0088', '#00ff88',
+					'#ffffff', '#cccccc', '#888888', '#444444', '#000000', '#ff6b9d'
+				];
+
+				const textures = [
+					{ name: 'solid', display: 'Solid' },
+					{ name: 'stripes', display: 'Stripes' },
+					{ name: 'dots', display: 'Dots' },
+					{ name: 'checker', display: 'Checker' },
+					{ name: 'grid', display: 'Grid' },
+					{ name: 'diagonal', display: 'Diagonal' },
+					{ name: 'waves', display: 'Waves' },
+					{ name: 'stars', display: 'Stars' }
+				];
+
+				customizationDiv.innerHTML = `
+					<h3>Customize Character</h3>
+
+					<div class="customization-section">
+						<div class="section-label">Color</div>
+						<div class="preset-colors">
+							${presetColors.map(color => `
+								<div class="preset-color" style="background-color: ${color};" data-color="${color}"></div>
+							`).join('')}
+						</div>
+					</div>
+
+					<div class="customization-section">
+						<div class="section-label">Texture</div>
+						<div class="texture-grid" id="texture-grid">
+							${textures.map((tex, i) => `
+								<div class="texture-option ${i === 0 ? 'selected' : ''}" data-texture="${tex.name}">
+									<canvas id="texture-preview-${tex.name}"></canvas>
+								</div>
+							`).join('')}
+						</div>
+						<div class="texture-controls">
+							<div class="control-row">
+								<label>Scale</label>
+								<input type="range" id="texture-scale" min="0.1" max="5" step="0.1" value="1">
+								<span class="control-value" id="scale-value">1.0</span>
+							</div>
+							<div class="control-row">
+								<label>Rotation</label>
+								<input type="range" id="texture-rotation" min="0" max="360" step="1" value="0">
+								<span class="control-value" id="rotation-value">0°</span>
+							</div>
+							<div class="control-row">
+								<label>Density</label>
+								<input type="range" id="texture-density" min="0.5" max="3" step="0.1" value="1">
+								<span class="control-value" id="density-value">1.0</span>
+							</div>
+						</div>
+					</div>
+				`;
+
+				document.body.appendChild(customizationDiv);
+
+				// Texture generation functions
+				function generateTexture(type, color = '#ffffff', density = 1) {
+					const canvas = document.createElement('canvas');
+					canvas.width = 256;
+					canvas.height = 256;
+					const ctx = canvas.getContext('2d');
+
+					ctx.fillStyle = color;
+					ctx.fillRect(0, 0, 256, 256);
+
+					ctx.strokeStyle = '#000000';
+					ctx.fillStyle = '#000000';
+					ctx.lineWidth = 4;
+
+					const spacing = 32 / density;
+
+					switch(type) {
+						case 'stripes':
+							for (let i = 0; i < 256; i += spacing) {
+								ctx.fillRect(i, 0, spacing / 2, 256);
+							}
+							break;
+						case 'dots':
+							const dotSize = 8 / density;
+							for (let y = spacing / 2; y < 256; y += spacing) {
+								for (let x = spacing / 2; x < 256; x += spacing) {
+									ctx.beginPath();
+									ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+									ctx.fill();
+								}
+							}
+							break;
+						case 'checker':
+							for (let y = 0; y < 256; y += spacing) {
+								for (let x = 0; x < 256; x += spacing) {
+									if ((Math.floor(x / spacing) + Math.floor(y / spacing)) % 2 === 0) {
+										ctx.fillRect(x, y, spacing, spacing);
+									}
+								}
+							}
+							break;
+						case 'grid':
+							for (let i = 0; i <= 256; i += spacing) {
+								ctx.beginPath();
+								ctx.moveTo(i, 0);
+								ctx.lineTo(i, 256);
+								ctx.stroke();
+								ctx.beginPath();
+								ctx.moveTo(0, i);
+								ctx.lineTo(256, i);
+								ctx.stroke();
+							}
+							break;
+						case 'diagonal':
+							for (let i = -256; i < 512; i += spacing) {
+								ctx.beginPath();
+								ctx.moveTo(i, 0);
+								ctx.lineTo(i + 256, 256);
+								ctx.stroke();
+							}
+							break;
+						case 'waves':
+							const waveFreq = 0.05 * density;
+							ctx.beginPath();
+							for (let x = 0; x <= 256; x += 4) {
+								const y = 128 + Math.sin(x * waveFreq) * 40;
+								if (x === 0) ctx.moveTo(x, y);
+								else ctx.lineTo(x, y);
+							}
+							ctx.stroke();
+							ctx.beginPath();
+							for (let x = 0; x <= 256; x += 4) {
+								const y = 128 + Math.sin(x * waveFreq + Math.PI) * 40;
+								if (x === 0) ctx.moveTo(x, y);
+								else ctx.lineTo(x, y);
+							}
+							ctx.stroke();
+							break;
+						case 'stars':
+							const starCount = Math.floor(20 * density);
+							for (let i = 0; i < starCount; i++) {
+								const x = Math.random() * 256;
+								const y = Math.random() * 256;
+								const size = 8 / Math.sqrt(density);
+								ctx.beginPath();
+								for (let j = 0; j < 5; j++) {
+									const angle = (j * 4 * Math.PI) / 5 - Math.PI / 2;
+									const radius = j % 2 === 0 ? size : size / 2;
+									const px = x + Math.cos(angle) * radius;
+									const py = y + Math.sin(angle) * radius;
+									if (j === 0) ctx.moveTo(px, py);
+									else ctx.lineTo(px, py);
+								}
+								ctx.closePath();
+								ctx.fill();
+							}
+							break;
+					}
+
+					return new THREE.CanvasTexture(canvas);
+				}
+
+				// Draw texture previews
+				textures.forEach(tex => {
+					const previewCanvas = document.getElementById(`texture-preview-${tex.name}`);
+					if (previewCanvas) {
+						previewCanvas.width = 64;
+						previewCanvas.height = 64;
+						const ctx = previewCanvas.getContext('2d');
+
+						// Generate a small preview
+						const tempCanvas = document.createElement('canvas');
+						tempCanvas.width = 64;
+						tempCanvas.height = 64;
+						const tempCtx = tempCanvas.getContext('2d');
+
+						tempCtx.fillStyle = '#667eea';
+						tempCtx.fillRect(0, 0, 64, 64);
+						tempCtx.strokeStyle = '#ffffff';
+						tempCtx.fillStyle = '#ffffff';
+						tempCtx.lineWidth = 2;
+
+						switch(tex.name) {
+							case 'stripes':
+								for (let i = 0; i < 64; i += 8) {
+									tempCtx.fillRect(i, 0, 4, 64);
+								}
+								break;
+							case 'dots':
+								for (let y = 8; y < 64; y += 16) {
+									for (let x = 8; x < 64; x += 16) {
+										tempCtx.beginPath();
+										tempCtx.arc(x, y, 3, 0, Math.PI * 2);
+										tempCtx.fill();
+									}
+								}
+								break;
+							case 'checker':
+								for (let y = 0; y < 64; y += 16) {
+									for (let x = 0; x < 64; x += 16) {
+										if ((x + y) / 16 % 2 === 0) {
+											tempCtx.fillRect(x, y, 16, 16);
+										}
+									}
+								}
+								break;
+							case 'grid':
+								for (let i = 0; i <= 64; i += 16) {
+									tempCtx.beginPath();
+									tempCtx.moveTo(i, 0);
+									tempCtx.lineTo(i, 64);
+									tempCtx.stroke();
+									tempCtx.beginPath();
+									tempCtx.moveTo(0, i);
+									tempCtx.lineTo(64, i);
+									tempCtx.stroke();
+								}
+								break;
+							case 'diagonal':
+								for (let i = -64; i < 128; i += 16) {
+									tempCtx.beginPath();
+									tempCtx.moveTo(i, 0);
+									tempCtx.lineTo(i + 64, 64);
+									tempCtx.stroke();
+								}
+								break;
+							case 'waves':
+								tempCtx.beginPath();
+								for (let x = 0; x <= 64; x += 2) {
+									const y = 32 + Math.sin(x * 0.2) * 10;
+									if (x === 0) tempCtx.moveTo(x, y);
+									else tempCtx.lineTo(x, y);
+								}
+								tempCtx.stroke();
+								break;
+							case 'stars':
+								for (let i = 0; i < 5; i++) {
+									const x = 16 + (i % 3) * 16;
+									const y = 16 + Math.floor(i / 3) * 16;
+									tempCtx.font = '12px Arial';
+									tempCtx.fillText('★', x, y);
+								}
+								break;
+						}
+
+						ctx.drawImage(tempCanvas, 0, 0);
+					}
+				});
+
+				let currentColor = '#ff0000';
+				let currentTexture = 'solid';
+				let textureScale = 1.0;
+				let textureRotation = 0;
+				let textureDensity = 1.0;
+
+				let savedCameraTheta, savedCameraPhi, savedCameraRadius;
+
+				function updateCharacter() {
+					const texture = currentTexture === 'solid' ? null : generateTexture(currentTexture, currentColor, textureDensity);
+
+					character.traverse((child) => {
+						if (child.isMesh && child.material) {
+							// Apply color
+							child.material.color.set(currentColor);
+
+							// Apply texture
+							if (texture) {
+								texture.wrapS = THREE.RepeatWrapping;
+								texture.wrapT = THREE.RepeatWrapping;
+								texture.repeat.set(textureScale, textureScale);
+								texture.rotation = (textureRotation * Math.PI) / 180;
+								texture.center.set(0.5, 0.5);
+
+								child.material.map = texture;
+								child.material.needsUpdate = true;
+							} else {
+								child.material.map = null;
+								child.material.needsUpdate = true;
+							}
+						}
+					});
+				}
+
+						let isOpeningCustomization = false;
+
+						function openCustomization() {
+							if (customizationOpen || isOpeningCustomization) return; // Already open or opening
+							isOpeningCustomization = true;
+
+							// Set movement target to zero to slow down naturally (while controls still active)
+							character.velocitySimulator.target.set(0, 0, 0);
+
+							// Check velocity every frame until character stops
+							let checkStopInterval = setInterval(() => {
+								const speed = character.velocity.length();
+
+								// If character is nearly stopped (velocity < 0.1)
+								if (speed < 0.1) {
+									clearInterval(checkStopInterval);
+									customizationOpen = true;
+									isOpeningCustomization = false;
+
+									// Disable character controls NOW
+									world.inputManager.inputReceiver = dummyInputReceiver;
+
+									// Fully stop the character
+									character.velocity.set(0, 0, 0);
+									character.velocitySimulator.position.set(0, 0, 0);
+									character.velocitySimulator.velocity.set(0, 0, 0);
+									character.velocitySimulator.target.set(0, 0, 0);
+									character.angularVelocity = 0;
+
+									// Save camera position
+									savedCameraTheta = world.cameraOperator.theta;
+									savedCameraPhi = world.cameraOperator.phi;
+									savedCameraRadius = world.cameraOperator.radius;
+
+									// Move camera to front of character
+									const characterRotation = character.rotation.y;
+									world.cameraOperator.theta = characterRotation;
+									world.cameraOperator.phi = 10;
+									world.cameraOperator.radius = 2.5;
+
+									// Enable mouse cursor - exit pointer lock
+									if (document.pointerLockElement) {
+										document.exitPointerLock();
+									}
+
+									// Show menu
+									customizationDiv.classList.add('active');
+									customizeButton.innerHTML = 'Close';
+								}
+							}, 16); // Check every frame (~60fps)
+						}
+
+						function closeCustomization() {
+							if (!customizationOpen) return; // Already closed
+							customizationOpen = false;
+
+							// Hide menu
+							customizationDiv.classList.remove('active');
+							customizeButton.innerHTML = 'Customize';
+
+							// Restore camera position
+							world.cameraOperator.theta = savedCameraTheta;
+							world.cameraOperator.phi = savedCameraPhi;
+							world.cameraOperator.radius = savedCameraRadius;
+
+							// Re-enable character controls
+							character.takeControl();
+
+							// Re-lock pointer for game controls
+							setTimeout(() => {
+								world.renderer.domElement.requestPointerLock();
+							}, 100);
+						}
+
+						function toggleCustomization() {
+							if (customizationOpen) {
+								closeCustomization();
+							} else {
+								openCustomization();
+							}
+						}
+
+						customizeButton.addEventListener('click', toggleCustomization);
+
+						// C key to toggle customization
+						document.addEventListener('keydown', (e) => {
+							if (e.key === 'c' || e.key === 'C') {
+								if (!terminalOpen) {
+									e.preventDefault();
+									e.stopPropagation();
+									e.stopImmediatePropagation();
+									toggleCustomization();
+									return false;
+								}
+							}
+						}, true);
+
+						// ESC key to close customization
+						document.addEventListener('keydown', (e) => {
+							if (e.key === 'Escape' && customizationOpen) {
+								e.preventDefault();
+								e.stopPropagation();
+								e.stopImmediatePropagation();
+								closeCustomization();
+								return false;
+							}
+						}, true);
+
+					// Color click handlers
+					document.querySelectorAll('.preset-color').forEach(preset => {
+						preset.addEventListener('click', () => {
+							currentColor = preset.getAttribute('data-color');
+							document.querySelectorAll('.preset-color').forEach(p => p.classList.remove('selected'));
+							preset.classList.add('selected');
+							updateCharacter();
+						});
+					});
+
+					// Texture click handlers
+					document.querySelectorAll('.texture-option').forEach(texture => {
+						texture.addEventListener('click', () => {
+							currentTexture = texture.getAttribute('data-texture');
+							document.querySelectorAll('.texture-option').forEach(t => t.classList.remove('selected'));
+							texture.classList.add('selected');
+							updateCharacter();
+						});
+					});
+
+					// Slider event listeners
+					const scaleSlider = document.getElementById('texture-scale');
+					const rotationSlider = document.getElementById('texture-rotation');
+					const densitySlider = document.getElementById('texture-density');
+
+					const scaleValue = document.getElementById('scale-value');
+					const rotationValue = document.getElementById('rotation-value');
+					const densityValue = document.getElementById('density-value');
+
+					scaleSlider.addEventListener('input', (e) => {
+						textureScale = parseFloat(e.target.value);
+						scaleValue.textContent = textureScale.toFixed(1);
+						updateCharacter();
+					});
+
+					rotationSlider.addEventListener('input', (e) => {
+						textureRotation = parseInt(e.target.value);
+						rotationValue.textContent = textureRotation + '°';
+						updateCharacter();
+					});
+
+					densitySlider.addEventListener('input', (e) => {
+						textureDensity = parseFloat(e.target.value);
+						densityValue.textContent = textureDensity.toFixed(1);
+						updateCharacter();
+					});
+				}, 1000);
+			});
+
+			// Create terminal login UI
+			const terminalDiv = document.createElement('div');
+			terminalDiv.className = 'terminal-login';
+			terminalDiv.innerHTML = `
+				<div class="terminal-header">
+					== SUBLAIR LOGIN SCREEN ==<br>
+					AUTHENTICATION REQUIRED
+				</div>
+				<div class="terminal-input-group">
+					<label>USERNAME:</label>
+					<input type="text" id="terminal-username" placeholder="Enter username">
+				</div>
+				<div class="terminal-input-group">
+					<label>PASSWORD:</label>
+					<input type="password" id="terminal-password" placeholder="Enter password">
+				</div>
+				<div class="terminal-error" id="terminal-error">ACCESS DENIED</div>
+				<div class="terminal-buttons">
+					<button class="terminal-button" id="terminal-login">Login</button>
+					<button class="terminal-button" id="terminal-cancel">Cancel</button>
+				</div>
+			`;
+			document.body.appendChild(terminalDiv);
+
+			// Create interaction prompt
+			const interactionPrompt = document.createElement('div');
+			interactionPrompt.className = 'interaction-prompt';
+			interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to use computer';
+			document.body.appendChild(interactionPrompt);
+
+			// Load the retro computer
+			let computerPosition = new THREE.Vector3(-5, 0.75, 5);
+			loadingManager.loadGLTF('build/assets/retro_computer.glb', (computerModel) => {
+				const computer = computerModel.scene;
+				computer.position.copy(computerPosition);
+				computer.scale.set(1, 1, 1);
+
+				// Add to world
+				world.graphicsWorld.add(computer);
+
+				// Setup materials for shadows
+				computer.traverse((child) => {
+					if (child.isMesh) {
+						child.castShadow = true;
+						child.receiveShadow = true;
+						if (child.material) {
+							world.sky.csm.setupMaterial(child.material);
+						}
+					}
+				});
+
+				// Add physics collision box for the computer
+				const computerShape = new CANNON.Box(new CANNON.Vec3(0.5, 0.75, 0.5));
+				const computerBody = new CANNON.Body({
+					mass: 0, // Static object (won't move)
+					shape: computerShape,
+					position: new CANNON.Vec3(-5, 0.75, 5)
+				});
+				world.physicsWorld.addBody(computerBody);
+
+				// Computer interaction system
+				let nearComputer = false;
+
+				// Check distance to computer every frame
+				function checkComputerProximity() {
+					if (!character) return;
+
+					const charPos = character.position;
+					const distance = charPos.distanceTo(computerPosition);
+
+					if (distance < 3 && !terminalOpen) {
+						nearComputer = true;
+						interactionPrompt.classList.add('show');
+					} else {
+						nearComputer = false;
+						interactionPrompt.classList.remove('show');
+					}
+				}
+
+				// Add to update loop
+				const updateInterval = setInterval(() => {
+					if (character) {
+						checkComputerProximity();
+					}
+				}, 100);
+
+				// Handle F key press
+				document.addEventListener('keydown', (e) => {
+					if (e.key === 'f' || e.key === 'F') {
+						if (nearComputer && !terminalOpen && !customizationOpen) {
+							// Prevent default F key behavior (vehicle entry)
+							e.preventDefault();
+							e.stopPropagation();
+							e.stopImmediatePropagation();
+
+							// Open terminal
+							terminalOpen = true;
+							terminalDiv.classList.add('active');
+							interactionPrompt.classList.remove('show');
+
+							// Disable character controls
+							world.inputManager.inputReceiver = dummyInputReceiver;
+
+							// Enable mouse cursor - exit pointer lock directly
+							if (document.pointerLockElement) {
+								document.exitPointerLock();
+							}
+
+							// Focus username field
+							setTimeout(() => {
+								document.getElementById('terminal-username').focus();
+							}, 100);
+
+							return false;
+						}
+					}
+				}, true);
+
+				// Terminal login button
+				document.getElementById('terminal-login').addEventListener('click', () => {
+					const username = document.getElementById('terminal-username').value;
+					const password = document.getElementById('terminal-password').value;
+					const errorDiv = document.getElementById('terminal-error');
+
+					if (username === 'admin' && password === 'password') {
+						// Success!
+						errorDiv.classList.remove('show');
+						terminalDiv.classList.remove('active');
+						terminalOpen = false;
+
+						// Re-enable character controls
+						character.takeControl();
+
+						// Re-lock pointer for game controls
+						setTimeout(() => {
+							world.renderer.domElement.requestPointerLock();
+						}, 100);
+
+						Swal.fire({
+							title: 'ACCESS GRANTED',
+							html: '<div style="font-family: monospace; color: #00ff00;">Welcome to the system, admin!<br><br>SYSTEM STATUS: OPERATIONAL<br>FILES: 42<br>UPTIME: 1337 days</div>',
+							confirmButtonText: 'OK',
+							buttonsStyling: false,
+							background: '#0a0a0a',
+							color: '#00ff00'
+						});
+
+						// Clear inputs
+						document.getElementById('terminal-username').value = '';
+						document.getElementById('terminal-password').value = '';
+					} else {
+						// Failed login
+						errorDiv.classList.add('show');
+					}
+				});
+
+				// Terminal cancel button
+				document.getElementById('terminal-cancel').addEventListener('click', () => {
+					terminalDiv.classList.remove('active');
+					terminalOpen = false;
+					document.getElementById('terminal-username').value = '';
+					document.getElementById('terminal-password').value = '';
+					document.getElementById('terminal-error').classList.remove('show');
+
+					// Re-enable character controls
+					character.takeControl();
+
+					// Re-lock pointer for game controls
+					setTimeout(() => {
+						world.renderer.domElement.requestPointerLock();
+					}, 100);
+				});
+
+				// Enter key to login
+				document.getElementById('terminal-password').addEventListener('keypress', (e) => {
+					if (e.key === 'Enter') {
+						document.getElementById('terminal-login').click();
+					}
+				});
+			});
+		}, 100);
+
+	</script>
+</body>
+
+</html>

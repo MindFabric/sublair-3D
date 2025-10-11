@@ -15,7 +15,7 @@
   "types": "build/types/sketchbook.d.ts",
   "scripts": {
     "dev": "concurrently \"set NODE_OPTIONS=--openssl-legacy-provider && webpack-dev-server --config webpack.dev.js\" \"node api/server.js\"",
-    "build": "set NODE_OPTIONS=--openssl-legacy-provider && webpack --config webpack.prod.js",
+    "build": "NODE_OPTIONS=--openssl-legacy-provider webpack --config webpack.prod.js",
     "api": "node api/server.js",
     "api:dev": "nodemon api/server.js"
   },

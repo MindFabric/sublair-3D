@@ -2557,7 +2557,7 @@
 			// API endpoint configuration
 			const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 				? 'http://localhost:3000'
-				: 'https://your-production-api.com'; // Update with your production API URL
+				: window.location.origin; // Use same domain as the app (Vercel)
 
 			// Fetch tracks and users from API
 			let tracksData = [];
@@ -3415,7 +3415,7 @@
 		// ========== CAR RADIO FUNCTIONALITY ==========
 		const RADIO_API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 			? 'http://localhost:3000'
-			: 'https://your-production-api.com'; // Update with your production API URL
+			: window.location.origin; // Use same domain as the app (Vercel)
 
 		// Shuffle array helper
 		function radioShuffleArray(array) {

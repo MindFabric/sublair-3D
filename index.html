@@ -2303,6 +2303,12 @@
 						return null;
 					}
 
+					// Debug: Log footstep plays
+					const isFootstep = name.startsWith('footstep');
+					if (isFootstep) {
+						console.log(`🔊 Playing ${name}: volume=${options.volume}, isPlaying=${sound.audio.isPlaying}, contextState=${this.listener.context.state}`);
+					}
+
 					// If already playing and not allowing overlaps, stop first
 					if (sound.audio.isPlaying && !options.allowOverlap) {
 						sound.audio.stop();
@@ -2334,7 +2340,14 @@
 						sound.audio.setPlaybackRate(options.pitch);
 					}
 
-					sound.audio.play();
+					try {
+						sound.audio.play();
+						if (isFootstep) {
+							console.log(`✅ ${name} play() called successfully`);
+						}
+					} catch (err) {
+						console.error(`❌ Error playing ${name}:`, err);
+					}
 					return sound.audio;
 				}
 

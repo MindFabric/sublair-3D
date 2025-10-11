@@ -3152,10 +3152,15 @@
 
 				// Resume AudioContext on first user interaction (required by browser autoplay policy)
 				const resumeAudio = () => {
+					console.log('🎯 User interaction detected, AudioContext state:', audioListener.context.state);
 					if (audioListener.context.state === 'suspended') {
 						audioListener.context.resume().then(() => {
-							console.log('🔊 AudioContext resumed - footsteps enabled');
+							console.log('✅ AudioContext resumed - footsteps should work now');
+						}).catch(err => {
+							console.error('❌ Failed to resume AudioContext:', err);
 						});
+					} else {
+						console.log('✅ AudioContext already running:', audioListener.context.state);
 					}
 					// Remove listeners after first interaction
 					document.removeEventListener('click', resumeAudio);
@@ -3163,6 +3168,9 @@
 				};
 				document.addEventListener('click', resumeAudio);
 				document.addEventListener('keydown', resumeAudio);
+
+				// Also check immediately
+				console.log('🔍 Initial AudioContext state:', audioListener.context.state);
 
 				// Start playing ambient music immediately
 				soundEngine.play('ambience');
@@ -3172,6 +3180,7 @@
 			});
 
 			// Monitor character movement for footsteps
+			let footstepDebugCount = 0;
 			setInterval(() => {
 				if (character && !terminalOpen && !customizationOpen && soundEngine) {
 					// Check if character is in a moving state and on ground
@@ -3192,7 +3201,15 @@
 							const finalVolume = 0.10 * volumeVariation * speedMultiplier;
 
 							// Play random footstep sound with variation
-							soundEngine.play(getRandomFootstep(), {
+							const footstepName = getRandomFootstep();
+
+							// Debug logging (only show every 5th footstep to avoid spam)
+							if (footstepDebugCount % 5 === 0) {
+								console.log(`🦶 Footstep #${footstepDebugCount}: ${footstepName}, vol: ${finalVolume.toFixed(3)}, pitch: ${pitchVariation.toFixed(2)}, speed: ${speed.toFixed(2)}, AudioContext: ${audioListener.context.state}`);
+							}
+							footstepDebugCount++;
+
+							soundEngine.play(footstepName, {
 								allowOverlap: false,
 								volume: finalVolume,
 								pitch: pitchVariation

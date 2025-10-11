@@ -3194,12 +3194,21 @@
 
 			// Monitor character movement for footsteps
 			let footstepDebugCount = 0;
+			let debugCounter = 0;
 			setInterval(() => {
-				if (character && !terminalOpen && !customizationOpen && soundEngine) {
+				const char = window.character; // Use global reference
+
+				// Debug every 100 cycles (5 seconds)
+				if (debugCounter % 100 === 0 && char) {
+					console.log(`🔍 Footstep check: character=${!!char}, terminal=${terminalOpen}, custom=${customizationOpen}, soundEngine=${!!soundEngine}, moving=${isMovingState(char)}, grounded=${char.rayHasHit}`);
+				}
+				debugCounter++;
+
+				if (char && !terminalOpen && !customizationOpen && soundEngine) {
 					// Check if character is in a moving state and on ground
-					if (isMovingState(character) && character.rayHasHit) {
+					if (isMovingState(char) && char.rayHasHit) {
 						const now = Date.now();
-						const dynamicInterval = getFootstepInterval(character);
+						const dynamicInterval = getFootstepInterval(char);
 
 						if (now - lastFootstepTime > dynamicInterval) {
 							// Add organic variation to volume and pitch
@@ -3207,7 +3216,7 @@
 							const pitchVariation = 0.95 + Math.random() * 0.1; // 0.95 to 1.05
 
 							// Calculate volume based on movement speed
-							const velocity = character.velocity;
+							const velocity = char.velocity;
 							const speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
 							const speedMultiplier = Math.min(1.0, 0.5 + speed * 0.3); // Louder when faster
 

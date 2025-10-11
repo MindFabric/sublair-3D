@@ -3,7 +3,7 @@
 
 <head>
 	<title>SUBLAIR 3D</title>
-	<link rel="icon" type="image/png" href="public/CIRCLE.png">
+	<link rel="icon" type="image/png" href="/public/CIRCLE.png">
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Share:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
@@ -2447,6 +2447,13 @@
 				character.takeControl();
 				setTimeout(() => {
 					world.renderer.domElement.requestPointerLock();
+
+					// Resume AudioContext on first user interaction (fixes browser autoplay policy)
+					if (audioListener && audioListener.context.state === 'suspended') {
+						audioListener.context.resume().then(() => {
+							console.log('🔊 AudioContext resumed for footsteps');
+						});
+					}
 				}, 100);
 			}
 
@@ -3131,17 +3138,31 @@
 			// Load all sounds
 			soundEngine.loadSounds([
 				// Footstep sounds
-				{ name: 'footstep1', path: 'build/snds/step1.wav', options: { volume: 0.10 } },
-				{ name: 'footstep2', path: 'build/snds/step2.wav', options: { volume: 0.10 } },
-				{ name: 'footstep3', path: 'build/snds/step3.wav', options: { volume: 0.10 } },
-				{ name: 'footstep4', path: 'build/snds/step4.wav', options: { volume: 0.10 } },
-				{ name: 'footstep5', path: 'build/snds/step5.wav', options: { volume: 0.10 } },
-				{ name: 'footstep6', path: 'build/snds/step6.wav', options: { volume: 0.10 } },
-				{ name: 'footstep7', path: 'build/snds/step7.wav', options: { volume: 0.10 } },
+				{ name: 'footstep1', path: 'build/snds/step1.wav', options: { volume: 0.5 } },
+				{ name: 'footstep2', path: 'build/snds/step2.wav', options: { volume: 0.5 } },
+				{ name: 'footstep3', path: 'build/snds/step3.wav', options: { volume: 0.5 } },
+				{ name: 'footstep4', path: 'build/snds/step4.wav', options: { volume: 0.5 } },
+				{ name: 'footstep5', path: 'build/snds/step5.wav', options: { volume: 0.5 } },
+				{ name: 'footstep6', path: 'build/snds/step6.wav', options: { volume: 0.5 } },
+				{ name: 'footstep7', path: 'build/snds/step7.wav', options: { volume: 0.5 } },
 				// Ambient background music
 				{ name: 'ambience', path: 'build/snds/ambience.mp3', options: { volume: 0.15, loop: true } }
 			]).then(() => {
 				console.log('All sounds loaded!');
+
+				// Resume AudioContext on first user interaction (required by browser autoplay policy)
+				const resumeAudio = () => {
+					if (audioListener.context.state === 'suspended') {
+						audioListener.context.resume().then(() => {
+							console.log('🔊 AudioContext resumed - footsteps enabled');
+						});
+					}
+					// Remove listeners after first interaction
+					document.removeEventListener('click', resumeAudio);
+					document.removeEventListener('keydown', resumeAudio);
+				};
+				document.addEventListener('click', resumeAudio);
+				document.addEventListener('keydown', resumeAudio);
 
 				// Start playing ambient music immediately
 				soundEngine.play('ambience');

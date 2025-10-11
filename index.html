@@ -105,45 +105,74 @@
 			line-height: 1.6 !important;
 		}
 
-		/* Custom character menu - LBP Style */
+		/* Custom character menu - Modern Native Style */
 		.character-customization {
 			position: fixed;
 			bottom: 90px;
 			right: 30px;
-			background: rgba(0, 0, 0, 0.95);
-			padding: 20px;
-			border-radius: 16px;
-			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			background: rgba(18, 18, 18, 0.98);
+			padding: 0;
+			border-radius: 20px;
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 			color: #fff;
 			z-index: 999;
-			width: 360px;
-			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-			backdrop-filter: blur(10px);
+			width: 380px;
+			max-height: 85vh;
+			overflow: hidden;
+			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+			backdrop-filter: blur(40px) saturate(180%);
 			opacity: 0;
-			transform: translateY(20px);
+			transform: translateY(20px) scale(0.95);
 			pointer-events: none;
-			transition: all 0.3s ease;
+			transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 		}
 
 		.character-customization.active {
 			opacity: 1;
-			transform: translateY(0);
+			transform: translateY(0) scale(1);
 			pointer-events: auto;
 		}
 
 		.character-customization h3 {
-			margin: 0 0 16px 0;
-			font-size: 13px;
-			font-weight: bold;
-			text-transform: uppercase;
-			letter-spacing: 1.5px;
+			margin: 0;
+			padding: 24px 24px 20px 24px;
+			font-size: 22px;
+			font-weight: 700;
+			letter-spacing: -0.5px;
 			color: #fff;
-			border-bottom: 2px solid rgba(102, 126, 234, 0.5);
-			padding-bottom: 12px;
+			background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.customization-content {
+			padding: 20px 24px 24px 24px;
+			max-height: calc(85vh - 80px);
+			overflow-y: auto;
+		}
+
+		.customization-content::-webkit-scrollbar {
+			width: 8px;
+		}
+
+		.customization-content::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		.customization-content::-webkit-scrollbar-thumb {
+			background: rgba(255, 255, 255, 0.2);
+			border-radius: 4px;
+		}
+
+		.customization-content::-webkit-scrollbar-thumb:hover {
+			background: rgba(255, 255, 255, 0.3);
 		}
 
 		.customization-section {
-			margin-bottom: 20px;
+			margin-bottom: 28px;
+			background: rgba(255, 255, 255, 0.03);
+			padding: 18px;
+			border-radius: 14px;
+			border: 1px solid rgba(255, 255, 255, 0.06);
 		}
 
 		.customization-section:last-child {
@@ -151,12 +180,66 @@
 		}
 
 		.section-label {
-			font-size: 10px;
-			text-transform: uppercase;
-			letter-spacing: 1px;
-			color: #888;
-			margin-bottom: 10px;
+			font-size: 13px;
 			font-weight: 600;
+			letter-spacing: -0.2px;
+			color: rgba(255, 255, 255, 0.9);
+			margin-bottom: 14px;
+		}
+
+		.color-picker-container {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			margin-bottom: 16px;
+			padding: 10px;
+			background: rgba(0, 0, 0, 0.3);
+			border-radius: 10px;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.color-picker-container input[type="color"] {
+			width: 48px;
+			height: 48px;
+			border: 2px solid rgba(255, 255, 255, 0.15);
+			border-radius: 10px;
+			background: transparent;
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.color-picker-container input[type="color"]:hover {
+			border-color: rgba(255, 255, 255, 0.3);
+			transform: scale(1.05);
+		}
+
+		.color-picker-container input[type="color"]::-webkit-color-swatch-wrapper {
+			padding: 0;
+		}
+
+		.color-picker-container input[type="color"]::-webkit-color-swatch {
+			border: none;
+			border-radius: 8px;
+		}
+
+		.color-info {
+			flex: 1;
+		}
+
+		.color-info-label {
+			font-size: 11px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: rgba(255, 255, 255, 0.5);
+			margin-bottom: 4px;
+		}
+
+		.color-info-value {
+			font-size: 15px;
+			font-weight: 600;
+			font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+			color: #fff;
+			letter-spacing: 0.5px;
 		}
 
 		.texture-grid {
@@ -249,25 +332,62 @@
 		.preset-colors {
 			display: grid;
 			grid-template-columns: repeat(6, 1fr);
-			gap: 8px;
+			gap: 10px;
 		}
 
 		.preset-color {
 			aspect-ratio: 1;
-			border-radius: 6px;
+			border-radius: 10px;
 			cursor: pointer;
-			border: 2px solid rgba(255, 255, 255, 0.2);
-			transition: all 0.2s ease;
+			border: 2.5px solid rgba(255, 255, 255, 0.15);
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			position: relative;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+		}
+
+		.preset-color::after {
+			content: '';
+			position: absolute;
+			inset: 0;
+			border-radius: 8px;
+			background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+			opacity: 0;
+			transition: opacity 0.25s ease;
+		}
+
+		.preset-color:hover::after {
+			opacity: 1;
 		}
 
 		.preset-color.selected {
-			border-color: rgba(102, 126, 234, 0.8);
-			box-shadow: 0 0 16px rgba(102, 126, 234, 0.4);
+			border-color: #fff;
+			box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.5);
+			transform: scale(1.05);
+		}
+
+		.preset-color.selected::before {
+			content: '✓';
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			color: rgba(255, 255, 255, 0.9);
+			font-size: 14px;
+			font-weight: bold;
+			text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 		}
 
 		.preset-color:hover {
-			transform: scale(1.1);
-			border-color: rgba(255, 255, 255, 0.6);
+			transform: scale(1.08);
+			border-color: rgba(255, 255, 255, 0.4);
+		}
+
+		.preset-colors-label {
+			font-size: 11px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: rgba(255, 255, 255, 0.4);
+			margin-bottom: 10px;
 		}
 
 		/* OS Container */
@@ -1618,12 +1738,6 @@
 				const customizationDiv = document.createElement('div');
 				customizationDiv.className = 'character-customization';
 
-				const presetColors = [
-					'#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff',
-					'#ff8800', '#88ff00', '#0088ff', '#8800ff', '#ff0088', '#00ff88',
-					'#ffffff', '#cccccc', '#888888', '#444444', '#000000', '#ff6b9d'
-				];
-
 				const textures = [
 					{ name: 'solid', display: 'Solid' },
 					{ name: 'stripes', display: 'Stripes' },
@@ -1636,14 +1750,39 @@
 				];
 
 				customizationDiv.innerHTML = `
-					<h3>Customize Character</h3>
+					<h3>Character Style</h3>
+					<div class="customization-content">
+						<div class="customization-section">
+							<div class="section-label">Skin</div>
+							<div class="color-picker-container">
+								<input type="color" id="skin-color-picker" value="#bee17b">
+								<div class="color-info">
+									<div class="color-info-label">Current Color</div>
+									<div class="color-info-value" id="skin-color-value">#BEE17B</div>
+								</div>
+							</div>
+						</div>
 
-					<div class="customization-section">
-						<div class="section-label">Color</div>
-						<div class="preset-colors">
-							${presetColors.map(color => `
-								<div class="preset-color" style="background-color: ${color};" data-color="${color}"></div>
-							`).join('')}
+						<div class="customization-section">
+							<div class="section-label">Shirt</div>
+							<div class="color-picker-container">
+								<input type="color" id="shirt-color-picker" value="#ff1400">
+								<div class="color-info">
+									<div class="color-info-label">Current Color</div>
+									<div class="color-info-value" id="shirt-color-value">#FF1400</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="customization-section">
+							<div class="section-label">Pants</div>
+							<div class="color-picker-container">
+								<input type="color" id="pants-color-picker" value="#0f00ff">
+								<div class="color-info">
+									<div class="color-info-label">Current Color</div>
+									<div class="color-info-value" id="pants-color-value">#0F00FF</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				`;
@@ -1839,14 +1978,26 @@
 					}
 				});
 
-				let currentColor = '#ff0000';
+				// Store colors for each part
+				let skinColor = '#bee17b';
+				let shirtColor = '#ff1400';
+				let pantsColor = '#0f00ff';
 				let savedCameraTheta, savedCameraPhi, savedCameraRadius;
 
 				function updateCharacter() {
 					character.traverse((child) => {
 						if (child.isMesh && child.material) {
-							// Apply color
-							child.material.color.set(currentColor);
+							const materialName = child.material.name.toLowerCase();
+
+							// Apply color based on material name
+							if (materialName.includes('skin')) {
+								child.material.color.set(skinColor);
+							} else if (materialName.includes('shirt')) {
+								child.material.color.set(shirtColor);
+							} else if (materialName.includes('pants')) {
+								child.material.color.set(pantsColor);
+							}
+
 							// Remove any texture
 							child.material.map = null;
 							child.material.needsUpdate = true;
@@ -1889,9 +2040,11 @@
 									savedCameraRadius = world.cameraOperator.radius;
 
 									// Move camera to front of character
+									// Character rotation.y is in radians, theta is also in radians
+									// Add PI to face the front (opposite direction of character's facing)
 									const characterRotation = character.rotation.y;
-									world.cameraOperator.theta = characterRotation;
-									world.cameraOperator.phi = 10;
+									world.cameraOperator.theta = characterRotation + Math.PI;
+									world.cameraOperator.phi = 0;
 									world.cameraOperator.radius = 2.5;
 
 									// Enable mouse cursor - exit pointer lock
@@ -1962,14 +2115,44 @@
 							}
 						}, true);
 
-					// Color click handlers
-					document.querySelectorAll('.preset-color').forEach(preset => {
-						preset.addEventListener('click', () => {
-							currentColor = preset.getAttribute('data-color');
-							document.querySelectorAll('.preset-color').forEach(p => p.classList.remove('selected'));
-							preset.classList.add('selected');
-							updateCharacter();
-						});
+						// Click outside to close customization
+						document.addEventListener('click', (e) => {
+							if (customizationOpen) {
+								// Check if click is outside the customization menu and customize button
+								if (!customizationDiv.contains(e.target) && !customizeButton.contains(e.target)) {
+									closeCustomization();
+								}
+							}
+						}, true);
+
+					// Color picker input handlers
+					const skinColorPicker = document.getElementById('skin-color-picker');
+					const shirtColorPicker = document.getElementById('shirt-color-picker');
+					const pantsColorPicker = document.getElementById('pants-color-picker');
+
+					const skinColorValue = document.getElementById('skin-color-value');
+					const shirtColorValue = document.getElementById('shirt-color-value');
+					const pantsColorValue = document.getElementById('pants-color-value');
+
+					// Skin color picker
+					skinColorPicker.addEventListener('input', (e) => {
+						skinColor = e.target.value;
+						skinColorValue.textContent = skinColor.toUpperCase();
+						updateCharacter();
+					});
+
+					// Shirt color picker
+					shirtColorPicker.addEventListener('input', (e) => {
+						shirtColor = e.target.value;
+						shirtColorValue.textContent = shirtColor.toUpperCase();
+						updateCharacter();
+					});
+
+					// Pants color picker
+					pantsColorPicker.addEventListener('input', (e) => {
+						pantsColor = e.target.value;
+						pantsColorValue.textContent = pantsColor.toUpperCase();
+						updateCharacter();
 					});
 				}, 1000);
 			});

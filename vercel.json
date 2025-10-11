@@ -4,6 +4,6 @@
   "outputDirectory": ".",
   "installCommand": "npm install --production=false",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/server.js" }
+    { "source": "/api/:path*", "destination": "/api/server" }
   ]
 }

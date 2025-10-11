@@ -1,0 +1,3450 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Sketchbook - Simple Car World</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Share:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+	<style>
+		body {
+			margin: 0;
+			overflow: hidden;
+		}
+
+		/* Fix z-index hierarchy */
+		#canvas {
+			z-index: 1;
+		}
+
+		#ui-container {
+			z-index: 100 !important;
+			pointer-events: none;
+		}
+
+		#ui-container * {
+			pointer-events: auto;
+		}
+
+		/* Dark sleek customize button */
+		.customize-button {
+			position: fixed !important;
+			bottom: 30px !important;
+			right: 30px !important;
+			background: rgba(0, 0, 0, 0.8) !important;
+			color: #fff !important;
+			border: 1px solid rgba(255, 255, 255, 0.2) !important;
+			padding: 12px 24px !important;
+			border-radius: 8px !important;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif !important;
+			font-size: 12px !important;
+			font-weight: 600 !important;
+			cursor: pointer !important;
+			z-index: 10000 !important;
+			backdrop-filter: blur(10px) !important;
+			transition: all 0.2s ease !important;
+			text-transform: uppercase !important;
+			letter-spacing: 1px !important;
+			pointer-events: auto !important;
+		}
+
+		.customize-button:hover {
+			background: rgba(255, 255, 255, 0.15) !important;
+			border-color: rgba(255, 255, 255, 0.4) !important;
+			transform: translateY(-2px);
+		}
+
+		.customize-button:active {
+			transform: translateY(0px);
+		}
+
+		.controls-panel {
+			position: fixed !important;
+			bottom: 90px !important;
+			right: 30px !important;
+			background: rgba(0, 0, 0, 0.8) !important;
+			color: rgba(255, 255, 255, 0.8) !important;
+			border: 1px solid rgba(255, 255, 255, 0.2) !important;
+			padding: 16px !important;
+			border-radius: 8px !important;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif !important;
+			font-size: 11px !important;
+			z-index: 10000 !important;
+			backdrop-filter: blur(10px) !important;
+			pointer-events: none !important;
+			line-height: 1.6 !important;
+		}
+
+		/* Custom character menu - LBP Style */
+		.character-customization {
+			position: fixed;
+			bottom: 90px;
+			right: 30px;
+			background: rgba(0, 0, 0, 0.95);
+			padding: 20px;
+			border-radius: 16px;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			color: #fff;
+			z-index: 999;
+			width: 360px;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+			backdrop-filter: blur(10px);
+			opacity: 0;
+			transform: translateY(20px);
+			pointer-events: none;
+			transition: all 0.3s ease;
+		}
+
+		.character-customization.active {
+			opacity: 1;
+			transform: translateY(0);
+			pointer-events: auto;
+		}
+
+		.character-customization h3 {
+			margin: 0 0 16px 0;
+			font-size: 13px;
+			font-weight: bold;
+			text-transform: uppercase;
+			letter-spacing: 1.5px;
+			color: #fff;
+			border-bottom: 2px solid rgba(102, 126, 234, 0.5);
+			padding-bottom: 12px;
+		}
+
+		.customization-section {
+			margin-bottom: 20px;
+		}
+
+		.customization-section:last-child {
+			margin-bottom: 0;
+		}
+
+		.section-label {
+			font-size: 10px;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			color: #888;
+			margin-bottom: 10px;
+			font-weight: 600;
+		}
+
+		.texture-grid {
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			gap: 8px;
+			margin-bottom: 16px;
+		}
+
+		.texture-option {
+			aspect-ratio: 1;
+			border-radius: 8px;
+			cursor: pointer;
+			border: 2px solid rgba(255, 255, 255, 0.2);
+			transition: all 0.2s ease;
+			position: relative;
+			overflow: hidden;
+		}
+
+		.texture-option.selected {
+			border-color: rgba(102, 126, 234, 0.8);
+			box-shadow: 0 0 16px rgba(102, 126, 234, 0.4);
+		}
+
+		.texture-option:hover {
+			transform: scale(1.05);
+			border-color: rgba(255, 255, 255, 0.6);
+		}
+
+		.texture-controls {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			margin-top: 12px;
+		}
+
+		.control-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.control-row label {
+			font-size: 10px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: #aaa;
+			font-weight: 600;
+			min-width: 70px;
+		}
+
+		.control-row input[type="range"] {
+			flex: 1;
+			margin: 0 12px;
+			height: 4px;
+			border-radius: 2px;
+			background: rgba(255, 255, 255, 0.2);
+			outline: none;
+			-webkit-appearance: none;
+		}
+
+		.control-row input[type="range"]::-webkit-slider-thumb {
+			-webkit-appearance: none;
+			appearance: none;
+			width: 16px;
+			height: 16px;
+			border-radius: 50%;
+			background: rgba(102, 126, 234, 0.9);
+			cursor: pointer;
+			border: 2px solid #fff;
+		}
+
+		.control-row input[type="range"]::-moz-range-thumb {
+			width: 16px;
+			height: 16px;
+			border-radius: 50%;
+			background: rgba(102, 126, 234, 0.9);
+			cursor: pointer;
+			border: 2px solid #fff;
+		}
+
+		.control-value {
+			font-size: 11px;
+			color: #fff;
+			font-weight: 600;
+			min-width: 35px;
+			text-align: right;
+		}
+
+		.preset-colors {
+			display: grid;
+			grid-template-columns: repeat(6, 1fr);
+			gap: 8px;
+		}
+
+		.preset-color {
+			aspect-ratio: 1;
+			border-radius: 6px;
+			cursor: pointer;
+			border: 2px solid rgba(255, 255, 255, 0.2);
+			transition: all 0.2s ease;
+		}
+
+		.preset-color.selected {
+			border-color: rgba(102, 126, 234, 0.8);
+			box-shadow: 0 0 16px rgba(102, 126, 234, 0.4);
+		}
+
+		.preset-color:hover {
+			transform: scale(1.1);
+			border-color: rgba(255, 255, 255, 0.6);
+		}
+
+		/* OS Container */
+		.terminal-login {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%) scale(0.9);
+			background: rgba(0, 0, 0, 0.95);
+			border: 4px solid #bee17b;
+			border-radius: 0;
+			padding: 0;
+			font-family: 'Share', 'Courier New', monospace;
+			color: #bee17b;
+			z-index: 10000;
+			width: 900px;
+			height: 600px;
+			opacity: 0;
+			pointer-events: none;
+			transition: all 0.3s ease;
+			box-shadow: 0 0 30px rgba(190, 225, 123, 0.5);
+			overflow: hidden;
+		}
+
+		/* OS Container Scrollbar (if needed) */
+		.terminal-login::-webkit-scrollbar {
+			width: 16px;
+		}
+
+		.terminal-login::-webkit-scrollbar-track {
+			background: #000;
+			border-left: 1px solid #bee17b;
+		}
+
+		.terminal-login::-webkit-scrollbar-thumb {
+			background: #bee17b;
+			border: 2px solid #000;
+		}
+
+		.terminal-login::-webkit-scrollbar-thumb:hover {
+			background: #d4f098;
+		}
+
+		/* Car Radio - iPhone Style */
+		.car-radio {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%) scale(0.9);
+			width: 380px;
+			height: 650px;
+			background: #000;
+			border-radius: 40px;
+			padding: 0;
+			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			color: #fff;
+			z-index: 9999;
+			opacity: 0;
+			pointer-events: none;
+			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+		}
+
+		.car-radio.active {
+			opacity: 1;
+			pointer-events: auto;
+			transform: translate(-50%, -50%) scale(1);
+		}
+
+		.car-radio-header {
+			padding: 50px 20px 16px 20px;
+			background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+			position: relative;
+			z-index: 10;
+		}
+
+		.car-radio-title {
+			font-size: 32px;
+			font-weight: 700;
+			letter-spacing: -0.6px;
+			color: #fff;
+		}
+
+		.car-radio-subtitle {
+			font-size: 15px;
+			color: rgba(255, 255, 255, 0.5);
+			margin-top: 4px;
+			font-weight: 500;
+		}
+
+		.car-radio-content {
+			flex: 1;
+			overflow-y: auto;
+			padding: 0 20px 100px 20px;
+		}
+
+		.car-radio-bottom-bar {
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			background: rgba(20, 20, 20, 0.95);
+			backdrop-filter: blur(20px);
+			border-top: 1px solid rgba(255, 255, 255, 0.1);
+			padding: 12px 20px 32px 20px;
+		}
+
+		.car-radio-now-playing-mini {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			margin-bottom: 12px;
+		}
+
+		.car-radio-mini-art {
+			width: 48px;
+			height: 48px;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border-radius: 8px;
+			flex-shrink: 0;
+		}
+
+		.car-radio-mini-info {
+			flex: 1;
+			min-width: 0;
+		}
+
+		.car-radio-mini-title {
+			font-size: 14px;
+			font-weight: 600;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.car-radio-mini-artist {
+			font-size: 12px;
+			color: rgba(255, 255, 255, 0.5);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.car-radio-controls {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 40px;
+		}
+
+		.car-radio-btn {
+			background: none;
+			border: none;
+			color: #fff;
+			font-size: 28px;
+			cursor: pointer;
+			transition: all 0.2s;
+			width: 44px;
+			height: 44px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			opacity: 0.9;
+		}
+
+		.car-radio-btn:hover {
+			opacity: 1;
+			transform: scale(1.05);
+		}
+
+		.car-radio-btn.play-pause {
+			width: 48px;
+			height: 48px;
+			background: rgba(255, 255, 255, 0.15);
+			border-radius: 24px;
+			font-size: 24px;
+		}
+
+		.car-radio-btn.play-pause:hover {
+			background: rgba(255, 255, 255, 0.25);
+		}
+
+		.car-radio-content::-webkit-scrollbar {
+			width: 0;
+		}
+
+		.car-radio-track-item {
+			padding: 12px 0;
+			cursor: pointer;
+			transition: all 0.2s;
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+		}
+
+		.car-radio-track-item:hover {
+			opacity: 0.7;
+		}
+
+		.car-radio-track-item.playing {
+			opacity: 1;
+		}
+
+		.car-radio-track-item.playing .car-radio-track-number {
+			color: #667eea;
+		}
+
+		.car-radio-track-number {
+			color: rgba(255, 255, 255, 0.4);
+			font-size: 15px;
+			min-width: 32px;
+			font-weight: 500;
+		}
+
+		.car-radio-track-details {
+			flex: 1;
+			min-width: 0;
+		}
+
+		.car-radio-track-name {
+			font-size: 16px;
+			font-weight: 500;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			margin-bottom: 2px;
+		}
+
+		.car-radio-track-meta {
+			font-size: 14px;
+			color: rgba(255, 255, 255, 0.4);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.car-radio-close {
+			position: absolute;
+			top: 20px;
+			left: 20px;
+			background: rgba(60, 60, 67, 0.6);
+			backdrop-filter: blur(10px);
+			border: none;
+			color: #fff;
+			width: 32px;
+			height: 32px;
+			border-radius: 16px;
+			cursor: pointer;
+			font-size: 20px;
+			font-weight: 600;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: all 0.2s;
+			z-index: 100;
+		}
+
+		.car-radio-close:hover {
+			background: rgba(80, 80, 87, 0.8);
+			transform: scale(1.05);
+		}
+
+		/* OS View Scrollbar */
+		.os-view::-webkit-scrollbar {
+			width: 16px;
+		}
+
+		.os-view::-webkit-scrollbar-track {
+			background: #000;
+			border-left: 1px solid #bee17b;
+		}
+
+		.os-view::-webkit-scrollbar-thumb {
+			background: #bee17b;
+			border: 2px solid #000;
+		}
+
+		.os-view::-webkit-scrollbar-thumb:hover {
+			background: #d4f098;
+		}
+
+		.terminal-login.active {
+			opacity: 1;
+			pointer-events: auto;
+			transform: translate(-50%, -50%) scale(1);
+		}
+
+		.os-container {
+			width: 100%;
+			height: 100%;
+			display: flex;
+			flex-direction: column;
+		}
+
+		/* OS Taskbar */
+		.os-taskbar {
+			background: #000;
+			border-bottom: 2px solid #bee17b;
+			padding: 8px 16px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 20px;
+		}
+
+		.os-logo {
+			font-weight: bold;
+			font-size: 14px;
+			color: #bee17b;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+		}
+
+		.os-taskbar-apps {
+			display: flex;
+			gap: 0;
+			flex: 1;
+		}
+
+		.taskbar-app {
+			padding: 6px 12px;
+			background: #000;
+			border: 1px solid #bee17b;
+			border-right: none;
+			cursor: pointer;
+			transition: all 0.1s ease;
+			font-size: 12px;
+			font-weight: bold;
+		}
+
+		.taskbar-app:last-child {
+			border-right: 1px solid #bee17b;
+		}
+
+		.taskbar-app:hover {
+			background: rgba(190, 225, 123, 0.2);
+		}
+
+		.taskbar-app.active {
+			background: rgba(190, 225, 123, 0.3);
+			color: #000;
+			background: #bee17b;
+		}
+
+		.os-close {
+			background: #000;
+			color: #bee17b;
+			padding: 6px 12px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			cursor: pointer;
+			transition: all 0.1s ease;
+			font-weight: bold;
+			border: 1px solid #bee17b;
+		}
+
+		.os-close:hover {
+			background: #bee17b;
+			color: #000;
+		}
+
+		/* OS Views */
+		.os-view {
+			flex: 1;
+			overflow: hidden;
+		}
+
+		/* Desktop View */
+		.desktop-split {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			height: 100%;
+			gap: 20px;
+			padding: 20px;
+		}
+
+		.desktop-icons {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+			gap: 20px;
+			align-content: start;
+		}
+
+		.desktop-icon {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 8px;
+			cursor: pointer;
+			padding: 15px;
+			border: 2px solid transparent;
+			transition: all 0.1s ease;
+		}
+
+		.desktop-icon:hover {
+			border: 2px solid #bee17b;
+			background: rgba(190, 225, 123, 0.1);
+		}
+
+		.desktop-icon .icon {
+			font-size: 32px;
+			font-weight: bold;
+			color: #bee17b;
+		}
+
+		.desktop-icon .label {
+			font-size: 11px;
+			text-align: center;
+			color: #bee17b;
+			font-weight: bold;
+		}
+
+		/* Desktop Audio Player */
+		.desktop-audio-player {
+			border: 2px solid #bee17b;
+			padding: 15px;
+			display: flex;
+			flex-direction: column;
+			gap: 15px;
+		}
+
+		.audio-player-header {
+			font-weight: bold;
+			font-size: 13px;
+			color: #bee17b;
+			text-transform: uppercase;
+			border-bottom: 1px solid #bee17b;
+			padding-bottom: 10px;
+		}
+
+		.audio-status {
+			font-size: 12px;
+			color: #bee17b;
+			padding: 10px;
+			border: 1px solid #bee17b;
+			background: #000;
+			min-height: 60px;
+		}
+
+		.audio-controls {
+			display: flex;
+			gap: 10px;
+		}
+
+		.audio-btn {
+			flex: 1;
+			background: #000;
+			color: #bee17b;
+			border: 1px solid #bee17b;
+			padding: 8px 16px;
+			font-family: 'Share', 'Courier New', monospace;
+			font-weight: bold;
+			font-size: 12px;
+			cursor: pointer;
+			transition: all 0.1s ease;
+		}
+
+		.audio-btn:hover:not(:disabled) {
+			background: #bee17b;
+			color: #000;
+		}
+
+		.audio-btn:disabled {
+			opacity: 0.3;
+			cursor: not-allowed;
+		}
+
+		/* App Window */
+		.app-window {
+			width: 100%;
+			height: 100%;
+			display: flex;
+			flex-direction: column;
+		}
+
+		.app-header {
+			background: #000;
+			border-bottom: 2px solid #bee17b;
+			padding: 10px 20px;
+			display: flex;
+			align-items: center;
+			gap: 15px;
+		}
+
+		.app-title {
+			font-weight: bold;
+			font-size: 13px;
+			color: #bee17b;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+		}
+
+		.app-content {
+			flex: 1;
+			overflow-y: auto;
+			padding: 20px;
+			background: #000;
+		}
+
+		.file-path {
+			font-size: 11px;
+			color: #bee17b;
+			background: #000;
+			padding: 4px 10px;
+			border: 1px solid #bee17b;
+			font-family: 'Share', 'Courier New', monospace;
+			font-weight: bold;
+		}
+
+		/* Folder Items */
+		.folder-item {
+			padding: 10px 15px;
+			margin: 4px 0;
+			border: 1px solid #bee17b;
+			cursor: pointer;
+			transition: all 0.1s ease;
+			background: #000;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			font-size: 13px;
+			font-weight: bold;
+		}
+
+		.folder-item:hover {
+			background: #bee17b;
+			color: #000;
+		}
+
+		.folder-icon {
+			font-size: 13px;
+			font-weight: bold;
+		}
+
+		.terminal-header {
+			text-align: center;
+			margin-bottom: 30px;
+			font-size: 24px;
+			font-weight: 800;
+			color: #bee17b;
+			text-transform: uppercase;
+			letter-spacing: 2px;
+			padding-bottom: 20px;
+			border-bottom: 3px solid #bee17b;
+		}
+
+		.terminal-input-group {
+			margin-bottom: 20px;
+		}
+
+		.terminal-input-group label {
+			display: block;
+			margin-bottom: 8px;
+			font-size: 12px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			color: #bee17b;
+		}
+
+		.terminal-input-group input {
+			width: 100%;
+			background: rgba(255, 255, 255, 0.1);
+			border: 2px solid rgba(190, 225, 123, 0.3);
+			color: #fff;
+			padding: 14px 16px;
+			font-family: 'Share', 'Courier New', monospace;
+			font-size: 15px;
+			box-sizing: border-box;
+			border-radius: 12px;
+			transition: all 0.3s ease;
+		}
+
+		.terminal-input-group input:focus {
+			outline: none;
+			border-color: #bee17b;
+			background: rgba(255, 255, 255, 0.15);
+			box-shadow: 0 0 20px rgba(190, 225, 123, 0.3);
+			transform: translateY(-2px);
+		}
+
+		.terminal-input-group input::placeholder {
+			color: rgba(255, 255, 255, 0.4);
+		}
+
+		.terminal-buttons {
+			display: flex;
+			gap: 12px;
+			margin-top: 30px;
+		}
+
+		.terminal-button {
+			flex: 1;
+			background: rgba(255, 255, 255, 0.1);
+			border: 2px solid #bee17b;
+			color: #bee17b;
+			padding: 14px 24px;
+			font-family: 'Share', 'Courier New', monospace;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			text-transform: uppercase;
+			font-weight: 700;
+			font-size: 13px;
+			letter-spacing: 1px;
+			border-radius: 12px;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+		}
+
+		.terminal-button:hover {
+			background: #bee17b;
+			color: #000;
+			transform: translateY(-2px);
+			box-shadow: 0 6px 20px rgba(190, 225, 123, 0.4);
+		}
+
+		.terminal-button:active {
+			transform: translateY(0px);
+		}
+
+		.terminal-error {
+			color: #ff6b6b;
+			font-size: 13px;
+			margin-top: 15px;
+			text-align: center;
+			display: none;
+			font-weight: 600;
+			background: rgba(255, 107, 107, 0.1);
+			padding: 10px;
+			border-radius: 8px;
+		}
+
+		.terminal-error.show {
+			display: block;
+			animation: shake 0.4s ease;
+		}
+
+		@keyframes shake {
+			0%, 100% { transform: translateX(0); }
+			25% { transform: translateX(-10px); }
+			75% { transform: translateX(10px); }
+		}
+
+		/* Track List Styles */
+		#tracks-container {
+			max-height: 450px;
+			overflow-y: auto;
+			margin: 0;
+			padding: 0;
+		}
+
+		#tracks-container::-webkit-scrollbar {
+			width: 16px;
+		}
+
+		#tracks-container::-webkit-scrollbar-track {
+			background: #000;
+			border-left: 1px solid #bee17b;
+		}
+
+		#tracks-container::-webkit-scrollbar-thumb {
+			background: #bee17b;
+			border: 2px solid #000;
+		}
+
+		#tracks-container::-webkit-scrollbar-thumb:hover {
+			background: #d4f098;
+		}
+
+		/* File Explorer Scrollbar */
+		#file-explorer::-webkit-scrollbar {
+			width: 16px;
+		}
+
+		#file-explorer::-webkit-scrollbar-track {
+			background: #000;
+			border-left: 1px solid #bee17b;
+		}
+
+		#file-explorer::-webkit-scrollbar-thumb {
+			background: #bee17b;
+			border: 2px solid #000;
+		}
+
+		#file-explorer::-webkit-scrollbar-thumb:hover {
+			background: #d4f098;
+		}
+
+		/* App Content Scrollbar */
+		.app-content::-webkit-scrollbar {
+			width: 16px;
+		}
+
+		.app-content::-webkit-scrollbar-track {
+			background: #000;
+			border-left: 1px solid #bee17b;
+		}
+
+		.app-content::-webkit-scrollbar-thumb {
+			background: #bee17b;
+			border: 2px solid #000;
+		}
+
+		.app-content::-webkit-scrollbar-thumb:hover {
+			background: #d4f098;
+		}
+
+		.track-item {
+			padding: 15px;
+			margin: 8px 0;
+			border: 2px solid rgba(190, 225, 123, 0.3);
+			border-radius: 12px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			background: rgba(255, 255, 255, 0.02);
+		}
+
+		.track-item:hover {
+			background: rgba(190, 225, 123, 0.15);
+			border-color: #bee17b;
+			transform: translateX(5px);
+		}
+
+		.artist-link {
+			color: #bee17b;
+			text-decoration: none;
+		}
+
+		.artist-link:hover {
+			text-decoration: underline;
+		}
+
+		.track-title {
+			font-weight: bold;
+			color: #bee17b;
+			font-size: 16px;
+			margin-bottom: 5px;
+		}
+
+		.track-meta {
+			font-size: 12px;
+			color: #888;
+			text-transform: uppercase;
+		}
+
+		#search-input {
+			width: 100%;
+			background: rgba(255, 255, 255, 0.1);
+			border: 2px solid rgba(190, 225, 123, 0.3);
+			color: #fff;
+			padding: 14px 16px;
+			font-family: 'Share', 'Courier New', monospace;
+			font-size: 15px;
+			box-sizing: border-box;
+			border-radius: 12px;
+			margin-bottom: 15px;
+			transition: all 0.3s ease;
+		}
+
+		#search-input:focus {
+			outline: none;
+			border-color: #bee17b;
+			background: rgba(255, 255, 255, 0.15);
+			box-shadow: 0 0 20px rgba(190, 225, 123, 0.3);
+		}
+
+		#search-input::placeholder {
+			color: rgba(190, 225, 123, 0.5);
+		}
+
+		/* Audio Loading Indicator */
+		#audio-loading {
+			position: fixed;
+			bottom: 30px;
+			left: 50%;
+			transform: translateX(-50%);
+			background: rgba(0, 0, 0, 0.9);
+			border: 2px solid #bee17b;
+			color: #bee17b;
+			padding: 15px 30px;
+			border-radius: 12px;
+			font-family: 'Share', 'Courier New', monospace;
+			font-size: 14px;
+			z-index: 9999;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.3s ease;
+			backdrop-filter: blur(10px);
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+		}
+
+		#audio-loading.show {
+			opacity: 1;
+		}
+
+		/* Interaction Prompt */
+		.interaction-prompt {
+			position: fixed;
+			bottom: 120px;
+			left: 50%;
+			transform: translateX(-50%);
+			background: rgba(0, 0, 0, 0.8);
+			color: #fff;
+			padding: 12px 24px;
+			border-radius: 8px;
+			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			font-size: 14px;
+			z-index: 9999;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.3s ease;
+			border: 2px solid rgba(255, 255, 255, 0.3);
+		}
+
+		.interaction-prompt.show {
+			opacity: 1;
+		}
+
+		.interaction-prompt kbd {
+			background: #333;
+			border: 1px solid #555;
+			border-radius: 4px;
+			padding: 4px 8px;
+			margin: 0 4px;
+			font-weight: bold;
+		}
+
+		/* CRT Scanline Overlay */
+		#crt-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			pointer-events: none;
+			z-index: 9998;
+			opacity: 0.25;
+			background: repeating-linear-gradient(
+				0deg,
+				rgba(0, 0, 0, 0.15),
+				rgba(0, 0, 0, 0.15) 1px,
+				transparent 1px,
+				transparent 2px
+			);
+		}
+
+		/* CRT Camera UI */
+		#crt-ui {
+			position: fixed;
+			top: 8%;
+			left: 5%;
+			font-family: 'Share', 'Courier New', monospace;
+			color: #ffffff;
+			font-size: 18px;
+			font-weight: bold;
+			z-index: 9999;
+			pointer-events: none;
+			text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+			opacity: 0;
+			transition: opacity 0.5s ease;
+		}
+
+		#crt-ui.visible {
+			opacity: 1;
+		}
+
+		#rec-indicator {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 5px;
+		}
+
+		#rec-dot {
+			width: 12px;
+			height: 12px;
+			background: #ff0000;
+			border-radius: 50%;
+			animation: blink 1s infinite;
+		}
+
+		@keyframes blink {
+			0%, 49% { opacity: 1; }
+			50%, 100% { opacity: 0; }
+		}
+
+		#timestamp {
+			font-size: 16px;
+			letter-spacing: 1px;
+		}
+
+		/* CRT Engine Credit */
+		#crt-engine-credit {
+			position: fixed;
+			bottom: 20px;
+			left: 20px;
+			font-family: 'Share', 'Courier New', monospace;
+			color: #bee17b;
+			font-size: 16px;
+			z-index: 99999;
+			pointer-events: auto;
+			background: rgba(0, 0, 0, 0.7);
+			padding: 8px 12px;
+			border: 2px solid #bee17b;
+		}
+
+		#crt-engine-credit a {
+			color: #bee17b;
+			text-decoration: none;
+		}
+
+		#crt-engine-credit a:hover {
+			text-decoration: underline;
+		}
+
+		/* EQ Slider Styles - DOS aesthetic */
+		#eq-view input[type="range"] {
+			-webkit-appearance: none;
+			appearance: none;
+			width: 100%;
+			height: 6px;
+			background: #000;
+			border: 2px solid #bee17b;
+			outline: none;
+			cursor: pointer;
+		}
+
+		#eq-view input[type="range"]::-webkit-slider-thumb {
+			-webkit-appearance: none;
+			appearance: none;
+			width: 20px;
+			height: 20px;
+			background: #bee17b;
+			border: 2px solid #000;
+			cursor: pointer;
+			box-shadow: 0 0 5px rgba(190, 225, 123, 0.5);
+		}
+
+		#eq-view input[type="range"]::-moz-range-thumb {
+			width: 20px;
+			height: 20px;
+			background: #bee17b;
+			border: 2px solid #000;
+			cursor: pointer;
+			box-shadow: 0 0 5px rgba(190, 225, 123, 0.5);
+		}
+
+		#eq-view input[type="range"]:hover::-webkit-slider-thumb {
+			background: #d4f098;
+		}
+
+		#eq-view input[type="range"]:hover::-moz-range-thumb {
+			background: #d4f098;
+		}
+	</style>
+</head>
+
+<body>
+	<!-- CRT Scanline Overlay -->
+	<div id="crt-overlay"></div>
+
+	<!-- Car Radio Interface -->
+	<div id="car-radio" class="car-radio">
+		<button class="car-radio-close" onclick="window.toggleCarRadio()">˅</button>
+		<div class="car-radio-header">
+			<div class="car-radio-title">Music</div>
+			<div class="car-radio-subtitle">SUBLAIR FM</div>
+		</div>
+		<div class="car-radio-content" id="radio-tracklist">
+			<!-- Tracks will be loaded here -->
+		</div>
+		<div class="car-radio-bottom-bar">
+			<div class="car-radio-now-playing-mini">
+				<div class="car-radio-mini-art"></div>
+				<div class="car-radio-mini-info">
+					<div class="car-radio-mini-title" id="radio-current-title">Not Playing</div>
+					<div class="car-radio-mini-artist" id="radio-current-artist">Select a track</div>
+				</div>
+			</div>
+			<div class="car-radio-controls">
+				<button class="car-radio-btn" onclick="radioSkipPrev()">⏮</button>
+				<button class="car-radio-btn play-pause" id="radio-play-btn" onclick="radioTogglePlay()">▶</button>
+				<button class="car-radio-btn" onclick="radioSkipNext()">⏭</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- CRT Camera UI -->
+	<div id="crt-ui">
+		<div id="rec-indicator">
+			<div id="rec-dot"></div>
+			<span>REC</span>
+		</div>
+		<div id="timestamp"></div>
+	</div>
+
+	<!-- Engine Credit (always visible on main game) -->
+	<div id="crt-engine-credit" class="visible">
+		Engine: <a href="https://github.com/swift502/Sketchbook" target="_blank">Sketchbook 0.4</a>
+	</div>
+
+	<script src="./build/sketchbook.min.js"></script>
+	<script>
+		// Update CRT timestamp
+		function updateTimestamp() {
+			const now = new Date();
+			const year = now.getFullYear();
+			const month = String(now.getMonth() + 1).padStart(2, '0');
+			const day = String(now.getDate()).padStart(2, '0');
+			const hours = String(now.getHours()).padStart(2, '0');
+			const minutes = String(now.getMinutes()).padStart(2, '0');
+			const seconds = String(now.getSeconds()).padStart(2, '0');
+
+			document.getElementById('timestamp').textContent =
+				`${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+		}
+
+		// Update timestamp every second
+		updateTimestamp();
+		setInterval(updateTimestamp, 1000);
+
+		// Preload CRT shader before world creation
+		let crtShaderReady = false;
+		let ShaderPass = null;
+
+		import('https://cdn.skypack.dev/three@0.113.0/examples/jsm/postprocessing/ShaderPass.js')
+			.then(module => {
+				ShaderPass = module.ShaderPass;
+				crtShaderReady = true;
+				console.log('✓ CRT ShaderPass preloaded');
+			})
+			.catch(err => {
+				console.error('Failed to preload ShaderPass:', err);
+			});
+
+		// Create a simple flat world with a car
+		window.world = new Sketchbook.World();
+		const world = window.world; // Keep local reference for compatibility
+
+		// Add CRT barrel distortion effect using ShaderPass
+		// Apply as soon as world.composer is ready
+		const applyCRTEffect = () => {
+			if (world.composer && crtShaderReady && ShaderPass) {
+
+					// CRT Shader
+					const CRTShader = {
+						uniforms: {
+							tDiffuse: { value: null },
+							distortion: { value: 0.12 },
+							distortionX: { value: 0.12 },
+							distortionY: { value: 0.15 }
+						},
+						vertexShader: `
+							varying vec2 vUv;
+							void main() {
+								vUv = uv;
+								gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+							}
+						`,
+						fragmentShader: `
+							uniform sampler2D tDiffuse;
+							uniform float distortion;
+							uniform float distortionX;
+							uniform float distortionY;
+							varying vec2 vUv;
+
+							vec2 barrelDistortion(vec2 coord, float distX, float distY) {
+								vec2 cc = coord - 0.5;
+								float dist = dot(cc, cc);
+								vec2 result = coord + cc * (distX + distY) * dist;
+								return result;
+							}
+
+							void main() {
+								vec2 uv = barrelDistortion(vUv, distortionX, distortionY);
+
+								// Out of bounds check - show black
+								if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+									gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+									return;
+								}
+
+								// Sample with barrel distortion
+								vec4 color = texture2D(tDiffuse, uv);
+
+								// Washed out look - desaturate but keep some color
+								float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+								color.rgb = mix(color.rgb, vec3(gray), 0.6); // 60% desaturation
+
+								// Add slight blue tint for security cam vibe
+								color.rgb *= vec3(0.95, 0.97, 1.05);
+
+								// Add subtle vignette
+								vec2 center = vUv - 0.5;
+								float vignette = 1.0 - dot(center, center) * 0.35;
+								color.rgb *= vignette;
+
+								// Reduce overall brightness slightly for washed out look
+								color.rgb *= 0.85;
+
+								// Add slight noise
+								float noise = fract(sin(dot(vUv * 1000.0, vec2(12.9898, 78.233))) * 43758.5453);
+								color.rgb += noise * 0.03;
+
+								gl_FragColor = color;
+							}
+						`
+					};
+
+				const crtPass = new ShaderPass(CRTShader);
+				world.composer.addPass(crtPass);
+
+				console.log('✓ CRT barrel distortion shader added!');
+			}
+		};
+
+		// Try to apply CRT effect immediately and keep retrying
+		applyCRTEffect();
+
+		// Keep trying to apply CRT effect until it succeeds
+		const crtRetryInterval = setInterval(() => {
+			if (world.composer && crtShaderReady && ShaderPass) {
+				applyCRTEffect();
+				clearInterval(crtRetryInterval);
+			}
+		}, 50);
+
+		// Give up after 5 seconds
+		setTimeout(() => {
+			clearInterval(crtRetryInterval);
+		}, 5000);
+
+		// We need to wait a moment for the world to initialize
+		setTimeout(() => {
+			// Create a gray grid texture
+			const canvas = document.createElement('canvas');
+			canvas.width = 512;
+			canvas.height = 512;
+			const ctx = canvas.getContext('2d');
+
+			// Draw dark background
+			ctx.fillStyle = '#2a2a2a';
+			ctx.fillRect(0, 0, 512, 512);
+
+			// Draw grid lines - brighter for glow effect
+			ctx.strokeStyle = '#bee17b'; // Green glow color
+			ctx.lineWidth = 2;
+
+			const gridSize = 64;
+			// Vertical lines
+			for (let i = 0; i <= 512; i += gridSize) {
+				ctx.beginPath();
+				ctx.moveTo(i, 0);
+				ctx.lineTo(i, 512);
+				ctx.stroke();
+			}
+			// Horizontal lines
+			for (let i = 0; i <= 512; i += gridSize) {
+				ctx.beginPath();
+				ctx.moveTo(0, i);
+				ctx.lineTo(512, i);
+				ctx.stroke();
+			}
+
+			// Create texture from canvas
+			const gridTexture = new THREE.CanvasTexture(canvas);
+			gridTexture.wrapS = THREE.RepeatWrapping;
+			gridTexture.wrapT = THREE.RepeatWrapping;
+			gridTexture.repeat.set(50, 50);
+
+			// Add a large ground plane (visual)
+			const groundGeometry = new THREE.PlaneGeometry(200, 200, 1, 1);
+			const groundMaterial = new THREE.MeshStandardMaterial({
+				map: gridTexture,
+				emissive: new THREE.Color(0xbee17b), // Green glow matching terminal color
+				emissiveMap: gridTexture,
+				emissiveIntensity: 2.0, // Cranked up for stronger glow
+				roughness: 0.8,
+				metalness: 0.2
+			});
+			const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+			groundMesh.rotation.x = -Math.PI / 2;
+			groundMesh.receiveShadow = true;
+			world.graphicsWorld.add(groundMesh);
+
+			// Setup ground material for shadows
+			world.sky.csm.setupMaterial(groundMaterial);
+
+			// Add physics ground (collision) - this is the important part for the car to drive on
+			const groundShape = new CANNON.Box(new CANNON.Vec3(100, 0.5, 100));
+			const groundBody = new CANNON.Body({
+				mass: 0,
+				shape: groundShape,
+				position: new CANNON.Vec3(0, -0.5, 0)
+			});
+			world.physicsWorld.addBody(groundBody);
+
+
+			// Load the car and character
+			const loadingManager = new Sketchbook.LoadingManager(world);
+
+			loadingManager.onFinishedCallback = () => {
+				world.update(1, 1);
+				world.setTimeScale(1);
+
+				Sketchbook.UIManager.setUserInterfaceVisible(false);
+				Sketchbook.UIManager.setLoadingScreenVisible(false);
+
+				// Show CRT UI once game is loaded
+				document.getElementById('crt-ui').classList.add('visible');
+				document.getElementById('crt-engine-credit').classList.add('visible');
+			};
+
+			window.car = null; // Store car reference globally
+			let car = window.car;
+			loadingManager.loadGLTF('build/assets/car.glb', (carModel) => {
+				window.car = car = new Sketchbook.Car(carModel);
+				car.setPosition(0, 2, 0);
+				world.add(car);
+
+				// Create spatial audio for the car
+				const listener = new THREE.AudioListener();
+				world.camera.add(listener);
+
+				window.carPositionalAudio = new THREE.PositionalAudio(listener);
+				window.carPositionalAudio.setRefDistance(2); // Audible from 2 units away
+				window.carPositionalAudio.setMaxDistance(8); // Max audible distance
+				window.carPositionalAudio.setRolloffFactor(2); // Faster falloff
+				window.carPositionalAudio.setDistanceModel('exponential'); // More realistic distance model
+
+				// Create car-specific EQ (like actual car speakers)
+				const audioContext = window.carPositionalAudio.context;
+
+				// Bass boost (typical car subwoofer)
+				window.carEQ = {
+					bass: audioContext.createBiquadFilter(),
+					lowMid: audioContext.createBiquadFilter(),
+					highMid: audioContext.createBiquadFilter(),
+					treble: audioContext.createBiquadFilter()
+				};
+
+				// Bass boost at 80Hz (car subwoofer range)
+				window.carEQ.bass.type = 'lowshelf';
+				window.carEQ.bass.frequency.value = 80;
+				window.carEQ.bass.gain.value = 6; // +6dB bass boost
+
+				// Cut low-mids at 250Hz (reduce muddiness)
+				window.carEQ.lowMid.type = 'peaking';
+				window.carEQ.lowMid.frequency.value = 250;
+				window.carEQ.lowMid.Q.value = 1;
+				window.carEQ.lowMid.gain.value = -3; // -3dB cut
+
+				// Cut high-mids at 2kHz (reduce harshness)
+				window.carEQ.highMid.type = 'peaking';
+				window.carEQ.highMid.frequency.value = 2000;
+				window.carEQ.highMid.Q.value = 1;
+				window.carEQ.highMid.gain.value = -2; // -2dB cut
+
+				// Roll off highs at 8kHz (car speakers don't have great treble)
+				window.carEQ.treble.type = 'highshelf';
+				window.carEQ.treble.frequency.value = 8000;
+				window.carEQ.treble.gain.value = -4; // -4dB rolloff
+
+				// Add the positional audio to the car
+				car.add(window.carPositionalAudio);
+
+				// Create debug cone visualizations for car
+				const carInnerConeGeometry = new THREE.ConeGeometry(
+					Math.tan((120 * Math.PI / 180) / 2) * 5, // radius at 5 units distance
+					5, // height
+					16, // segments
+					1,
+					true // open ended
+				);
+
+				const carConeMaterial = new THREE.MeshBasicMaterial({
+					color: 0x00ffff, // Cyan for car
+					wireframe: true,
+					transparent: true,
+					opacity: 0.4
+				});
+
+				window.debugCarCone = new THREE.Mesh(carInnerConeGeometry, carConeMaterial);
+				window.debugCarCone.rotation.x = Math.PI; // Flip to point forward
+				window.debugCarCone.position.copy(car.position);
+				window.debugCarCone.visible = false;
+				world.graphicsWorld.add(window.debugCarCone);
+
+				console.log('🚗 Car spatial audio system created with car EQ + debug cone');
+			});
+
+			window.character = null; // Store character reference globally
+			let character = window.character; // Local reference for compatibility
+			let customizationOpen = false; // Global scope for terminal to access
+			let terminalOpen = false; // Global scope for C key check
+
+			// Create a dummy input receiver that does nothing - global scope
+			window.dummyInputReceiver = {
+				handleKeyboardEvent: () => {},
+				handleMouseButton: () => {},
+				handleMouseMove: () => {},
+				handleMouseWheel: () => {},
+				inputReceiverInit: () => {},
+				inputReceiverUpdate: () => {}
+			};
+
+			loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
+				window.character = character = new Sketchbook.Character(charModel);
+				character.setPosition(5, 2, 0);
+				world.add(character);
+				character.takeControl();
+
+				// Add audio listener to the camera for spatial audio
+				world.camera.add(audioListener);
+
+				// Set initial camera to face front of character
+				setTimeout(() => {
+					world.cameraOperator.theta = 180; // Front facing
+				}, 100);
+
+				// Create dark sleek floating button in bottom-right
+				setTimeout(() => {
+					const customizeButton = document.createElement('button');
+					customizeButton.className = 'customize-button';
+					customizeButton.innerHTML = 'Customize';
+					document.body.appendChild(customizeButton);
+					console.log('✅ Dark sleek button created!');
+
+					// Create controls panel
+					const controlsPanel = document.createElement('div');
+					controlsPanel.className = 'controls-panel';
+					controlsPanel.innerHTML = `
+						<div style="font-weight: bold; margin-bottom: 8px; color: #bee17b;">CONTROLS</div>
+						<div>WASD - Move</div>
+						<div>Mouse - Look</div>
+						<div>Shift - Sprint</div>
+						<div>Space - Jump</div>
+						<div>F - Interact</div>
+						<div>C - Customize</div>
+					`;
+					document.body.appendChild(controlsPanel);
+
+				// Create custom character customization UI
+				const customizationDiv = document.createElement('div');
+				customizationDiv.className = 'character-customization';
+
+				const presetColors = [
+					'#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff',
+					'#ff8800', '#88ff00', '#0088ff', '#8800ff', '#ff0088', '#00ff88',
+					'#ffffff', '#cccccc', '#888888', '#444444', '#000000', '#ff6b9d'
+				];
+
+				const textures = [
+					{ name: 'solid', display: 'Solid' },
+					{ name: 'stripes', display: 'Stripes' },
+					{ name: 'dots', display: 'Dots' },
+					{ name: 'checker', display: 'Checker' },
+					{ name: 'grid', display: 'Grid' },
+					{ name: 'diagonal', display: 'Diagonal' },
+					{ name: 'waves', display: 'Waves' },
+					{ name: 'stars', display: 'Stars' }
+				];
+
+				customizationDiv.innerHTML = `
+					<h3>Customize Character</h3>
+
+					<div class="customization-section">
+						<div class="section-label">Color</div>
+						<div class="preset-colors">
+							${presetColors.map(color => `
+								<div class="preset-color" style="background-color: ${color};" data-color="${color}"></div>
+							`).join('')}
+						</div>
+					</div>
+				`;
+
+				document.body.appendChild(customizationDiv);
+
+				// Texture generation functions
+				function generateTexture(type, color = '#ffffff', density = 1) {
+					const canvas = document.createElement('canvas');
+					canvas.width = 256;
+					canvas.height = 256;
+					const ctx = canvas.getContext('2d');
+
+					ctx.fillStyle = color;
+					ctx.fillRect(0, 0, 256, 256);
+
+					ctx.strokeStyle = '#000000';
+					ctx.fillStyle = '#000000';
+					ctx.lineWidth = 4;
+
+					const spacing = 32 / density;
+
+					switch(type) {
+						case 'stripes':
+							for (let i = 0; i < 256; i += spacing) {
+								ctx.fillRect(i, 0, spacing / 2, 256);
+							}
+							break;
+						case 'dots':
+							const dotSize = 8 / density;
+							for (let y = spacing / 2; y < 256; y += spacing) {
+								for (let x = spacing / 2; x < 256; x += spacing) {
+									ctx.beginPath();
+									ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+									ctx.fill();
+								}
+							}
+							break;
+						case 'checker':
+							for (let y = 0; y < 256; y += spacing) {
+								for (let x = 0; x < 256; x += spacing) {
+									if ((Math.floor(x / spacing) + Math.floor(y / spacing)) % 2 === 0) {
+										ctx.fillRect(x, y, spacing, spacing);
+									}
+								}
+							}
+							break;
+						case 'grid':
+							for (let i = 0; i <= 256; i += spacing) {
+								ctx.beginPath();
+								ctx.moveTo(i, 0);
+								ctx.lineTo(i, 256);
+								ctx.stroke();
+								ctx.beginPath();
+								ctx.moveTo(0, i);
+								ctx.lineTo(256, i);
+								ctx.stroke();
+							}
+							break;
+						case 'diagonal':
+							for (let i = -256; i < 512; i += spacing) {
+								ctx.beginPath();
+								ctx.moveTo(i, 0);
+								ctx.lineTo(i + 256, 256);
+								ctx.stroke();
+							}
+							break;
+						case 'waves':
+							const waveFreq = 0.05 * density;
+							ctx.beginPath();
+							for (let x = 0; x <= 256; x += 4) {
+								const y = 128 + Math.sin(x * waveFreq) * 40;
+								if (x === 0) ctx.moveTo(x, y);
+								else ctx.lineTo(x, y);
+							}
+							ctx.stroke();
+							ctx.beginPath();
+							for (let x = 0; x <= 256; x += 4) {
+								const y = 128 + Math.sin(x * waveFreq + Math.PI) * 40;
+								if (x === 0) ctx.moveTo(x, y);
+								else ctx.lineTo(x, y);
+							}
+							ctx.stroke();
+							break;
+						case 'stars':
+							const starCount = Math.floor(20 * density);
+							for (let i = 0; i < starCount; i++) {
+								const x = Math.random() * 256;
+								const y = Math.random() * 256;
+								const size = 8 / Math.sqrt(density);
+								ctx.beginPath();
+								for (let j = 0; j < 5; j++) {
+									const angle = (j * 4 * Math.PI) / 5 - Math.PI / 2;
+									const radius = j % 2 === 0 ? size : size / 2;
+									const px = x + Math.cos(angle) * radius;
+									const py = y + Math.sin(angle) * radius;
+									if (j === 0) ctx.moveTo(px, py);
+									else ctx.lineTo(px, py);
+								}
+								ctx.closePath();
+								ctx.fill();
+							}
+							break;
+					}
+
+					return new THREE.CanvasTexture(canvas);
+				}
+
+				// Draw texture previews
+				textures.forEach(tex => {
+					const previewCanvas = document.getElementById(`texture-preview-${tex.name}`);
+					if (previewCanvas) {
+						previewCanvas.width = 64;
+						previewCanvas.height = 64;
+						const ctx = previewCanvas.getContext('2d');
+
+						// Generate a small preview
+						const tempCanvas = document.createElement('canvas');
+						tempCanvas.width = 64;
+						tempCanvas.height = 64;
+						const tempCtx = tempCanvas.getContext('2d');
+
+						tempCtx.fillStyle = '#667eea';
+						tempCtx.fillRect(0, 0, 64, 64);
+						tempCtx.strokeStyle = '#ffffff';
+						tempCtx.fillStyle = '#ffffff';
+						tempCtx.lineWidth = 2;
+
+						switch(tex.name) {
+							case 'stripes':
+								for (let i = 0; i < 64; i += 8) {
+									tempCtx.fillRect(i, 0, 4, 64);
+								}
+								break;
+							case 'dots':
+								for (let y = 8; y < 64; y += 16) {
+									for (let x = 8; x < 64; x += 16) {
+										tempCtx.beginPath();
+										tempCtx.arc(x, y, 3, 0, Math.PI * 2);
+										tempCtx.fill();
+									}
+								}
+								break;
+							case 'checker':
+								for (let y = 0; y < 64; y += 16) {
+									for (let x = 0; x < 64; x += 16) {
+										if ((x + y) / 16 % 2 === 0) {
+											tempCtx.fillRect(x, y, 16, 16);
+										}
+									}
+								}
+								break;
+							case 'grid':
+								for (let i = 0; i <= 64; i += 16) {
+									tempCtx.beginPath();
+									tempCtx.moveTo(i, 0);
+									tempCtx.lineTo(i, 64);
+									tempCtx.stroke();
+									tempCtx.beginPath();
+									tempCtx.moveTo(0, i);
+									tempCtx.lineTo(64, i);
+									tempCtx.stroke();
+								}
+								break;
+							case 'diagonal':
+								for (let i = -64; i < 128; i += 16) {
+									tempCtx.beginPath();
+									tempCtx.moveTo(i, 0);
+									tempCtx.lineTo(i + 64, 64);
+									tempCtx.stroke();
+								}
+								break;
+							case 'waves':
+								tempCtx.beginPath();
+								for (let x = 0; x <= 64; x += 2) {
+									const y = 32 + Math.sin(x * 0.2) * 10;
+									if (x === 0) tempCtx.moveTo(x, y);
+									else tempCtx.lineTo(x, y);
+								}
+								tempCtx.stroke();
+								break;
+							case 'stars':
+								for (let i = 0; i < 5; i++) {
+									const x = 16 + (i % 3) * 16;
+									const y = 16 + Math.floor(i / 3) * 16;
+									tempCtx.font = '12px Arial';
+									tempCtx.fillText('★', x, y);
+								}
+								break;
+						}
+
+						ctx.drawImage(tempCanvas, 0, 0);
+					}
+				});
+
+				let currentColor = '#ff0000';
+				let savedCameraTheta, savedCameraPhi, savedCameraRadius;
+
+				function updateCharacter() {
+					character.traverse((child) => {
+						if (child.isMesh && child.material) {
+							// Apply color
+							child.material.color.set(currentColor);
+							// Remove any texture
+							child.material.map = null;
+							child.material.needsUpdate = true;
+						}
+					});
+				}
+
+						let isOpeningCustomization = false;
+
+						function openCustomization() {
+							if (customizationOpen || isOpeningCustomization) return; // Already open or opening
+							isOpeningCustomization = true;
+
+							// Set movement target to zero to slow down naturally (while controls still active)
+							character.velocitySimulator.target.set(0, 0, 0);
+
+							// Check velocity every frame until character stops
+							let checkStopInterval = setInterval(() => {
+								const speed = character.velocity.length();
+
+								// If character is nearly stopped (velocity < 0.1)
+								if (speed < 0.1) {
+									clearInterval(checkStopInterval);
+									customizationOpen = true;
+									isOpeningCustomization = false;
+
+									// Disable character controls NOW
+									world.inputManager.inputReceiver = window.dummyInputReceiver;
+
+									// Fully stop the character
+									character.velocity.set(0, 0, 0);
+									character.velocitySimulator.position.set(0, 0, 0);
+									character.velocitySimulator.velocity.set(0, 0, 0);
+									character.velocitySimulator.target.set(0, 0, 0);
+									character.angularVelocity = 0;
+
+									// Save camera position
+									savedCameraTheta = world.cameraOperator.theta;
+									savedCameraPhi = world.cameraOperator.phi;
+									savedCameraRadius = world.cameraOperator.radius;
+
+									// Move camera to front of character
+									const characterRotation = character.rotation.y;
+									world.cameraOperator.theta = characterRotation;
+									world.cameraOperator.phi = 10;
+									world.cameraOperator.radius = 2.5;
+
+									// Enable mouse cursor - exit pointer lock
+									if (document.pointerLockElement) {
+										document.exitPointerLock();
+									}
+
+									// Show menu
+									customizationDiv.classList.add('active');
+									customizeButton.innerHTML = 'Close';
+								}
+							}, 16); // Check every frame (~60fps)
+						}
+
+						function closeCustomization() {
+							if (!customizationOpen) return; // Already closed
+							customizationOpen = false;
+
+							// Hide menu
+							customizationDiv.classList.remove('active');
+							customizeButton.innerHTML = 'Customize';
+
+							// Restore camera position
+							world.cameraOperator.theta = savedCameraTheta;
+							world.cameraOperator.phi = savedCameraPhi;
+							world.cameraOperator.radius = savedCameraRadius;
+
+							// Re-enable character controls
+							character.takeControl();
+
+							// Re-lock pointer for game controls
+							setTimeout(() => {
+								world.renderer.domElement.requestPointerLock();
+							}, 100);
+						}
+
+						function toggleCustomization() {
+							if (customizationOpen) {
+								closeCustomization();
+							} else {
+								openCustomization();
+							}
+						}
+
+						customizeButton.addEventListener('click', toggleCustomization);
+
+						// C key to toggle customization
+						document.addEventListener('keydown', (e) => {
+							if (e.key === 'c' || e.key === 'C') {
+								if (!terminalOpen) {
+									e.preventDefault();
+									e.stopPropagation();
+									e.stopImmediatePropagation();
+									toggleCustomization();
+									return false;
+								}
+							}
+						}, true);
+
+						// ESC key to close customization
+						document.addEventListener('keydown', (e) => {
+							if (e.key === 'Escape' && customizationOpen) {
+								e.preventDefault();
+								e.stopPropagation();
+								e.stopImmediatePropagation();
+								closeCustomization();
+								return false;
+							}
+						}, true);
+
+					// Color click handlers
+					document.querySelectorAll('.preset-color').forEach(preset => {
+						preset.addEventListener('click', () => {
+							currentColor = preset.getAttribute('data-color');
+							document.querySelectorAll('.preset-color').forEach(p => p.classList.remove('selected'));
+							preset.classList.add('selected');
+							updateCharacter();
+						});
+					});
+				}, 1000);
+			});
+
+			// Create OS system
+			const osDiv = document.createElement('div');
+			osDiv.className = 'terminal-login';
+			osDiv.innerHTML = `
+				<div class="os-container">
+					<!-- OS Taskbar -->
+					<div class="os-taskbar">
+						<div class="os-logo">SUBLAIR OS v1.0</div>
+						<div class="os-taskbar-apps">
+							<div class="taskbar-app active" data-app="desktop">
+								[DESKTOP]
+							</div>
+							<div class="taskbar-app" data-app="music">
+								[MUSIC]
+							</div>
+							<div class="taskbar-app" data-app="eq">
+								[EQ]
+							</div>
+							<div class="taskbar-app" data-app="files">
+								[FILES]
+							</div>
+						</div>
+						<div class="os-close" id="os-close">[X]</div>
+					</div>
+
+					<!-- Desktop View -->
+					<div class="os-view" id="desktop-view">
+						<div class="desktop-split">
+							<div class="desktop-icons">
+								<div class="desktop-icon" data-app="music">
+									<div class="icon">[S]</div>
+									<div class="label">SUBLAIR.EXE</div>
+								</div>
+								<div class="desktop-icon" data-app="eq">
+									<div class="icon">[E]</div>
+									<div class="label">EQ.EXE</div>
+								</div>
+								<div class="desktop-icon" data-app="files">
+									<div class="icon">[F]</div>
+									<div class="label">FILES</div>
+								</div>
+							</div>
+							<div class="desktop-audio-player">
+								<div class="audio-player-header">AUDIO PLAYER v1.0</div>
+								<div id="desktop-audio-status" class="audio-status">NO TRACK LOADED</div>
+								<div id="desktop-audio-controls" class="audio-controls">
+									<button id="audio-play-pause" class="audio-btn" disabled>[PLAY]</button>
+									<button id="audio-stop" class="audio-btn" disabled>[STOP]</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Music Player App -->
+					<div class="os-view" id="music-view" style="display: none;">
+						<div class="app-window">
+							<div class="app-header">
+								<div class="app-title">MUSIC PLAYER v1.0</div>
+								<input type="text" id="search-input" placeholder="Search tracks..." />
+							</div>
+							<div class="app-content">
+								<div id="tracks-container">
+									<div style="text-align: center; color: #bee17b; padding: 20px;">Loading tracks...</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- EQ App -->
+					<div class="os-view" id="eq-view" style="display: none;">
+						<div class="app-window">
+							<div class="app-header">
+								<div class="app-title">EQUALIZER v1.0</div>
+							</div>
+							<div class="app-content">
+								<!-- Visualizer -->
+								<div style="background: #000; border: 2px solid #bee17b; padding: 15px; margin-bottom: 10px;">
+									<div style="color: #bee17b; font-weight: bold; margin-bottom: 10px; font-size: 14px;">[FREQUENCY ANALYZER]</div>
+									<canvas id="eq-visualizer" width="800" height="120" style="width: 100%; height: 120px; background: #000; border: 1px solid #bee17b;"></canvas>
+									<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; font-size: 12px;">
+										<div style="color: #bee17b;">PEAK: <span id="peak-db">-∞ dB</span></div>
+										<div style="color: #bee17b;">RMS: <span id="rms-db">-∞ dB</span></div>
+										<div style="color: #bee17b;">LUFS: <span id="lufs-value">-∞ LUFS</span></div>
+										<div style="color: #bee17b;">PEAK LUFS: <span id="peak-lufs">-∞ LUFS</span></div>
+									</div>
+									<button id="reset-peak-lufs" class="audio-btn" style="margin-top: 10px; width: 100%;">[RESET PEAK]</button>
+								</div>
+
+								<!-- 3-Band EQ -->
+								<div style="background: #000; border: 2px solid #bee17b; padding: 15px; margin-bottom: 10px;">
+									<div style="color: #bee17b; font-weight: bold; margin-bottom: 10px; font-size: 14px;">[3-BAND EQUALIZER]</div>
+									<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+										<div>
+											<label style="color: #bee17b; font-size: 12px; display: block; margin-bottom: 5px;">LOW</label>
+											<input type="range" id="eq-low" min="-12" max="12" value="0" step="0.5" style="width: 100%;" />
+											<div id="eq-low-value" style="color: #bee17b; font-size: 11px; text-align: center; margin-top: 3px;">0 dB</div>
+										</div>
+										<div>
+											<label style="color: #bee17b; font-size: 12px; display: block; margin-bottom: 5px;">MID</label>
+											<input type="range" id="eq-mid" min="-12" max="12" value="0" step="0.5" style="width: 100%;" />
+											<div id="eq-mid-value" style="color: #bee17b; font-size: 11px; text-align: center; margin-top: 3px;">0 dB</div>
+										</div>
+										<div>
+											<label style="color: #bee17b; font-size: 12px; display: block; margin-bottom: 5px;">HIGH</label>
+											<input type="range" id="eq-high" min="-12" max="12" value="0" step="0.5" style="width: 100%;" />
+											<div id="eq-high-value" style="color: #bee17b; font-size: 11px; text-align: center; margin-top: 3px;">0 dB</div>
+										</div>
+									</div>
+								</div>
+
+								<!-- Filters -->
+								<div style="background: #000; border: 2px solid #bee17b; padding: 15px; margin-bottom: 10px;">
+									<div style="color: #bee17b; font-weight: bold; margin-bottom: 10px; font-size: 14px;">[FILTERS]</div>
+									<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+										<div>
+											<label style="color: #bee17b; font-size: 12px; display: block; margin-bottom: 5px;">LOW PASS</label>
+											<input type="range" id="filter-lowpass" min="20" max="20000" value="20000" step="10" style="width: 100%;" />
+											<div id="filter-lowpass-value" style="color: #bee17b; font-size: 11px; text-align: center; margin-top: 3px;">20000 Hz</div>
+										</div>
+										<div>
+											<label style="color: #bee17b; font-size: 12px; display: block; margin-bottom: 5px;">HIGH PASS</label>
+											<input type="range" id="filter-highpass" min="20" max="20000" value="20" step="10" style="width: 100%;" />
+											<div id="filter-highpass-value" style="color: #bee17b; font-size: 11px; text-align: center; margin-top: 3px;">20 Hz</div>
+										</div>
+									</div>
+								</div>
+
+								<button id="eq-reset" class="audio-btn" style="width: 100%;">[RESET ALL]</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- File Explorer App -->
+					<div class="os-view" id="files-view" style="display: none;">
+						<div class="app-window">
+							<div class="app-header">
+								<div class="app-title">FILE MANAGER v1.0</div>
+								<div class="file-path" id="file-path">C:\HOME</div>
+							</div>
+							<div class="app-content">
+								<div id="file-explorer">
+									<div class="folder-item" data-folder="Desktop">
+										<span class="folder-icon">[DIR]</span> DESKTOP
+									</div>
+									<div class="folder-item" data-folder="Music">
+										<span class="folder-icon">[DIR]</span> MUSIC
+									</div>
+									<div class="folder-item" data-folder="Documents">
+										<span class="folder-icon">[DIR]</span> DOCUMENTS
+									</div>
+									<div class="folder-item" data-folder="System">
+										<span class="folder-icon">[SYS]</span> SYSTEM
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Text Reader App -->
+					<div class="os-view" id="text-view" style="display: none;">
+						<div class="app-window">
+							<div class="app-header">
+								<div class="app-title">TEXT READER v1.0</div>
+								<div class="file-path" id="text-file-name">UNTITLED.TXT</div>
+								<button id="text-close" class="audio-btn" style="margin-left: auto; width: auto;">[CLOSE]</button>
+							</div>
+							<div class="app-content">
+								<div id="text-content" style="font-family: 'Share', 'Courier New', monospace; color: #bee17b; line-height: 1.6; white-space: pre-wrap; padding: 20px; background: #000;"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			`;
+			document.body.appendChild(osDiv);
+
+			// ========================================
+			// AUDIO VISUALIZER SETUP (after OS is added to DOM)
+			// ========================================
+
+			// Initialize visualizer after a short delay to ensure elements exist
+			setTimeout(() => {
+				const canvas = document.getElementById('eq-visualizer');
+				if (!canvas) return;
+
+				const canvasCtx = canvas.getContext('2d');
+				const bufferLength = window.audioAnalyser.frequencyBinCount;
+				const dataArray = new Uint8Array(bufferLength);
+				const timeDataArray = new Uint8Array(bufferLength);
+
+				// Track peak LUFS
+				let peakLUFS = -Infinity;
+
+				function calculateLUFS(rmsValue) {
+					// Simplified LUFS calculation (ITU-R BS.1770)
+					const dbFS = 20 * Math.log10(rmsValue);
+					return dbFS + 0.691; // Rough conversion to LUFS
+				}
+
+				// Reset peak LUFS button
+				const resetPeakBtn = document.getElementById('reset-peak-lufs');
+				if (resetPeakBtn) {
+					resetPeakBtn.addEventListener('click', () => {
+						peakLUFS = -Infinity;
+						const peakLufsEl = document.getElementById('peak-lufs');
+						if (peakLufsEl) peakLufsEl.textContent = '-∞ LUFS';
+					});
+				}
+
+				function drawVisualizer() {
+					requestAnimationFrame(drawVisualizer);
+
+					if (!positionalAudio.isPlaying) {
+						// Clear when not playing
+						canvasCtx.fillStyle = '#000';
+						canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+						return;
+					}
+
+					window.audioAnalyser.getByteTimeDomainData(timeDataArray);
+					window.audioAnalyser.getByteFrequencyData(dataArray);
+
+					// Calculate Peak and RMS
+					let peak = 0;
+					let sumSquares = 0;
+
+					for (let i = 0; i < bufferLength; i++) {
+						const normalized = (timeDataArray[i] - 128) / 128.0;
+						const abs = Math.abs(normalized);
+						if (abs > peak) peak = abs;
+						sumSquares += normalized * normalized;
+					}
+
+					const rms = Math.sqrt(sumSquares / bufferLength);
+					const peakDB = peak > 0 ? 20 * Math.log10(peak) : -Infinity;
+					const rmsDB = rms > 0 ? 20 * Math.log10(rms) : -Infinity;
+					const lufs = calculateLUFS(rms);
+
+					// Track peak LUFS
+					if (isFinite(lufs) && lufs > peakLUFS) {
+						peakLUFS = lufs;
+					}
+
+					// Update meters
+					const peakEl = document.getElementById('peak-db');
+					const rmsEl = document.getElementById('rms-db');
+					const lufsEl = document.getElementById('lufs-value');
+					const peakLufsEl = document.getElementById('peak-lufs');
+
+					if (peakEl) peakEl.textContent = isFinite(peakDB) ? peakDB.toFixed(1) + ' dB' : '-∞ dB';
+					if (rmsEl) rmsEl.textContent = isFinite(rmsDB) ? rmsDB.toFixed(1) + ' dB' : '-∞ dB';
+					if (lufsEl) lufsEl.textContent = isFinite(lufs) ? lufs.toFixed(1) + ' LUFS' : '-∞ LUFS';
+					if (peakLufsEl) peakLufsEl.textContent = isFinite(peakLUFS) ? peakLUFS.toFixed(1) + ' LUFS' : '-∞ LUFS';
+
+					// Draw frequency spectrum (20Hz - 20kHz)
+					canvasCtx.fillStyle = '#000';
+					canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+					// Draw frequency bars
+					const barWidth = (canvas.width / bufferLength) * 2.5;
+					let x = 0;
+
+					for (let i = 0; i < bufferLength; i++) {
+						const barHeight = (dataArray[i] / 255) * canvas.height;
+
+						// Color gradient based on frequency
+						const hue = (i / bufferLength) * 60; // 0-60 = green range
+						canvasCtx.fillStyle = `hsl(${80 + hue}, 70%, 50%)`;
+
+						// Use green for consistency
+						canvasCtx.fillStyle = '#bee17b';
+
+						canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+						x += barWidth + 1;
+					}
+
+					// Draw frequency labels
+					canvasCtx.fillStyle = '#bee17b';
+					canvasCtx.font = '10px Share';
+					canvasCtx.fillText('20Hz', 5, 15);
+					canvasCtx.fillText('1kHz', canvas.width / 2 - 15, 15);
+					canvasCtx.fillText('20kHz', canvas.width - 40, 15);
+
+					// Draw grid lines
+					canvasCtx.strokeStyle = '#bee17b22';
+					canvasCtx.lineWidth = 1;
+					for (let i = 0; i < 4; i++) {
+						const y = (canvas.height / 4) * i;
+						canvasCtx.beginPath();
+						canvasCtx.moveTo(0, y);
+						canvasCtx.lineTo(canvas.width, y);
+						canvasCtx.stroke();
+					}
+				}
+
+				// Start visualizer
+				drawVisualizer();
+			}, 100);
+
+			// ========================================
+			// SOUND ENGINE CLASS (will be initialized later)
+			// ========================================
+
+			class SoundEngine {
+				constructor(listener) {
+					this.listener = listener;
+					this.sounds = {};
+					this.audioLoader = new THREE.AudioLoader();
+				}
+
+				// Load a sound file
+				loadSound(name, path, options = {}) {
+					return new Promise((resolve, reject) => {
+						this.audioLoader.load(path,
+							(buffer) => {
+								const sound = new THREE.Audio(this.listener);
+								sound.setBuffer(buffer);
+								sound.setVolume(options.volume || 1.0);
+								sound.setLoop(options.loop || false);
+
+								this.sounds[name] = {
+									audio: sound,
+									buffer: buffer,
+									options: options
+								};
+
+								console.log(`Sound loaded: ${name}`);
+								resolve(sound);
+							},
+							undefined,
+							(error) => {
+								console.error(`Error loading sound ${name}:`, error);
+								reject(error);
+							}
+						);
+					});
+				}
+
+				// Load multiple sounds
+				async loadSounds(soundList) {
+					const promises = soundList.map(({name, path, options}) =>
+						this.loadSound(name, path, options)
+					);
+					return Promise.all(promises);
+				}
+
+				// Play a sound
+				play(name, options = {}) {
+					const sound = this.sounds[name];
+					if (!sound) {
+						console.warn(`Sound not found: ${name}`);
+						return null;
+					}
+
+					// If already playing and not allowing overlaps, stop first
+					if (sound.audio.isPlaying && !options.allowOverlap) {
+						sound.audio.stop();
+					}
+
+					// Create new instance for overlap
+					if (options.allowOverlap && sound.audio.isPlaying) {
+						const newSound = new THREE.Audio(this.listener);
+						newSound.setBuffer(sound.buffer);
+						newSound.setVolume(options.volume || sound.options.volume || 1.0);
+						newSound.setLoop(false);
+
+						// Set playback rate (pitch) if specified
+						if (options.pitch !== undefined) {
+							newSound.setPlaybackRate(options.pitch);
+						}
+
+						newSound.play();
+						return newSound;
+					}
+
+					// Set volume if specified
+					if (options.volume !== undefined) {
+						sound.audio.setVolume(options.volume);
+					}
+
+					// Set playback rate (pitch) if specified
+					if (options.pitch !== undefined) {
+						sound.audio.setPlaybackRate(options.pitch);
+					}
+
+					sound.audio.play();
+					return sound.audio;
+				}
+
+				// Stop a sound
+				stop(name) {
+					const sound = this.sounds[name];
+					if (sound && sound.audio.isPlaying) {
+						sound.audio.stop();
+					}
+				}
+
+				// Play random sound from array
+				playRandom(names, options = {}) {
+					const randomName = names[Math.floor(Math.random() * names.length)];
+					return this.play(randomName, options);
+				}
+
+				// Check if sound is playing
+				isPlaying(name) {
+					const sound = this.sounds[name];
+					return sound ? sound.audio.isPlaying : false;
+				}
+			}
+
+			// Sound engine will be initialized after audioListener is created
+			let soundEngine = null;
+			let lastFootstepTime = 0;
+			let lastFootstepSound = -1; // Track last played sound to avoid immediate repeats
+			const footstepSounds = ['footstep1', 'footstep2', 'footstep3', 'footstep4', 'footstep5', 'footstep6', 'footstep7'];
+
+			// Get random footstep sound (avoid playing same one twice in a row)
+			function getRandomFootstep() {
+				let randomIndex;
+				do {
+					randomIndex = Math.floor(Math.random() * footstepSounds.length);
+				} while (randomIndex === lastFootstepSound && footstepSounds.length > 1);
+
+				lastFootstepSound = randomIndex;
+				return footstepSounds[randomIndex];
+			}
+
+			// Check if character is in a walking/running state
+			function isMovingState(character) {
+				if (!character || !character.charState) return false;
+				const stateName = character.charState.constructor.name;
+				return stateName === 'Walk' || stateName === 'Sprint' ||
+				       stateName === 'JumpRunning' || stateName === 'DropRunning';
+			}
+
+			// Get footstep interval based on character state
+			function getFootstepInterval(character) {
+				if (!character || !character.charState) return 500;
+
+				const stateName = character.charState.constructor.name;
+				const animationLength = character.charState.animationLength || 1.0;
+
+				// 2 footsteps per animation cycle (left foot, right foot)
+				let baseInterval = (animationLength / 2) * 1000; // Convert to milliseconds
+
+				// Adjust based on state
+				if (stateName === 'Sprint') {
+					baseInterval *= 0.85; // Sprint is faster
+				} else if (stateName === 'Walk') {
+					baseInterval *= 1.0; // Normal walk
+				} else if (stateName === 'JumpRunning' || stateName === 'DropRunning') {
+					baseInterval *= 0.9; // Slightly faster
+				}
+
+				// Clamp to reasonable values
+				return Math.max(200, Math.min(600, baseInterval));
+			}
+
+			// OS Navigation System
+			function switchToApp(appName) {
+				// Hide all views
+				document.querySelectorAll('.os-view').forEach(view => {
+					view.style.display = 'none';
+				});
+
+				// Show selected view
+				document.getElementById(`${appName}-view`).style.display = 'block';
+
+				// Update taskbar active states
+				document.querySelectorAll('.taskbar-app').forEach(app => {
+					app.classList.remove('active');
+				});
+				document.querySelector(`.taskbar-app[data-app="${appName}"]`).classList.add('active');
+			}
+
+			// Taskbar app click handlers
+			document.querySelectorAll('.taskbar-app').forEach(app => {
+				app.addEventListener('click', function() {
+					const appName = this.getAttribute('data-app');
+					switchToApp(appName);
+				});
+			});
+
+			// Desktop icon click handlers
+			document.querySelectorAll('.desktop-icon').forEach(icon => {
+				icon.addEventListener('click', function() {
+					const appName = this.getAttribute('data-app');
+					switchToApp(appName);
+				});
+			});
+
+			// Function to close OS
+			function closeOS() {
+				osDiv.classList.remove('active');
+				terminalOpen = false;
+				character.takeControl();
+				setTimeout(() => {
+					world.renderer.domElement.requestPointerLock();
+				}, 100);
+			}
+
+			// OS close button
+			document.getElementById('os-close').addEventListener('click', closeOS);
+
+			// Close OS when clicking outside the OS container
+			osDiv.addEventListener('click', (e) => {
+				// Only close if clicking the backdrop (not the OS container itself)
+				if (e.target === osDiv) {
+					closeOS();
+				}
+			});
+
+			// File explorer navigation
+			const fileSystem = {
+				'C:\\HOME': [
+					{ name: 'DESKTOP', icon: '[DIR]', type: 'folder' },
+					{ name: 'MUSIC', icon: '[DIR]', type: 'folder' },
+					{ name: 'DOCUMENTS', icon: '[DIR]', type: 'folder' },
+					{ name: 'SYSTEM', icon: '[SYS]', type: 'folder' }
+				],
+				'C:\\HOME\\DESKTOP': [
+					{ name: '..', icon: '[UP]', type: 'back' },
+					{ name: 'SUBLAIR.EXE', icon: '[EXE]', type: 'app', action: 'music' }
+				],
+				'C:\\HOME\\MUSIC': [
+					{ name: '..', icon: '[UP]', type: 'back' },
+					{ name: 'README.TXT', icon: '[TXT]', type: 'file', content: 'THIS FOLDER IS FOR REFERENCE ONLY.\n\nMUSIC FILES ARE STREAMED DIRECTLY FROM SUBLAIR SERVERS.\n\nNO LOCAL FILES ARE STORED HERE.\n\nUSE SUBLAIR.EXE TO BROWSE AND PLAY TRACKS.' }
+				],
+				'C:\\HOME\\DOCUMENTS': [
+					{ name: '..', icon: '[UP]', type: 'back' },
+					{ name: 'WELCOME.TXT', icon: '[TXT]', type: 'file', content: 'WELCOME TO SUBLAIR OS!\n\nTHIS IS A SIMPLE OPERATING SYSTEM INTERFACE.\n\nEXPLORE THE FOLDERS AND APPLICATIONS!' }
+				],
+				'C:\\HOME\\SYSTEM': [
+					{ name: '..', icon: '[UP]', type: 'back' },
+					{ name: 'CONFIG.SYS', icon: '[SYS]', type: 'file', content: 'SUBLAIR OS v1.0\nBUILD: 2025.10.10\n\nSYSTEM INITIALIZED SUCCESSFULLY.' }
+				]
+			};
+
+			let currentPath = 'C:\\HOME';
+
+			function renderFileExplorer(path) {
+				currentPath = path;
+				document.getElementById('file-path').textContent = path;
+
+				const explorer = document.getElementById('file-explorer');
+				const items = fileSystem[path] || [];
+
+				explorer.innerHTML = items.map(item => `
+					<div class="folder-item" data-name="${item.name}" data-type="${item.type}" data-action="${item.action || ''}">
+						<span class="folder-icon">${item.icon}</span> ${item.name}
+					</div>
+				`).join('');
+
+				// Add click handlers
+				document.querySelectorAll('#file-explorer .folder-item').forEach(item => {
+					item.addEventListener('click', function() {
+						const itemName = this.getAttribute('data-name');
+						const itemType = this.getAttribute('data-type');
+						const itemAction = this.getAttribute('data-action');
+
+						if (itemType === 'back') {
+							const pathParts = currentPath.split('\\');
+							pathParts.pop();
+							const parentPath = pathParts.join('\\') || 'C:\\HOME';
+							renderFileExplorer(parentPath);
+						} else if (itemType === 'folder') {
+							const newPath = `${currentPath}\\${itemName}`;
+							renderFileExplorer(newPath);
+						} else if (itemType === 'app' && itemAction) {
+							switchToApp(itemAction);
+						} else if (itemType === 'file') {
+							const fileData = items.find(i => i.name === itemName);
+							if (fileData && fileData.content) {
+								openTextReader(itemName, fileData.content);
+							}
+						}
+					});
+				});
+			}
+
+			// Initialize file explorer
+			renderFileExplorer('C:\\HOME');
+
+			// Text Reader functionality
+			function openTextReader(fileName, content) {
+				document.getElementById('text-file-name').textContent = fileName;
+				document.getElementById('text-content').textContent = content;
+				switchToApp('text');
+			}
+
+			// Text reader close button
+			document.getElementById('text-close').addEventListener('click', () => {
+				switchToApp('files');
+			});
+
+			// Shuffle array function
+			function shuffleArray(array) {
+				const shuffled = [...array];
+				for (let i = shuffled.length - 1; i > 0; i--) {
+					const j = Math.floor(Math.random() * (i + 1));
+					[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+				}
+				return shuffled;
+			}
+
+			// API endpoint configuration
+			const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+				? 'http://localhost:3000'
+				: 'https://your-production-api.com'; // Update with your production API URL
+
+			// Fetch tracks and users from API
+			let tracksData = [];
+			let usersData = {};
+
+			// Fetch both tracks and users
+			Promise.all([
+				fetch(`${API_BASE_URL}/api/v1/tracks`).then(r => r.json()),
+				fetch(`${API_BASE_URL}/api/v1/users`).then(r => r.json())
+			])
+				.then(([tracksResult, usersResult]) => {
+					if (tracksResult.success && tracksResult.data) {
+						tracksData = tracksResult.data;
+					} else {
+						throw new Error('Failed to load tracks');
+					}
+
+					if (usersResult.success && usersResult.data) {
+						usersData = usersResult.data;
+					}
+
+					// Merge user data into tracks
+					tracksData = tracksData.map(track => {
+						if (track.user_id && usersData[track.user_id]) {
+							const user = usersData[track.user_id];
+							return {
+								...track,
+								artistName: user.displayName || user.username || 'Unknown Artist',
+								artistUsername: user.username || null
+							};
+						}
+						return {
+							...track,
+							artistName: 'Unknown Artist',
+							artistUsername: null
+						};
+					});
+
+					// Shuffle the tracks for random order
+					tracksData = shuffleArray(tracksData);
+					displayTracks(tracksData);
+				})
+				.catch(error => {
+					console.error('Error loading data from API:', error);
+					document.getElementById('tracks-container').innerHTML = '<div style="text-align: center; color: #ff0000; padding: 20px;">Failed to load tracks. Make sure API server is running.</div>';
+				});
+
+			// Setup search
+			document.getElementById('search-input').addEventListener('input', (e) => {
+				const query = e.target.value.toLowerCase();
+				const filtered = tracksData.filter(track =>
+					(track.title && track.title.toLowerCase().includes(query)) ||
+					(track.genre && track.genre.toLowerCase().includes(query)) ||
+					(track.description && track.description.toLowerCase().includes(query)) ||
+					(track.artistName && track.artistName.toLowerCase().includes(query))
+				);
+				displayTracks(filtered);
+			});
+
+			function displayTracks(tracks) {
+				const container = document.getElementById('tracks-container');
+
+				if (tracks.length === 0) {
+					container.innerHTML = '<div style="text-align: center; color: #888; padding: 40px;">No tracks found</div>';
+					return;
+				}
+
+				container.innerHTML = tracks.map(track => {
+					const artistDisplay = track.artistUsername
+						? `<a href="https://www.sublair.com/u/${track.artistUsername}" target="_blank" class="artist-link" onclick="event.stopPropagation();">${track.artistName}</a>`
+						: (track.artistName || 'Unknown Artist');
+
+					return `
+						<div class="track-item" data-track-id="${track.id}" data-title="${track.title || 'UNKNOWN'}">
+							<div class="track-title">${track.title}</div>
+							<div class="track-meta">${artistDisplay} • ${track.genre || 'Unknown'}</div>
+						</div>
+					`;
+				}).join('');
+
+				// Add click handlers to play tracks
+				document.querySelectorAll('.track-item').forEach(item => {
+					item.addEventListener('click', function() {
+						const trackId = this.getAttribute('data-track-id');
+						const trackTitle = this.getAttribute('data-title');
+						// Use API stream proxy instead of direct URL
+						const streamUrl = `${API_BASE_URL}/api/v1/stream/${trackId}`;
+						playTrack(streamUrl, trackTitle);
+					});
+				});
+			}
+
+			let currentTrack = null;
+			let currentTrackTitle = '';
+			let isAudioPaused = false;
+
+			// Audio play/pause button
+			document.getElementById('audio-play-pause').addEventListener('click', () => {
+				if (!positionalAudio.buffer) return; // No track loaded
+
+				if (positionalAudio.isPlaying) {
+					// Pause
+					positionalAudio.pause();
+					isAudioPaused = true;
+					document.getElementById('audio-play-pause').textContent = '[PLAY]';
+					document.getElementById('desktop-audio-status').textContent = 'PAUSED';
+				} else {
+					// Play/Resume
+					positionalAudio.play();
+					isAudioPaused = false;
+					document.getElementById('audio-play-pause').textContent = '[PAUSE]';
+					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${currentTrackTitle}`;
+				}
+			});
+
+			// Audio stop button
+			document.getElementById('audio-stop').addEventListener('click', () => {
+				if (positionalAudio.buffer) {
+					positionalAudio.stop();
+					isAudioPaused = false;
+					document.getElementById('desktop-audio-status').textContent = 'STOPPED';
+					document.getElementById('audio-play-pause').textContent = '[PLAY]';
+					document.getElementById('audio-play-pause').disabled = true;
+					document.getElementById('audio-stop').disabled = true;
+				}
+			});
+
+			// EQ Controls
+			document.getElementById('eq-low').addEventListener('input', (e) => {
+				const value = parseFloat(e.target.value);
+				window.eqFilters.low.gain.value = value;
+				document.getElementById('eq-low-value').textContent = `${value > 0 ? '+' : ''}${value} dB`;
+			});
+
+			document.getElementById('eq-mid').addEventListener('input', (e) => {
+				const value = parseFloat(e.target.value);
+				window.eqFilters.mid.gain.value = value;
+				document.getElementById('eq-mid-value').textContent = `${value > 0 ? '+' : ''}${value} dB`;
+			});
+
+			document.getElementById('eq-high').addEventListener('input', (e) => {
+				const value = parseFloat(e.target.value);
+				window.eqFilters.high.gain.value = value;
+				document.getElementById('eq-high-value').textContent = `${value > 0 ? '+' : ''}${value} dB`;
+			});
+
+			document.getElementById('filter-lowpass').addEventListener('input', (e) => {
+				const value = parseFloat(e.target.value);
+				window.eqFilters.lowpass.frequency.value = value;
+				document.getElementById('filter-lowpass-value').textContent = `${value} Hz`;
+			});
+
+			document.getElementById('filter-highpass').addEventListener('input', (e) => {
+				const value = parseFloat(e.target.value);
+				window.eqFilters.highpass.frequency.value = value;
+				document.getElementById('filter-highpass-value').textContent = `${value} Hz`;
+			});
+
+			document.getElementById('eq-reset').addEventListener('click', () => {
+				// Reset all EQ filters to 0
+				window.eqFilters.low.gain.value = 0;
+				window.eqFilters.mid.gain.value = 0;
+				window.eqFilters.high.gain.value = 0;
+
+				// Reset lowpass/highpass to defaults
+				window.eqFilters.lowpass.frequency.value = 20000;
+				window.eqFilters.highpass.frequency.value = 20;
+
+				// Reset UI
+				document.getElementById('eq-low').value = 0;
+				document.getElementById('eq-mid').value = 0;
+				document.getElementById('eq-high').value = 0;
+				document.getElementById('eq-low-value').textContent = '0 dB';
+				document.getElementById('eq-mid-value').textContent = '0 dB';
+				document.getElementById('eq-high-value').textContent = '0 dB';
+
+				document.getElementById('filter-lowpass').value = 20000;
+				document.getElementById('filter-highpass').value = 20;
+				document.getElementById('filter-lowpass-value').textContent = '20000 Hz';
+				document.getElementById('filter-highpass-value').textContent = '20 Hz';
+			});
+
+			function playTrack(url, title) {
+				// Update desktop audio player
+				document.getElementById('desktop-audio-status').textContent = 'LOADING...';
+				document.getElementById('audio-play-pause').disabled = false;
+				document.getElementById('audio-stop').disabled = false;
+				currentTrackTitle = title || 'UNKNOWN TRACK';
+
+				// Show loading indicator
+				const loadingDiv = document.getElementById('audio-loading');
+				loadingDiv.classList.add('show');
+				loadingDiv.innerHTML = 'Loading audio... 0%';
+
+				// Stop current track if playing
+				if (positionalAudio.isPlaying) {
+					positionalAudio.stop();
+				}
+
+				// Load and play new track
+				const audioLoader = new THREE.AudioLoader();
+				audioLoader.load(url, (buffer) => {
+					positionalAudio.setBuffer(buffer);
+					positionalAudio.setLoop(false);
+					positionalAudio.setVolume(1.0);
+
+					// Connect EQ filters chain: source -> directional bass -> directional lowpass -> vehicle lowpass -> lowpass -> highpass -> low -> mid -> high -> analyser -> destination
+					const source = positionalAudio.getOutput();
+					source.disconnect();
+					source.connect(window.speakerDirectionalBass);
+					window.speakerDirectionalBass.connect(window.speakerDirectionalLowpass);
+					window.speakerDirectionalLowpass.connect(window.eqFilters.vehicleLowpass);
+					window.eqFilters.vehicleLowpass.connect(window.eqFilters.lowpass);
+					window.eqFilters.lowpass.connect(window.eqFilters.highpass);
+					window.eqFilters.highpass.connect(window.eqFilters.low);
+					window.eqFilters.low.connect(window.eqFilters.mid);
+					window.eqFilters.mid.connect(window.eqFilters.high);
+					window.eqFilters.high.connect(window.audioAnalyser);
+					window.audioAnalyser.connect(positionalAudio.context.destination);
+
+					positionalAudio.play();
+					currentTrack = url;
+
+					// Update desktop audio player
+					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${currentTrackTitle}`;
+					document.getElementById('audio-play-pause').textContent = '[PAUSE]';
+					document.getElementById('audio-play-pause').disabled = false;
+					document.getElementById('audio-stop').disabled = false;
+					isAudioPaused = false;
+
+					// Hide loading indicator and show success
+					loadingDiv.innerHTML = 'NOW PLAYING';
+					setTimeout(() => {
+						loadingDiv.classList.remove('show');
+					}, 2000);
+				},
+				(progress) => {
+					const percent = (progress.loaded / progress.total * 100).toFixed(0);
+					loadingDiv.innerHTML = `Loading audio... ${percent}%`;
+					document.getElementById('desktop-audio-status').textContent = `LOADING... ${percent}%`;
+					console.log('Loading audio:', percent + '%');
+				},
+				(error) => {
+					console.error('Error loading audio:', error);
+					loadingDiv.innerHTML = 'ERROR LOADING AUDIO';
+					document.getElementById('desktop-audio-status').textContent = 'ERROR: FAILED TO LOAD';
+					document.getElementById('audio-play-pause').disabled = true;
+					document.getElementById('audio-stop').disabled = true;
+					setTimeout(() => {
+						loadingDiv.classList.remove('show');
+					}, 3000);
+				});
+			}
+
+			// Create interaction prompt
+			const interactionPrompt = document.createElement('div');
+			interactionPrompt.className = 'interaction-prompt';
+			interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to use computer';
+			document.body.appendChild(interactionPrompt);
+
+			// Create audio loading indicator
+			const audioLoadingDiv = document.createElement('div');
+			audioLoadingDiv.id = 'audio-loading';
+			audioLoadingDiv.innerHTML = 'Loading audio...';
+			document.body.appendChild(audioLoadingDiv);
+
+			// Load the retro computer
+			let computerPosition = new THREE.Vector3(-5, 0.75, 5);
+			loadingManager.loadGLTF('build/assets/retro_computer.glb', (computerModel) => {
+				const computer = computerModel.scene;
+				computer.position.copy(computerPosition);
+				computer.scale.set(1, 1, 1);
+
+				// Add to world
+				world.graphicsWorld.add(computer);
+
+				// Setup materials for shadows
+				computer.traverse((child) => {
+					if (child.isMesh) {
+						child.castShadow = true;
+						child.receiveShadow = true;
+						if (child.material) {
+							world.sky.csm.setupMaterial(child.material);
+						}
+					}
+				});
+
+				// Add physics collision box for the computer
+				const computerShape = new CANNON.Box(new CANNON.Vec3(0.5, 0.75, 0.5));
+				const computerBody = new CANNON.Body({
+					mass: 0, // Static object (won't move)
+					shape: computerShape,
+					position: new CANNON.Vec3(-5, 0.75, 5)
+				});
+				world.physicsWorld.addBody(computerBody);
+			});
+
+			// Load the dome surrounding everything
+			loadingManager.loadGLTF('build/assets/dome.glb', (domeModel) => {
+				const dome = domeModel.scene;
+				dome.position.set(0, -15, 0); // Lower to prevent base collision
+				dome.scale.set(20, 20, 20);
+
+				// Add to world
+				world.graphicsWorld.add(dome);
+
+				// Create hollow sphere collision using multiple planes facing inward
+				const domeRadius = 80; // Collision radius
+				const segments = 12; // More segments for better coverage
+				const rings = 12; // More rings for better coverage
+
+				for (let lat = 0; lat < segments; lat++) {
+					const theta = (lat / segments) * Math.PI; // 0 to PI
+
+					for (let lon = 0; lon < rings; lon++) {
+						const phi = (lon / rings) * Math.PI * 2; // 0 to 2PI
+
+						// Calculate position on sphere
+						const x = domeRadius * Math.sin(theta) * Math.cos(phi);
+						const y = domeRadius * Math.cos(theta) - 5; // Offset by dome position
+						const z = domeRadius * Math.sin(theta) * Math.sin(phi);
+
+						// Create plane facing inward (toward center)
+						const planeShape = new CANNON.Plane();
+						const planeBody = new CANNON.Body({
+							mass: 0,
+							shape: planeShape,
+							position: new CANNON.Vec3(x, y, z)
+						});
+
+						// Point the plane normal toward center (0, -5, 0)
+						const centerX = 0;
+						const centerY = -5;
+						const centerZ = 0;
+
+						const normalX = centerX - x;
+						const normalY = centerY - y;
+						const normalZ = centerZ - z;
+
+						const length = Math.sqrt(normalX * normalX + normalY * normalY + normalZ * normalZ);
+						const nx = normalX / length;
+						const ny = normalY / length;
+						const nz = normalZ / length;
+
+						// Use lookAt-style quaternion calculation
+						const quaternion = new CANNON.Quaternion();
+						quaternion.setFromVectors(new CANNON.Vec3(0, 0, 1), new CANNON.Vec3(nx, ny, nz));
+						planeBody.quaternion.copy(quaternion);
+
+						world.physicsWorld.addBody(planeBody);
+					}
+				}
+			});
+
+			// Create spatial audio setup
+			const audioListener = new THREE.AudioListener();
+			const positionalAudio = new THREE.PositionalAudio(audioListener);
+			let speakers; // Store speakers reference globally
+
+			// Create 3-band EQ using Web Audio API
+			const audioContext = audioListener.context;
+			const lowFilter = audioContext.createBiquadFilter();
+			const midFilter = audioContext.createBiquadFilter();
+			const highFilter = audioContext.createBiquadFilter();
+			const lowpassFilter = audioContext.createBiquadFilter();
+			const highpassFilter = audioContext.createBiquadFilter();
+
+			// Configure EQ filters
+			lowFilter.type = 'lowshelf';
+			lowFilter.frequency.value = 320; // Low frequencies
+			lowFilter.gain.value = 0;
+
+			midFilter.type = 'peaking';
+			midFilter.frequency.value = 1000; // Mid frequencies
+			midFilter.Q.value = 0.5;
+			midFilter.gain.value = 0;
+
+			highFilter.type = 'highshelf';
+			highFilter.frequency.value = 3200; // High frequencies
+			highFilter.gain.value = 0;
+
+			// Configure lowpass/highpass filters
+			lowpassFilter.type = 'lowpass';
+			lowpassFilter.frequency.value = 20000; // Default max
+			lowpassFilter.Q.value = 1;
+
+			highpassFilter.type = 'highpass';
+			highpassFilter.frequency.value = 20; // Default min
+			highpassFilter.Q.value = 1;
+
+			// Create vehicle lowpass filter for in-car effect
+			const vehicleLowpass = audioContext.createBiquadFilter();
+			vehicleLowpass.type = 'lowpass';
+			vehicleLowpass.frequency.value = 20000; // Default off (full range)
+			vehicleLowpass.Q.value = 1;
+
+			// Create analyzer node (AFTER all filters to see post-processed audio)
+			const analyser = audioContext.createAnalyser();
+			analyser.fftSize = 2048;
+			analyser.smoothingTimeConstant = 0.8;
+
+			// Store filters globally for access
+			window.eqFilters = {
+				low: lowFilter,
+				mid: midFilter,
+				high: highFilter,
+				lowpass: lowpassFilter,
+				highpass: highpassFilter,
+				vehicleLowpass: vehicleLowpass
+			};
+
+			window.audioAnalyser = analyser;
+
+			// Initialize sound engine now that audioListener exists
+			soundEngine = new SoundEngine(audioListener);
+
+			// Load all sounds
+			soundEngine.loadSounds([
+				// Footstep sounds
+				{ name: 'footstep1', path: 'build/snds/step1.wav', options: { volume: 0.10 } },
+				{ name: 'footstep2', path: 'build/snds/step2.wav', options: { volume: 0.10 } },
+				{ name: 'footstep3', path: 'build/snds/step3.wav', options: { volume: 0.10 } },
+				{ name: 'footstep4', path: 'build/snds/step4.wav', options: { volume: 0.10 } },
+				{ name: 'footstep5', path: 'build/snds/step5.wav', options: { volume: 0.10 } },
+				{ name: 'footstep6', path: 'build/snds/step6.wav', options: { volume: 0.10 } },
+				{ name: 'footstep7', path: 'build/snds/step7.wav', options: { volume: 0.10 } },
+				// Ambient background music
+				{ name: 'ambience', path: 'build/snds/ambience.mp3', options: { volume: 0.15, loop: true } }
+			]).then(() => {
+				console.log('All sounds loaded!');
+
+				// Start playing ambient music immediately
+				soundEngine.play('ambience');
+				console.log('Ambient music started');
+			}).catch(error => {
+				console.error('Error loading sounds:', error);
+			});
+
+			// Monitor character movement for footsteps
+			setInterval(() => {
+				if (character && !terminalOpen && !customizationOpen && soundEngine) {
+					// Check if character is in a moving state and on ground
+					if (isMovingState(character) && character.rayHasHit) {
+						const now = Date.now();
+						const dynamicInterval = getFootstepInterval(character);
+
+						if (now - lastFootstepTime > dynamicInterval) {
+							// Add organic variation to volume and pitch
+							const volumeVariation = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+							const pitchVariation = 0.95 + Math.random() * 0.1; // 0.95 to 1.05
+
+							// Calculate volume based on movement speed
+							const velocity = character.velocity;
+							const speed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+							const speedMultiplier = Math.min(1.0, 0.5 + speed * 0.3); // Louder when faster
+
+							const finalVolume = 0.10 * volumeVariation * speedMultiplier;
+
+							// Play random footstep sound with variation
+							soundEngine.play(getRandomFootstep(), {
+								allowOverlap: false,
+								volume: finalVolume,
+								pitch: pitchVariation
+							});
+							lastFootstepTime = now;
+						}
+					}
+				}
+			}, 50);
+
+			// Load the speakers behind the computer
+			loadingManager.loadGLTF('build/assets/speakers.glb', (speakersModel) => {
+				speakers = speakersModel.scene;
+				speakers.position.set(-10, 0, 5); // Behind the computer, Y at ground level
+				speakers.scale.set(1, 1, 1);
+
+				// Calculate bounding box BEFORE rotation
+				const bbox = new THREE.Box3().setFromObject(speakers);
+				const size = new THREE.Vector3();
+				bbox.getSize(size);
+
+				// Now rotate the visual model
+				speakers.rotation.y = Math.PI / 2; // Rotate 90 degrees
+
+				// Add to world
+				world.graphicsWorld.add(speakers);
+
+				// Add positional audio to speakers
+				speakers.add(positionalAudio);
+				positionalAudio.setRefDistance(10); // Distance at which volume starts to drop
+				positionalAudio.setMaxDistance(50); // Max distance audio can be heard
+				positionalAudio.setRolloffFactor(1); // How quickly sound fades with distance
+
+				// Make it directional like a real festival speaker (front-facing cone)
+				positionalAudio.setDirectionalCone(120, 230, 0.3); // innerAngle, outerAngle, outerGain
+				// innerAngle: 120° - Full volume cone in front
+				// outerAngle: 230° - Volume drops outside this cone
+				// outerGain: 0.3 - Behind the speaker is 70% quieter
+
+				// Create a dynamic lowpass filter for directional muffling
+				window.speakerDirectionalLowpass = audioContext.createBiquadFilter();
+				window.speakerDirectionalLowpass.type = 'lowpass';
+				window.speakerDirectionalLowpass.frequency.value = 20000; // Start at full range
+				window.speakerDirectionalLowpass.Q.value = 1;
+
+				// Create bass boost for behind-speaker effect (clippy bass)
+				window.speakerDirectionalBass = audioContext.createBiquadFilter();
+				window.speakerDirectionalBass.type = 'lowshelf';
+				window.speakerDirectionalBass.frequency.value = 150;
+				window.speakerDirectionalBass.gain.value = 0; // Start at 0, boost when behind
+
+				console.log('🔊 Directional speaker cone configured with dynamic lowpass');
+
+				// Store speaker position globally for direction calculation
+				window.speakerPosition = speakers.position;
+
+				// Create debug cone visualizations
+				const innerConeGeometry = new THREE.ConeGeometry(
+					Math.tan((120 * Math.PI / 180) / 2) * 10, // radius at 10 units distance
+					10, // height
+					32, // segments
+					1,
+					true // open ended
+				);
+				const outerConeGeometry = new THREE.ConeGeometry(
+					Math.tan((230 * Math.PI / 180) / 2) * 10,
+					10,
+					32,
+					1,
+					true
+				);
+
+				const innerConeMaterial = new THREE.MeshBasicMaterial({
+					color: 0x00ff00,
+					wireframe: true,
+					transparent: true,
+					opacity: 0.3
+				});
+				const outerConeMaterial = new THREE.MeshBasicMaterial({
+					color: 0xffff00,
+					wireframe: true,
+					transparent: true,
+					opacity: 0.2
+				});
+
+				window.debugInnerCone = new THREE.Mesh(innerConeGeometry, innerConeMaterial);
+				window.debugOuterCone = new THREE.Mesh(outerConeGeometry, outerConeMaterial);
+
+				// Position cones to point forward (negative Z)
+				window.debugInnerCone.rotation.x = Math.PI; // Flip to point forward
+				window.debugOuterCone.rotation.x = Math.PI;
+				window.debugInnerCone.position.copy(speakers.position);
+				window.debugOuterCone.position.copy(speakers.position);
+
+				// Add to scene but hide by default
+				window.debugInnerCone.visible = false;
+				window.debugOuterCone.visible = false;
+				world.graphicsWorld.add(window.debugInnerCone);
+				world.graphicsWorld.add(window.debugOuterCone);
+
+				console.log('🔍 Debug speaker cones created (press D to toggle)');
+
+				// Setup materials for shadows
+				speakers.traverse((child) => {
+					if (child.isMesh) {
+						child.castShadow = true;
+						child.receiveShadow = true;
+						if (child.material) {
+							world.sky.csm.setupMaterial(child.material);
+						}
+					}
+				});
+
+				// Get center position after rotation
+				const rotatedBbox = new THREE.Box3().setFromObject(speakers);
+				const center = new THREE.Vector3();
+				rotatedBbox.getCenter(center);
+
+				// Add physics collision box - swap X and Z because of 90 degree rotation
+				const speakersShape = new CANNON.Box(new CANNON.Vec3(size.z / 2, size.y / 2, size.x / 2));
+				const speakersBody = new CANNON.Body({
+					mass: 0, // Static object (won't move)
+					shape: speakersShape,
+					position: new CANNON.Vec3(center.x, center.y, center.z)
+				});
+				world.physicsWorld.addBody(speakersBody);
+			});
+
+			// Computer interaction system
+			let nearComputer = false;
+
+			// Check distance to computer every frame
+			function checkComputerProximity() {
+				if (!character) return;
+
+				const charPos = character.position;
+				const distance = charPos.distanceTo(computerPosition);
+
+				if (distance < 3 && !terminalOpen) {
+					nearComputer = true;
+					interactionPrompt.classList.add('show');
+				} else {
+					nearComputer = false;
+					interactionPrompt.classList.remove('show');
+				}
+			}
+
+			// Add to update loop
+			const updateInterval = setInterval(() => {
+				if (character) {
+					checkComputerProximity();
+
+					// Update directional lowpass based on position relative to speakers
+					if (window.speakerPosition && window.speakerDirectionalLowpass && window.speakerDirectionalBass && window.world) {
+						const camera = window.world.camera;
+						const speakerDir = new THREE.Vector3(0, 0, -1); // Speakers face negative Z
+						const toListener = new THREE.Vector3().subVectors(camera.position, window.speakerPosition).normalize();
+
+						// Calculate angle between speaker direction and listener direction
+						const angle = speakerDir.angleTo(toListener) * (180 / Math.PI);
+
+						// Apply lowpass based on angle (ONLY behind = heavy lowpass + bass boost, otherwise clear)
+						// 0-120° = clear (20kHz), 120-180° = BEHIND speakers (heavy lowpass + clippy bass)
+						let targetFreq, targetBassGain;
+						if (angle < 120) {
+							targetFreq = 20000; // Clear (front and sides)
+							targetBassGain = 0; // No bass boost
+						} else {
+							// Behind speakers only
+							const factor = (angle - 120) / 60; // 0 to 1 (120° to 180°)
+							targetFreq = 20000 - (factor * 19800); // Gradual rolloff from 20kHz to 200Hz
+							targetBassGain = factor * 18; // Gradual bass boost to +18dB
+						}
+
+						// Smooth transition
+						const currentFreq = window.speakerDirectionalLowpass.frequency.value;
+						const currentBass = window.speakerDirectionalBass.gain.value;
+						window.speakerDirectionalLowpass.frequency.value = currentFreq + (targetFreq - currentFreq) * 0.15;
+						window.speakerDirectionalBass.gain.value = currentBass + (targetBassGain - currentBass) * 0.15;
+					}
+
+					// Update car debug cone position to follow car
+					if (window.debugCarCone && window.car) {
+						window.debugCarCone.position.copy(window.car.position);
+						window.debugCarCone.rotation.copy(window.car.rotation);
+						window.debugCarCone.rotation.x += Math.PI; // Keep the flip
+					}
+				}
+			}, 100);
+
+			// Handle D key for debug mode toggle
+			document.addEventListener('keydown', (e) => {
+				if (e.key === 'd' || e.key === 'D') {
+					let isVisible = false;
+
+					// Toggle speaker cones
+					if (window.debugInnerCone && window.debugOuterCone) {
+						window.debugInnerCone.visible = !window.debugInnerCone.visible;
+						window.debugOuterCone.visible = !window.debugOuterCone.visible;
+						isVisible = window.debugInnerCone.visible;
+					}
+
+					// Toggle car cone
+					if (window.debugCarCone) {
+						window.debugCarCone.visible = !window.debugCarCone.visible;
+					}
+
+					console.log('🔍 Debug cones:', isVisible ? 'VISIBLE' : 'HIDDEN');
+				}
+			});
+
+			// Handle F key press
+			document.addEventListener('keydown', (e) => {
+				if (e.key === 'f' || e.key === 'F') {
+					if (nearComputer && !terminalOpen && !customizationOpen) {
+						// Prevent default F key behavior (vehicle entry)
+						e.preventDefault();
+						e.stopPropagation();
+						e.stopImmediatePropagation();
+
+						// Open OS
+						terminalOpen = true;
+						osDiv.classList.add('active');
+						interactionPrompt.classList.remove('show');
+
+						// Disable character controls
+						world.inputManager.inputReceiver = window.dummyInputReceiver;
+
+						// Enable mouse cursor - exit pointer lock directly
+						if (document.pointerLockElement) {
+							document.exitPointerLock();
+						}
+
+						return false;
+					}
+				}
+			}, true);
+
+		}, 100);
+
+		// ========== CAR RADIO FUNCTIONALITY ==========
+		const RADIO_API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+			? 'http://localhost:3000'
+			: 'https://your-production-api.com'; // Update with your production API URL
+
+		// Shuffle array helper
+		function radioShuffleArray(array) {
+			const shuffled = [...array];
+			for (let i = shuffled.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+			}
+			return shuffled;
+		}
+
+		let radioOpen = false;
+		let radioTracksData = [];
+		let radioCurrentIndex = -1;
+		const carRadioDiv = document.getElementById('car-radio');
+
+		// Toggle car radio
+		window.toggleCarRadio = function() {
+			radioOpen = !radioOpen;
+			if (radioOpen) {
+				carRadioDiv.classList.add('active');
+				// Exit pointer lock for UI interaction
+				document.exitPointerLock();
+				// Disable character controls
+				if (window.character && window.dummyInputReceiver && window.world) {
+					window.world.inputManager.inputReceiver = window.dummyInputReceiver;
+				}
+				// Load radio tracks if not loaded
+				if (radioTracksData.length === 0) {
+					loadRadioTracks();
+				}
+			} else {
+				carRadioDiv.classList.remove('active');
+				// Re-enable character controls
+				if (window.character) {
+					window.character.takeControl();
+				}
+			}
+		};
+
+		// Load tracks for radio
+		function loadRadioTracks() {
+			console.log('📻 Loading radio tracks from:', RADIO_API_BASE_URL);
+			Promise.all([
+				fetch(`${RADIO_API_BASE_URL}/api/v1/tracks`).then(r => r.json()),
+				fetch(`${RADIO_API_BASE_URL}/api/v1/users`).then(r => r.json())
+			])
+			.then(([tracksResult, usersResult]) => {
+				console.log('📻 Tracks result:', tracksResult);
+				console.log('📻 Users result:', usersResult);
+
+				if (tracksResult.success && tracksResult.data) {
+					radioTracksData = tracksResult.data;
+				}
+
+				const usersData = usersResult.success ? usersResult.data : {};
+
+				// Merge user data
+				radioTracksData = radioTracksData.map(track => {
+					if (track.user_id && usersData[track.user_id]) {
+						const user = usersData[track.user_id];
+						return {
+							...track,
+							artistName: user.displayName || user.username || 'Unknown Artist',
+							artistUsername: user.username || null
+						};
+					}
+					return {
+						...track,
+						artistName: 'Unknown Artist',
+						artistUsername: null
+					};
+				});
+
+				// Shuffle tracks for random order
+				radioTracksData = radioShuffleArray(radioTracksData);
+
+				console.log('📻 Loaded', radioTracksData.length, 'tracks');
+				displayRadioTracks();
+			})
+			.catch(error => {
+				console.error('Error loading radio tracks:', error);
+				document.getElementById('radio-tracklist').innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.5); padding: 20px;">Failed to load tracks</div>';
+			});
+		}
+
+		// Display tracks in radio
+		function displayRadioTracks() {
+			const container = document.getElementById('radio-tracklist');
+			container.innerHTML = radioTracksData.map((track, index) => `
+				<div class="car-radio-track-item ${index === radioCurrentIndex ? 'playing' : ''}" onclick="playRadioTrack(${index})">
+					<div class="car-radio-track-number">${index + 1}</div>
+					<div class="car-radio-track-details">
+						<div class="car-radio-track-name">${track.title || 'Unknown'}</div>
+						<div class="car-radio-track-meta">${track.artistName || 'Unknown Artist'} • ${track.genre || 'Unknown'}</div>
+					</div>
+				</div>
+			`).join('');
+		}
+
+		// Play track from radio
+		window.playRadioTrack = function(index) {
+			if (index < 0 || index >= radioTracksData.length) return;
+			if (!window.carPositionalAudio) {
+				console.error('Car audio system not ready');
+				return;
+			}
+
+			radioCurrentIndex = index;
+			const track = radioTracksData[index];
+
+			// Update now playing display
+			document.getElementById('radio-current-title').textContent = track.title || 'Unknown';
+			document.getElementById('radio-current-artist').textContent = track.artistName || 'Unknown Artist';
+
+			// Update play button
+			document.getElementById('radio-play-btn').textContent = '⏸';
+
+			// Update track list highlighting
+			displayRadioTracks();
+
+			// Stop current track if playing
+			if (window.carPositionalAudio.isPlaying) {
+				window.carPositionalAudio.stop();
+			}
+
+			// Build stream URL
+			const streamUrl = `${RADIO_API_BASE_URL}/api/v1/stream/${track.id}`;
+			console.log('🎵 Loading track from car radio:', track.title);
+
+			// Load and play track through car's spatial audio
+			const audioLoader = new THREE.AudioLoader();
+			audioLoader.load(streamUrl, (buffer) => {
+				window.carPositionalAudio.setBuffer(buffer);
+				window.carPositionalAudio.setLoop(false);
+				window.carPositionalAudio.setVolume(1.0);
+
+				// Connect to car-specific EQ chain (sounds like actual car speakers)
+				const source = window.carPositionalAudio.getOutput();
+				source.disconnect();
+
+				// Car EQ chain: source → bass boost → low-mid cut → high-mid cut → treble rolloff → analyser → destination
+				source.connect(window.carEQ.bass);
+				window.carEQ.bass.connect(window.carEQ.lowMid);
+				window.carEQ.lowMid.connect(window.carEQ.highMid);
+				window.carEQ.highMid.connect(window.carEQ.treble);
+				window.carEQ.treble.connect(window.audioAnalyser);
+				window.audioAnalyser.connect(window.carPositionalAudio.context.destination);
+
+				window.carPositionalAudio.play();
+				window.carAudioSource = window.carPositionalAudio; // Store reference for controls
+
+				console.log('🚗 Playing from car:', track.title);
+			}, undefined, (error) => {
+				console.error('Error loading car radio track:', error);
+			});
+		};
+
+		// Radio controls
+		window.radioTogglePlay = function() {
+			if (radioCurrentIndex === -1 && radioTracksData.length > 0) {
+				playRadioTrack(0);
+			} else {
+				const btn = document.getElementById('radio-play-btn');
+				if (window.carPositionalAudio) {
+					if (btn.textContent === '▶') {
+						window.carPositionalAudio.play();
+						btn.textContent = '⏸';
+					} else {
+						window.carPositionalAudio.pause();
+						btn.textContent = '▶';
+					}
+				}
+			}
+		};
+
+		window.radioSkipNext = function() {
+			if (radioTracksData.length === 0) return;
+			const nextIndex = (radioCurrentIndex + 1) % radioTracksData.length;
+			playRadioTrack(nextIndex);
+		};
+
+		window.radioSkipPrev = function() {
+			if (radioTracksData.length === 0) return;
+			const prevIndex = radioCurrentIndex - 1 < 0 ? radioTracksData.length - 1 : radioCurrentIndex - 1;
+			playRadioTrack(prevIndex);
+		};
+
+	</script>
+</body>
+
+</html>

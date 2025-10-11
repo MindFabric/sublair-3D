@@ -182,12 +182,7 @@ export class World
 		{
 			UIManager.setUserInterfaceVisible(true);
 			UIManager.setLoadingScreenVisible(false);
-			Swal.fire({
-				icon: 'success',
-				title: 'Hello world!',
-				text: 'Empty Sketchbook world was succesfully initialized. Enjoy the blueness of the sky.',
-				buttonsStyling: false
-			});
+			// Removed default Hello World message
 		}
 
 		this.render(this);
@@ -490,14 +485,15 @@ export class World
 		// Loader
 		$(`	<div id="loading-screen">
 				<div id="loading-screen-background"></div>
-				<h1 id="main-title" class="sb-font">Sketchbook 0.4</h1>
+				<h1 id="main-title" class="sb-font">SUBLAIR 3D</h1>
 				<div class="cubeWrap">
 					<div class="cube">
 						<div class="faces1"></div>
-						<div class="faces2"></div>     
-					</div> 
-				</div> 
+						<div class="faces2"></div>
+					</div>
+				</div>
 				<div id="loading-text">Loading...</div>
+				<div id="engine-credit">Engine: <a href="https://github.com/swift502/Sketchbook" target="_blank">Sketchbook 0.4</a></div>
 			</div>
 		`).appendTo('body');
 

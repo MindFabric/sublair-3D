@@ -277,6 +277,15 @@ export class Character extends THREE.Object3D implements IWorldEntity
 
 	public handleKeyboardEvent(event: KeyboardEvent, code: string, pressed: boolean): void
 	{
+		// Check for car radio toggle FIRST (works in vehicle or not)
+		if (code === 'KeyR' && pressed === true && !event.shiftKey && this.occupyingSeat !== null)
+		{
+			if ((window as any).toggleCarRadio) {
+				(window as any).toggleCarRadio();
+			}
+			return; // Don't pass R key to vehicle
+		}
+
 		if (this.controlledObject !== undefined)
 		{
 			this.controlledObject.handleKeyboardEvent(event, code, pressed);
@@ -299,7 +308,7 @@ export class Character extends THREE.Object3D implements IWorldEntity
 				for (const action in this.actions) {
 					if (this.actions.hasOwnProperty(action)) {
 						const binding = this.actions[action];
-	
+
 						if (_.includes(binding.eventCodes, code))
 						{
 							this.triggerAction(action, pressed);
@@ -674,6 +683,11 @@ export class Character extends THREE.Object3D implements IWorldEntity
 	{
 		this.resetControls();
 
+		// Apply vehicle lowpass filter to music
+		if ((window as any).eqFilters?.vehicleLowpass) {
+			(window as any).eqFilters.vehicleLowpass.frequency.value = 250; // Muffled sound
+		}
+
 		if (seat.door?.rotation < 0.5)
 		{
 			this.setState(new OpenVehicleDoor(this, seat, entryPoint));
@@ -759,6 +773,11 @@ export class Character extends THREE.Object3D implements IWorldEntity
 	{
 		if (this.occupyingSeat !== null)
 		{
+			// Remove vehicle lowpass filter from music
+			if ((window as any).eqFilters?.vehicleLowpass) {
+				(window as any).eqFilters.vehicleLowpass.frequency.value = 20000; // Full range
+			}
+
 			if (this.occupyingSeat.vehicle.entityType === EntityType.Airplane)
 			{
 				this.setState(new ExitingAirplane(this, this.occupyingSeat));
@@ -767,7 +786,7 @@ export class Character extends THREE.Object3D implements IWorldEntity
 			{
 				this.setState(new ExitingVehicle(this, this.occupyingSeat));
 			}
-			
+
 			this.stopControllingVehicle();
 		}
 	}

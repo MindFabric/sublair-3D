@@ -4,7 +4,13 @@
       "Bash(npm run build:*)",
       "Bash(export NODE_OPTIONS=--openssl-legacy-provider)",
       "Bash(npx webpack:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(node server.js)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(curl:*)",
+      "Bash(node:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

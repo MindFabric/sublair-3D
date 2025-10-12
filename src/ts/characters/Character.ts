@@ -74,12 +74,15 @@ export class Character extends THREE.Object3D implements IWorldEntity
 	public world: World;
 	public charState: ICharacterState;
 	public behaviour: ICharacterAI;
-	
+
 	// Vehicles
 	public controlledObject: IControllable;
 	public occupyingSeat: VehicleSeat = null;
 	public vehicleEntryInstance: VehicleEntryInstance = null;
-	
+
+	// Aim mode
+	public aimMode: boolean = false;
+
 	private physicsEnabled: boolean = true;
 
 	constructor(gltf: any)
@@ -354,14 +357,7 @@ export class Character extends THREE.Object3D implements IWorldEntity
 	
 	public handleMouseWheel(event: WheelEvent, value: number): void
 	{
-		if (this.controlledObject !== undefined)
-		{
-			this.controlledObject.handleMouseWheel(event, value);
-		}
-		else
-		{
-			this.world.scrollTheTimeScale(value);
-		}
+		// Disabled
 	}
 
 	public triggerAction(actionName: string, value: boolean): void
@@ -476,6 +472,10 @@ export class Character extends THREE.Object3D implements IWorldEntity
 				desc: 'Jump'
 			},
 			{
+				keys: ['E'],
+				desc: 'Aim mode (hold)'
+			},
+			{
 				keys: ['F', 'or', 'G'],
 				desc: 'Enter vehicle'
 			},
@@ -498,11 +498,40 @@ export class Character extends THREE.Object3D implements IWorldEntity
 		}
 		else
 		{
+			// Update aim mode based on E key
+			this.aimMode = this.actions.use.isPressed;
+
 			// Look in camera's direction
 			this.viewVector = new THREE.Vector3().subVectors(this.position, this.world.camera.position);
 			this.getWorldPosition(this.world.cameraOperator.target);
+
+			// Apply camera offset and rotation constraints when in aim mode
+			if (this.aimMode)
+			{
+				// Over-the-shoulder offset (right side)
+				const shoulderOffset = new THREE.Vector3(0.5, 0.3, 0);
+				shoulderOffset.applyQuaternion(this.quaternion);
+				this.world.cameraOperator.target.add(shoulderOffset);
+
+				// Make character face camera direction
+				const cameraDirection = new THREE.Vector3();
+				this.world.camera.getWorldDirection(cameraDirection);
+				cameraDirection.y = 0; // Keep on horizontal plane
+				cameraDirection.normalize();
+
+				// Set character's target orientation to camera direction
+				this.orientationTarget.copy(cameraDirection);
+
+				// Add organic latency to rotation - slower damping for smoother follow
+				this.rotationSimulator.damping = 0.3; // Slower, more organic
+			}
+			else
+			{
+				// Reset to default rotation speed when not aiming
+				this.rotationSimulator.damping = this.defaultRotationSimulatorDamping;
+			}
 		}
-		
+
 	}
 
 	public setAnimation(clipName: string, fadeIn: number): number

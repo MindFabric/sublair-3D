@@ -244,7 +244,7 @@ export abstract class Vehicle extends THREE.Object3D implements IWorldEntity
 
 	public handleMouseWheel(event: WheelEvent, value: number): void
 	{
-		this.world.scrollTheTimeScale(value);
+		// Timescale scrolling disabled
 	}
 
 	public inputReceiverInit(): void

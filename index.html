@@ -446,7 +446,7 @@
 			border-radius: 40px;
 			padding: 0;
 			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-			font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, sans-serif;
+			font-family: 'Share Tech Mono', monospace;
 			color: #fff;
 			z-index: 9999;
 			opacity: 0;
@@ -463,11 +463,177 @@
 			transform: translate(-50%, -50%) scale(1);
 		}
 
+		/* Crosshair */
+		.crosshair {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			width: 4px;
+			height: 4px;
+			background: white;
+			border-radius: 50%;
+			pointer-events: none;
+			z-index: 1000;
+			opacity: 0.8;
+			box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+		}
+
+		/* Phone Home Screen */
+		.phone-home {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+			display: flex;
+			flex-direction: column;
+			opacity: 1;
+			transition: opacity 0.3s ease;
+			z-index: 1;
+		}
+
+		.phone-home.hidden {
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		.phone-status-bar {
+			padding: 12px 20px 8px 20px;
+			display: flex;
+			justify-content: space-between;
+			font-size: 12px;
+			color: rgba(255, 255, 255, 0.8);
+			background: rgba(0, 0, 0, 0.3);
+		}
+
+		.phone-time {
+			font-weight: 600;
+		}
+
+		.phone-icons {
+			display: flex;
+			gap: 6px;
+		}
+
+		.phone-app-grid {
+			flex: 1;
+			padding: 60px 30px 40px 30px;
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 35px;
+			align-content: start;
+		}
+
+		.phone-app {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 8px;
+			cursor: pointer;
+			transition: transform 0.2s ease;
+		}
+
+		.phone-app:active {
+			transform: scale(0.95);
+		}
+
+		.phone-app-icon {
+			width: 64px;
+			height: 64px;
+			border-radius: 16px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 32px;
+			background: linear-gradient(135deg, #bee17b 0%, #8cc63f 100%);
+			box-shadow: 0 4px 12px rgba(190, 225, 123, 0.3);
+			position: relative;
+			overflow: hidden;
+		}
+
+		.phone-app-icon::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 50%;
+			background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
+		}
+
+		.phone-app-label {
+			font-size: 12px;
+			color: rgba(255, 255, 255, 0.9);
+			text-align: center;
+			font-weight: 500;
+		}
+
+		.phone-home-indicator {
+			position: absolute;
+			bottom: 8px;
+			left: 50%;
+			transform: translateX(-50%);
+			width: 140px;
+			height: 4px;
+			background: rgba(255, 255, 255, 0.3);
+			border-radius: 2px;
+		}
+
+		/* Music App Screen */
+		.phone-music-app {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: #000;
+			display: flex;
+			flex-direction: column;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.3s ease;
+			z-index: 2;
+		}
+
+		.phone-music-app.active {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
 		.car-radio-header {
 			padding: 50px 20px 16px 20px;
 			background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
 			position: relative;
 			z-index: 10;
+		}
+
+		.phone-back-btn {
+			position: absolute;
+			top: 50px;
+			left: 12px;
+			width: 36px;
+			height: 36px;
+			border: none;
+			background: rgba(255, 255, 255, 0.1);
+			color: #bee17b;
+			font-size: 32px;
+			border-radius: 50%;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: background 0.2s ease;
+			z-index: 20;
+		}
+
+		.phone-back-btn:hover {
+			background: rgba(255, 255, 255, 0.2);
+		}
+
+		.phone-back-btn:active {
+			transform: scale(0.95);
 		}
 
 		.car-radio-title {
@@ -484,10 +650,38 @@
 			font-weight: 500;
 		}
 
+		.phone-search-bar {
+			padding: 12px 20px;
+			background: rgba(0, 0, 0, 0.5);
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		}
+
+		.phone-search-bar input {
+			width: 100%;
+			background: rgba(255, 255, 255, 0.1);
+			border: 1px solid rgba(255, 255, 255, 0.2);
+			border-radius: 10px;
+			padding: 10px 14px;
+			color: #fff;
+			font-family: 'Share Tech Mono', monospace;
+			font-size: 14px;
+			outline: none;
+			transition: all 0.2s ease;
+		}
+
+		.phone-search-bar input::placeholder {
+			color: rgba(255, 255, 255, 0.4);
+		}
+
+		.phone-search-bar input:focus {
+			background: rgba(255, 255, 255, 0.15);
+			border-color: #bee17b;
+		}
+
 		.car-radio-content {
 			flex: 1;
 			overflow-y: auto;
-			padding: 0 20px 100px 20px;
+			padding: 12px 20px 140px 20px;
 		}
 
 		.car-radio-bottom-bar {
@@ -512,6 +706,8 @@
 			width: 48px;
 			height: 48px;
 			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			background-size: cover;
+			background-position: center;
 			border-radius: 8px;
 			flex-shrink: 0;
 		}
@@ -1577,7 +1773,7 @@
 				<!-- Slide 2 -->
 				<div class="welcome-slide" data-slide="1">
 					<h2>Explore the World</h2>
-					<p>Use <strong>WASD</strong> to move, <strong>SHIFT</strong> to sprint, and <strong>SPACE</strong> to jump. Press <strong>F</strong> to enter vehicles and interact with objects. Click to lock your cursor and look around.</p>
+					<p>Use <strong>WASD</strong> to move, <strong>SHIFT</strong> to sprint, and <strong>SPACE</strong> to jump. Hold <strong>E</strong> for aim mode with over-the-shoulder view. Press <strong>F</strong> to enter vehicles and interact with objects. Click to lock your cursor and look around.</p>
 				</div>
 				<!-- Slide 3 -->
 				<div class="welcome-slide" data-slide="2">
@@ -1623,28 +1819,61 @@
 	<!-- CRT Scanline Overlay -->
 	<div id="crt-overlay"></div>
 
-	<!-- Car Radio Interface -->
+	<!-- Crosshair (hidden by default) -->
+	<div class="crosshair" id="crosshair" style="display: none;"></div>
+
+	<!-- Car Radio Interface (Phone) -->
 	<div id="car-radio" class="car-radio">
 		<button class="car-radio-close" onclick="window.toggleCarRadio()">˅</button>
-		<div class="car-radio-header">
-			<div class="car-radio-title">Music</div>
-			<div class="car-radio-subtitle">SUBLAIR FM</div>
-		</div>
-		<div class="car-radio-content" id="radio-tracklist">
-			<!-- Tracks will be loaded here -->
-		</div>
-		<div class="car-radio-bottom-bar">
-			<div class="car-radio-now-playing-mini">
-				<div class="car-radio-mini-art"></div>
-				<div class="car-radio-mini-info">
-					<div class="car-radio-mini-title" id="radio-current-title">Not Playing</div>
-					<div class="car-radio-mini-artist" id="radio-current-artist">Select a track</div>
+
+		<!-- Phone Home Screen -->
+		<div id="phone-home" class="phone-home">
+			<div class="phone-status-bar">
+				<div class="phone-time" id="phone-time">9:41</div>
+				<div class="phone-icons">
+					<span>📶</span>
+					<span>📡</span>
+					<span>🔋</span>
 				</div>
 			</div>
-			<div class="car-radio-controls">
-				<button class="car-radio-btn" onclick="radioSkipPrev()">⏮</button>
-				<button class="car-radio-btn play-pause" id="radio-play-btn" onclick="radioTogglePlay()">▶</button>
-				<button class="car-radio-btn" onclick="radioSkipNext()">⏭</button>
+
+			<div class="phone-app-grid">
+				<div class="phone-app" onclick="openPhoneApp('music')">
+					<div class="phone-app-icon">
+						<img src="public/CIRCLE.png" alt="SUBLAIR" style="width: 100%; height: 100%; object-fit: cover; border-radius: 18px;">
+					</div>
+					<div class="phone-app-label">SUBLAIR</div>
+				</div>
+			</div>
+
+			<div class="phone-home-indicator"></div>
+		</div>
+
+		<!-- Music App Screen -->
+		<div id="phone-music-app" class="phone-music-app">
+			<div class="car-radio-header">
+				<button class="phone-back-btn" onclick="closePhoneApp()">‹</button>
+				<div class="car-radio-title">SUBLAIR</div>
+			</div>
+			<div class="phone-search-bar">
+				<input type="text" id="phone-search-input" placeholder="Search tracks, artists..." />
+			</div>
+			<div class="car-radio-content" id="radio-tracklist">
+				<!-- Tracks will be loaded here -->
+			</div>
+			<div class="car-radio-bottom-bar">
+				<div class="car-radio-now-playing-mini">
+					<div class="car-radio-mini-art"></div>
+					<div class="car-radio-mini-info">
+						<div class="car-radio-mini-title" id="radio-current-title">Not Playing</div>
+						<div class="car-radio-mini-artist" id="radio-current-artist">Select a track</div>
+					</div>
+				</div>
+				<div class="car-radio-controls">
+					<button class="car-radio-btn" onclick="radioSkipPrev()">⏮</button>
+					<button class="car-radio-btn play-pause" id="radio-play-btn" onclick="radioTogglePlay()">▶</button>
+					<button class="car-radio-btn" onclick="radioSkipNext()">⏭</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -1772,9 +2001,17 @@
 					};
 
 				const crtPass = new ShaderPass(CRTShader);
+				crtPass.renderToScreen = true; // CRT is now the final pass
+
+				// Disable renderToScreen for all previous passes
+				const passes = world.composer.passes;
+				for (let i = 0; i < passes.length; i++) {
+					passes[i].renderToScreen = false;
+				}
+
 				world.composer.addPass(crtPass);
 
-				console.log('✓ CRT barrel distortion shader added!');
+				console.log('✓ CRT barrel distortion shader added as final pass!');
 			}
 		};
 
@@ -1909,7 +2146,8 @@
 					bass: audioContext.createBiquadFilter(),
 					lowMid: audioContext.createBiquadFilter(),
 					highMid: audioContext.createBiquadFilter(),
-					treble: audioContext.createBiquadFilter()
+					treble: audioContext.createBiquadFilter(),
+					outsideLowpass: audioContext.createBiquadFilter() // Muffle when outside car
 				};
 
 				// Bass boost at 80Hz (car subwoofer range)
@@ -1934,32 +2172,71 @@
 				window.carEQ.treble.frequency.value = 8000;
 				window.carEQ.treble.gain.value = -4; // -4dB rolloff
 
+				// Lowpass for when outside car (starts muffled)
+				window.carEQ.outsideLowpass.type = 'lowpass';
+				window.carEQ.outsideLowpass.frequency.value = 800; // Muffled when outside
+				window.carEQ.outsideLowpass.Q.value = 1;
+
 				// Add the positional audio to the car
 				car.add(window.carPositionalAudio);
 
-				// Create debug cone visualizations for car
-				const carInnerConeGeometry = new THREE.ConeGeometry(
-					Math.tan((120 * Math.PI / 180) / 2) * 5, // radius at 5 units distance
-					5, // height
-					16, // segments
-					1,
-					true // open ended
-				);
+				// Store car audio position globally
+				window.carAudioPosition = new THREE.Vector3();
+				window.carPositionalAudio.getWorldPosition(window.carAudioPosition);
 
-				const carConeMaterial = new THREE.MeshBasicMaterial({
-					color: 0x00ffff, // Cyan for car
-					wireframe: true,
+				// Create debug visualization for car audio position
+				const carMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+				const carMarkerMaterial = new THREE.MeshBasicMaterial({
+					color: 0xff00ff, // Magenta for car
 					transparent: true,
-					opacity: 0.4
+					opacity: 0.8
 				});
+				window.debugCarMarker = new THREE.Mesh(carMarkerGeometry, carMarkerMaterial);
+				window.debugCarMarker.position.copy(car.position);
+				window.debugCarMarker.visible = false;
+				world.graphicsWorld.add(window.debugCarMarker);
 
-				window.debugCarCone = new THREE.Mesh(carInnerConeGeometry, carConeMaterial);
-				window.debugCarCone.rotation.x = Math.PI; // Flip to point forward
-				window.debugCarCone.position.copy(car.position);
-				window.debugCarCone.visible = false;
-				world.graphicsWorld.add(window.debugCarCone);
+				// Create arrow showing car audio direction
+				const carInitialDir = new THREE.Vector3();
+				window.carPositionalAudio.getWorldDirection(carInitialDir);
+				const carArrowHelper = new THREE.ArrowHelper(
+					carInitialDir,
+					car.position,
+					3, // length
+					0xff00ff, // magenta
+					0.5, // headLength
+					0.3 // headWidth
+				);
+				window.debugCarArrow = carArrowHelper;
+				window.debugCarArrow.visible = false;
+				world.graphicsWorld.add(window.debugCarArrow);
 
-				console.log('🚗 Car spatial audio system created with car EQ + debug cone');
+				// Create cone visualization for car (just front green cone)
+				// Front cone (145°)
+				const carFrontConeAngle = 145 * Math.PI / 180;
+				const carFrontConeRadius = Math.tan(carFrontConeAngle / 2) * 10;
+				const carFrontConeGeometry = new THREE.ConeGeometry(carFrontConeRadius, 10, 32, 1, false);
+				const carFrontConeMaterial = new THREE.MeshBasicMaterial({
+					color: 0x00ff00,
+					transparent: true,
+					opacity: 0.2,
+					side: THREE.DoubleSide
+				});
+				window.debugCarFrontCone = new THREE.Mesh(carFrontConeGeometry, carFrontConeMaterial);
+
+				// Position and rotate cone - car faces forward (positive Z)
+				const carFrontConeRotation = new THREE.Euler(-Math.PI / 2, 0, 0, 'XYZ');
+				window.debugCarFrontCone.rotation.copy(carFrontConeRotation);
+
+				// Position cone at car position
+				const carFrontOffset = new THREE.Vector3(0, 0, 5);
+				window.debugCarFrontCone.position.copy(car.position).add(carFrontOffset);
+
+				// Add to scene but hide by default
+				window.debugCarFrontCone.visible = false;
+				world.graphicsWorld.add(window.debugCarFrontCone);
+
+				console.log('🚗 Car spatial audio system created with car EQ + debug visualizations');
 			});
 
 			window.character = null; // Store character reference globally
@@ -2008,6 +2285,7 @@
 						<div>Mouse - Look</div>
 						<div>Shift - Sprint</div>
 						<div>Space - Jump</div>
+						<div>E - Aim Mode (hold)</div>
 						<div>F - Interact</div>
 						<div>C - Customize</div>
 					`;
@@ -2268,12 +2546,41 @@
 					}
 				});
 
+				// Load saved customization from localStorage or use defaults
+				let savedCustomization = localStorage.getItem('characterCustomization');
+				let customizationData = savedCustomization ? JSON.parse(savedCustomization) : {
+					skinColor: '#bee17b',
+					shirtColor: '#ff1400',
+					pantsColor: '#0f00ff',
+					hatColor: '#191919',
+					textureType: 'solid',
+					textureScale: 1.0,
+					textureRotation: 0,
+					textureDensity: 1.0
+				};
+
 				// Store colors for each part
-				let skinColor = '#bee17b';
-				let shirtColor = '#ff1400';
-				let pantsColor = '#0f00ff';
-				let hatColor = '#191919';
+				let skinColor = customizationData.skinColor;
+				let shirtColor = customizationData.shirtColor;
+				let pantsColor = customizationData.pantsColor;
+				let hatColor = customizationData.hatColor;
 				let savedCameraTheta, savedCameraPhi, savedCameraRadius;
+
+				// Function to save customization to localStorage
+				function saveCustomization() {
+					const data = {
+						skinColor,
+						shirtColor,
+						pantsColor,
+						hatColor,
+						textureType: document.getElementById('texture-type')?.value || 'solid',
+						textureScale: parseFloat(document.getElementById('texture-scale')?.value || 1.0),
+						textureRotation: parseFloat(document.getElementById('texture-rotation')?.value || 0),
+						textureDensity: parseFloat(document.getElementById('texture-density')?.value || 1.0)
+					};
+					localStorage.setItem('characterCustomization', JSON.stringify(data));
+					console.log('💾 Customization saved:', data);
+				}
 
 				function updateCharacter() {
 					character.traverse((child) => {
@@ -2429,11 +2736,25 @@
 					const pantsColorValue = document.getElementById('pants-color-value');
 					const hatColorValue = document.getElementById('hat-color-value');
 
+					// Initialize UI with saved values
+					skinColorPicker.value = skinColor;
+					skinColorValue.textContent = skinColor.toUpperCase();
+					shirtColorPicker.value = shirtColor;
+					shirtColorValue.textContent = shirtColor.toUpperCase();
+					pantsColorPicker.value = pantsColor;
+					pantsColorValue.textContent = pantsColor.toUpperCase();
+					hatColorPicker.value = hatColor;
+					hatColorValue.textContent = hatColor.toUpperCase();
+
+					// Apply saved customization immediately
+					updateCharacter();
+
 					// Skin color picker
 					skinColorPicker.addEventListener('input', (e) => {
 						skinColor = e.target.value;
 						skinColorValue.textContent = skinColor.toUpperCase();
 						updateCharacter();
+						saveCustomization();
 					});
 
 					// Shirt color picker
@@ -2441,6 +2762,7 @@
 						shirtColor = e.target.value;
 						shirtColorValue.textContent = shirtColor.toUpperCase();
 						updateCharacter();
+						saveCustomization();
 					});
 
 					// Pants color picker
@@ -2448,6 +2770,7 @@
 						pantsColor = e.target.value;
 						pantsColorValue.textContent = pantsColor.toUpperCase();
 						updateCharacter();
+						saveCustomization();
 					});
 
 					// Hat color picker
@@ -2455,6 +2778,7 @@
 						hatColor = e.target.value;
 						hatColorValue.textContent = hatColor.toUpperCase();
 						updateCharacter();
+						saveCustomization();
 					});
 				}, 1000);
 			});
@@ -3236,6 +3560,7 @@
 			// Fetch tracks and users from API
 			let tracksData = [];
 			let usersData = {};
+			let currentTrackIndex = -1;
 
 			// Fetch both tracks and users
 			Promise.all([
@@ -3299,13 +3624,13 @@
 					return;
 				}
 
-				container.innerHTML = tracks.map(track => {
+				container.innerHTML = tracks.map((track, index) => {
 					const artistDisplay = track.artistUsername
 						? `<a href="https://www.sublair.com/u/${track.artistUsername}" target="_blank" class="artist-link" onclick="event.stopPropagation();">${track.artistName}</a>`
 						: (track.artistName || 'Unknown Artist');
 
 					return `
-						<div class="track-item" data-track-id="${track.id}" data-title="${track.title || 'UNKNOWN'}" data-artwork="${track.artwork_url || ''}">
+						<div class="track-item" data-track-index="${index}" data-track-id="${track.id}" data-title="${track.title || 'UNKNOWN'}" data-artwork="${track.artwork_url || ''}">
 							<div class="track-title">${track.title}</div>
 							<div class="track-meta">${artistDisplay} • ${track.genre || 'Unknown'}</div>
 						</div>
@@ -3315,11 +3640,13 @@
 				// Add click handlers to play tracks
 			document.querySelectorAll('.track-item').forEach(item => {
 				item.addEventListener('click', function() {
+					const trackIndex = parseInt(this.getAttribute('data-track-index'));
 					const trackId = this.getAttribute('data-track-id');
 					const trackTitle = this.getAttribute('data-title');
 					const artworkUrl = this.getAttribute('data-artwork');
 					// Use API stream proxy instead of direct URL
 					const streamUrl = `${API_BASE_URL}/api/v1/stream/${trackId}`;
+					currentTrackIndex = trackIndex;
 					playTrack(streamUrl, trackTitle, artworkUrl);
 				});
 			});
@@ -3465,6 +3792,12 @@
 					positionalAudio.play();
 					currentTrack = url;
 
+					// Auto-play next track when current one ends
+					positionalAudio.onEnded = function() {
+						console.log('🔄 Track ended, playing next...');
+						playNextTrack();
+					};
+
 					// Update desktop audio player
 					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${currentTrackTitle}`;
 					document.getElementById('audio-play-pause').textContent = '[PAUSE]';
@@ -3498,6 +3831,19 @@
 						loadingDiv.classList.remove('show');
 					}, 3000);
 				});
+			}
+
+			// Play next track (random shuffle)
+			function playNextTrack() {
+				if (tracksData.length === 0) return;
+
+				// Pick a random next track
+				const nextIndex = Math.floor(Math.random() * tracksData.length);
+				currentTrackIndex = nextIndex;
+
+				const track = tracksData[nextIndex];
+				const streamUrl = `${API_BASE_URL}/api/v1/stream/${track.id}`;
+				playTrack(streamUrl, track.title, track.artwork_url);
 			}
 
 			// Create interaction prompt
@@ -4168,6 +4514,15 @@
 				console.error('Error loading sounds:', error);
 			});
 
+			// Update crosshair visibility based on aim mode
+			const crosshairElement = document.getElementById('crosshair');
+			setInterval(() => {
+				if (window.character && crosshairElement) {
+					// Show crosshair only when in aim mode (holding E)
+					crosshairElement.style.display = window.character.aimMode ? 'block' : 'none';
+				}
+			}, 16); // 60fps
+
 			// Monitor character movement for footsteps
 			let footstepDebugCount = 0;
 			let debugCounter = 0;
@@ -4237,9 +4592,13 @@
 
 				// Add positional audio to speakers
 				speakers.add(positionalAudio);
+				positionalAudio.position.set(1, 1, -3.5); // Offset on X, Y, and Z in local space
 				positionalAudio.setRefDistance(10); // Distance at which volume starts to drop
 				positionalAudio.setMaxDistance(50); // Max distance audio can be heard
 				positionalAudio.setRolloffFactor(1); // How quickly sound fades with distance
+
+				// Store globally for direction calculations
+				window.positionalAudio = positionalAudio;
 
 				// Make it directional like a real festival speaker (front-facing cone)
 				positionalAudio.setDirectionalCone(120, 230, 0.3); // innerAngle, outerAngle, outerGain
@@ -4262,53 +4621,103 @@
 				console.log('🔊 Directional speaker cone configured with dynamic lowpass');
 
 				// Store speaker position globally for direction calculation
-				window.speakerPosition = speakers.position;
+				// Account for the positionalAudio offset in world space
+				window.speakerPosition = new THREE.Vector3();
+				positionalAudio.getWorldPosition(window.speakerPosition);
 
-				// Create debug cone visualizations
-				const innerConeGeometry = new THREE.ConeGeometry(
-					Math.tan((120 * Math.PI / 180) / 2) * 10, // radius at 10 units distance
-					10, // height
-					32, // segments
-					1,
-					true // open ended
-				);
-				const outerConeGeometry = new THREE.ConeGeometry(
-					Math.tan((230 * Math.PI / 180) / 2) * 10,
-					10,
-					32,
-					1,
-					true
-				);
+				// Create debug visualization for speaker position
+				const speakerMarkerGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+				const speakerMarkerMaterial = new THREE.MeshBasicMaterial({
+					color: 0xff0000,
+					transparent: true,
+					opacity: 0.8
+				});
+				window.debugSpeakerMarker = new THREE.Mesh(speakerMarkerGeometry, speakerMarkerMaterial);
+				window.debugSpeakerMarker.position.copy(window.speakerPosition);
+				window.debugSpeakerMarker.visible = false;
+				world.graphicsWorld.add(window.debugSpeakerMarker);
 
+				// Create arrow showing speaker direction (will be updated to actual direction)
+				const initialDir = new THREE.Vector3();
+				positionalAudio.getWorldDirection(initialDir);
+				const arrowHelper = new THREE.ArrowHelper(
+					initialDir, // direction
+					window.speakerPosition, // origin
+					5, // length
+					0x00ffff, // cyan color
+					1, // headLength
+					0.5 // headWidth
+				);
+				window.debugSpeakerArrow = arrowHelper;
+				window.debugSpeakerArrow.visible = false;
+				world.graphicsWorld.add(window.debugSpeakerArrow);
+
+				// Create cone visualizations - simpler and more visible
+				// Inner cone (145°)
+				const innerConeAngle = 145 * Math.PI / 180;
+				const innerConeRadius = Math.tan(innerConeAngle / 2) * 15;
+				const innerConeGeometry = new THREE.ConeGeometry(innerConeRadius, 15, 32, 1, false);
 				const innerConeMaterial = new THREE.MeshBasicMaterial({
 					color: 0x00ff00,
-					wireframe: true,
 					transparent: true,
-					opacity: 0.3
+					opacity: 0.2,
+					side: THREE.DoubleSide
 				});
+				window.debugInnerCone = new THREE.Mesh(innerConeGeometry, innerConeMaterial);
+
+				// Outer cone (230°)
+				const outerConeAngle = 230 * Math.PI / 180;
+				const outerConeRadius = Math.tan(outerConeAngle / 2) * 15;
+				const outerConeGeometry = new THREE.ConeGeometry(outerConeRadius, 15, 32, 1, false);
 				const outerConeMaterial = new THREE.MeshBasicMaterial({
 					color: 0xffff00,
-					wireframe: true,
 					transparent: true,
-					opacity: 0.2
+					opacity: 0.15,
+					side: THREE.DoubleSide
 				});
-
-				window.debugInnerCone = new THREE.Mesh(innerConeGeometry, innerConeMaterial);
 				window.debugOuterCone = new THREE.Mesh(outerConeGeometry, outerConeMaterial);
 
-				// Position cones to point forward (negative Z)
-				window.debugInnerCone.rotation.x = Math.PI; // Flip to point forward
-				window.debugOuterCone.rotation.x = Math.PI;
-				window.debugInnerCone.position.copy(speakers.position);
-				window.debugOuterCone.position.copy(speakers.position);
+				// Back cone (90° to 180° behind - distortion zone)
+				// This is a 180° cone (full hemisphere) pointing backwards
+				const backConeAngle = 180 * Math.PI / 180; // 180° cone for full rear hemisphere
+				const backConeRadius = Math.tan(backConeAngle / 2) * 20; // Massive radius for 180°
+				const backConeGeometry = new THREE.ConeGeometry(backConeRadius, 20, 32, 1, false);
+				const backConeMaterial = new THREE.MeshBasicMaterial({
+					color: 0xff0000,
+					transparent: true,
+					opacity: 0.25,
+					side: THREE.DoubleSide
+				});
+				window.debugBackCone = new THREE.Mesh(backConeGeometry, backConeMaterial);
+
+				// Position and rotate cones - point from speaker position in positive X direction
+				// Cone geometry points down -Y by default, so we rotate to point along +X
+				const coneRotation = new THREE.Euler(-Math.PI / 2, 0, Math.PI / 2, 'XYZ');
+				window.debugInnerCone.rotation.copy(coneRotation);
+				window.debugOuterCone.rotation.copy(coneRotation);
+
+				// Back cone points opposite direction (rotate 180° more on Y)
+				const backConeRotation = new THREE.Euler(-Math.PI / 2, 0, -Math.PI / 2, 'XYZ');
+				window.debugBackCone.rotation.copy(backConeRotation);
+
+				// Position cones at speaker position, offset along direction
+				const coneOffset = new THREE.Vector3(7.5, 0, 0); // Half the cone height along X axis
+				window.debugInnerCone.position.copy(window.speakerPosition).add(coneOffset);
+				window.debugOuterCone.position.copy(window.speakerPosition).add(coneOffset);
+
+				// Back cone offset in opposite direction (longer cone needs bigger offset)
+				const backConeOffset = new THREE.Vector3(-10, 0, 0); // Negative X (backwards)
+				window.debugBackCone.position.copy(window.speakerPosition).add(backConeOffset);
 
 				// Add to scene but hide by default
 				window.debugInnerCone.visible = false;
 				window.debugOuterCone.visible = false;
+				window.debugBackCone.visible = false;
 				world.graphicsWorld.add(window.debugInnerCone);
 				world.graphicsWorld.add(window.debugOuterCone);
+				world.graphicsWorld.add(window.debugBackCone);
 
-				console.log('🔍 Debug speaker cones created (press D to toggle)');
+				console.log('🔍 Debug speaker cones created (press Q to toggle)');
 
 				// Setup materials for shadows
 				speakers.traverse((child) => {
@@ -4340,6 +4749,17 @@
 			let nearComputer = false;
 			let nearCar = false;
 			let radioPromptDismissed = false;
+
+			// Vehicle audio transition
+			let vehicleAudioTransition = 0; // 0 = not in vehicle, 1 = fully in vehicle
+			let vehicleTransitionStartTime = null;
+			const VEHICLE_ENTER_DURATION = 500; // 0.5 seconds to fully fade in/out
+			const VEHICLE_EXIT_DURATION = 500; // 0.5 seconds to fade back
+
+			// Bass bounce tracking
+			let lastBassLevel = 0;
+			let lastBassHitTime = 0;
+			const BASS_HIT_COOLDOWN = 150; // Minimum 150ms between hits
 
 			// Check distance to computer every frame
 			function checkComputerProximity() {
@@ -4387,40 +4807,152 @@
 					checkComputerProximity();
 					checkCarProximity();
 
+					// Update vehicle audio transition with time-based animation
+					const inVehicle = character.controlledObject && character.controlledObject.rayCastVehicle;
+					const currentTime = Date.now();
+
+					if (inVehicle && vehicleAudioTransition < 1) {
+						// Entering vehicle - start timer if not started
+						if (vehicleTransitionStartTime === null) {
+							vehicleTransitionStartTime = currentTime;
+						}
+
+						// Calculate progress based on time elapsed
+						const elapsed = currentTime - vehicleTransitionStartTime;
+						vehicleAudioTransition = Math.min(1, elapsed / VEHICLE_ENTER_DURATION);
+					} else if (!inVehicle && vehicleAudioTransition > 0) {
+						// Exiting vehicle - start timer if not started
+						if (vehicleTransitionStartTime === null) {
+							vehicleTransitionStartTime = currentTime;
+						}
+
+						// Calculate progress based on time elapsed
+						const elapsed = currentTime - vehicleTransitionStartTime;
+						vehicleAudioTransition = Math.max(0, 1 - (elapsed / VEHICLE_EXIT_DURATION));
+					} else {
+						// Transition complete, reset timer
+						vehicleTransitionStartTime = null;
+					}
+
 					// Update directional lowpass based on position relative to speakers
-					if (window.speakerPosition && window.speakerDirectionalLowpass && window.speakerDirectionalBass && window.world) {
+					if (window.speakerPosition && window.speakerDirectionalLowpass && window.speakerDirectionalBass && window.world && window.positionalAudio) {
 						const camera = window.world.camera;
-						const speakerDir = new THREE.Vector3(0, 0, -1); // Speakers face negative Z
+						// Get the actual world direction the speaker is facing
+						const speakerDir = new THREE.Vector3();
+						window.positionalAudio.getWorldDirection(speakerDir);
 						const toListener = new THREE.Vector3().subVectors(camera.position, window.speakerPosition).normalize();
 
 						// Calculate angle between speaker direction and listener direction
 						const angle = speakerDir.angleTo(toListener) * (180 / Math.PI);
 
-						// Apply lowpass based on angle (ONLY behind = heavy lowpass + bass boost, otherwise clear)
-						// 0-120° = clear (20kHz), 120-180° = BEHIND speakers (heavy lowpass + clippy bass)
-						let targetFreq, targetBassGain;
-						if (angle < 120) {
-							targetFreq = 20000; // Clear (front and sides)
-							targetBassGain = 0; // No bass boost
+						// Apply lowpass based on angle - INSTANT snap, no transition
+						// 0-90° = clear (20kHz), 90-180° = BEHIND speakers (180° cone of distortion)
+						if (angle < 90) {
+							// Front hemisphere - crystal clear
+							window.speakerDirectionalLowpass.frequency.value = 20000;
+							window.speakerDirectionalBass.gain.value = 0;
 						} else {
-							// Behind speakers only
-							const factor = (angle - 120) / 60; // 0 to 1 (120° to 180°)
-							targetFreq = 20000 - (factor * 19800); // Gradual rolloff from 20kHz to 200Hz
-							targetBassGain = factor * 18; // Gradual bass boost to +18dB
+							// Behind speakers (entire rear 180°) - INSTANT heavy distortion
+							window.speakerDirectionalLowpass.frequency.value = 200; // Heavy lowpass to 200Hz
+							window.speakerDirectionalBass.gain.value = 18; // +18dB bass boost (clippy)
 						}
 
-						// Smooth transition
-						const currentFreq = window.speakerDirectionalLowpass.frequency.value;
-						const currentBass = window.speakerDirectionalBass.gain.value;
-						window.speakerDirectionalLowpass.frequency.value = currentFreq + (targetFreq - currentFreq) * 0.15;
-						window.speakerDirectionalBass.gain.value = currentBass + (targetBassGain - currentBass) * 0.15;
+						// Apply vehicle transition - apply lowpass filter when getting in car
+						// Smoothly transition the vehicle lowpass filter based on vehicleAudioTransition
+						if (window.eqFilters && window.eqFilters.vehicleLowpass) {
+							// Main speakers: When vehicleAudioTransition = 0 (outside): freq = 20000 (no effect)
+							//                When vehicleAudioTransition = 1 (inside): freq = 800 (heavy muffling)
+							const targetFreq = 20000 - (vehicleAudioTransition * 19200);
+							window.eqFilters.vehicleLowpass.frequency.value = targetFreq;
+						}
+
+						// Car audio: INVERSE of main speakers
+						// When outside car (vehicleAudioTransition = 0): car audio is muffled (800Hz) and quieter
+						// When inside car (vehicleAudioTransition = 1): car audio is clear (20000Hz) and full volume
+						if (window.carEQ && window.carEQ.outsideLowpass) {
+							const carTargetFreq = 800 + (vehicleAudioTransition * 19200);
+							window.carEQ.outsideLowpass.frequency.value = carTargetFreq;
+						}
+
+						// Adjust car audio volume based on whether inside or outside
+						// Outside (0): 30% volume, Inside (1): 100% volume
+						if (window.carPositionalAudio) {
+							const carVolume = 0.3 + (vehicleAudioTransition * 0.7);
+							window.carPositionalAudio.setVolume(carVolume);
+						}
 					}
 
-					// Update car debug cone position to follow car
-					if (window.debugCarCone && window.car) {
-						window.debugCarCone.position.copy(window.car.position);
-						window.debugCarCone.rotation.copy(window.car.rotation);
-						window.debugCarCone.rotation.x += Math.PI; // Keep the flip
+					// Update car debug visualizations to follow car
+					if (window.car) {
+						if (window.debugCarMarker) {
+							window.debugCarMarker.position.copy(window.car.position);
+						}
+						if (window.debugCarArrow) {
+							const carDir = new THREE.Vector3();
+							window.car.getWorldDirection(carDir);
+							window.debugCarArrow.position.copy(window.car.position);
+							window.debugCarArrow.setDirection(carDir);
+						}
+						if (window.debugCarFrontCone) {
+							const carFrontOffset = new THREE.Vector3(0, 0, 5);
+							carFrontOffset.applyQuaternion(window.car.quaternion);
+							window.debugCarFrontCone.position.copy(window.car.position).add(carFrontOffset);
+							window.debugCarFrontCone.rotation.copy(window.car.rotation);
+							window.debugCarFrontCone.rotation.x += -Math.PI / 2;
+						}
+
+						// Bass-reactive suspension - CONSTANT SUB SHAKE!
+						if (inVehicle && window.carPositionalAudio && window.carPositionalAudio.isPlaying && window.audioAnalyser && character.controlledObject) {
+							const frequencyData = new Uint8Array(window.audioAnalyser.frequencyBinCount);
+							window.audioAnalyser.getByteFrequencyData(frequencyData);
+
+							// Focus on DEEP SUB BASS (20Hz - 100Hz, roughly bins 0-10)
+							let subBassSum = 0;
+							const subBassRange = 10; // Focus on deepest frequencies
+							for (let i = 0; i < subBassRange; i++) {
+								subBassSum += frequencyData[i];
+							}
+							const subBassLevel = subBassSum / subBassRange / 255; // Normalize to 0-1
+
+							// Get the vehicle's physics body
+							const vehicle = character.controlledObject;
+							const vehicleBody = vehicle.rayCastVehicle ? vehicle.rayCastVehicle.chassisBody : null;
+
+							// CONSTANT SHAKING based on sub bass level - suspension wobble!
+							if (subBassLevel > 0.1 && vehicleBody) { // Lower threshold
+								// Scale shake intensity with bass level - MORE AGGRESSIVE
+								const shakeIntensity = (subBassLevel - 0.1) * 200;
+
+								// Apply TORQUE instead of impulse - makes it shake/wobble without moving position
+								const randomTorqueX = (Math.random() - 0.5) * shakeIntensity;
+								const randomTorqueY = (Math.random() - 0.5) * shakeIntensity * 0.3; // Less rotation around Y
+								const randomTorqueZ = (Math.random() - 0.5) * shakeIntensity;
+
+								// Apply angular (rotational) impulse - pure suspension shake!
+								vehicleBody.torque.x += randomTorqueX;
+								vehicleBody.torque.y += randomTorqueY;
+								vehicleBody.torque.z += randomTorqueZ;
+
+								// Also detect PEAKS for extra bounce on bass drops
+								const bassDelta = subBassLevel - lastBassLevel;
+								const timeSinceLastHit = currentTime - lastBassHitTime;
+								const isPeak = bassDelta > 0.05 && subBassLevel > 0.3; // Lower thresholds
+								const canHit = timeSinceLastHit > BASS_HIT_COOLDOWN;
+
+								if (isPeak && canHit) {
+									// EXTRA VERTICAL IMPULSE on bass drop - bigger bounce
+									const bounceStrength = subBassLevel * 100;
+									vehicleBody.applyImpulse(
+										new CANNON.Vec3(0, bounceStrength, 0),
+										new CANNON.Vec3(0, 0, 0)
+									);
+									lastBassHitTime = currentTime;
+									console.log('💥 BASS DROP! Sub:', subBassLevel.toFixed(2), 'Bounce:', bounceStrength.toFixed(2));
+								}
+							}
+
+							lastBassLevel = subBassLevel;
+						}
 					}
 				}
 			}, 100);
@@ -4431,18 +4963,65 @@
 					let isVisible = false;
 
 					// Toggle speaker cones
-					if (window.debugInnerCone && window.debugOuterCone) {
+					if (window.debugInnerCone && window.debugOuterCone && window.debugBackCone) {
 						window.debugInnerCone.visible = !window.debugInnerCone.visible;
 						window.debugOuterCone.visible = !window.debugOuterCone.visible;
+						window.debugBackCone.visible = !window.debugBackCone.visible;
 						isVisible = window.debugInnerCone.visible;
 					}
 
-					// Toggle car cone
-					if (window.debugCarCone) {
-						window.debugCarCone.visible = !window.debugCarCone.visible;
+					// Toggle speaker marker and arrow
+					if (window.debugSpeakerMarker) {
+						window.debugSpeakerMarker.visible = !window.debugSpeakerMarker.visible;
+					}
+					if (window.debugSpeakerArrow) {
+						window.debugSpeakerArrow.visible = !window.debugSpeakerArrow.visible;
+					}
+
+					// Toggle car visualizations
+					if (window.debugCarMarker) {
+						window.debugCarMarker.visible = !window.debugCarMarker.visible;
+					}
+					if (window.debugCarArrow) {
+						window.debugCarArrow.visible = !window.debugCarArrow.visible;
+					}
+					if (window.debugCarFrontCone) {
+						window.debugCarFrontCone.visible = !window.debugCarFrontCone.visible;
 					}
 
 					console.log('🔍 Debug cones:', isVisible ? 'VISIBLE' : 'HIDDEN');
+
+					// Show detailed debug info when toggling on
+					if (isVisible && window.speakerPosition && window.world && window.positionalAudio) {
+						const speakerDir = new THREE.Vector3();
+						window.positionalAudio.getWorldDirection(speakerDir);
+
+						console.log('═══════════════════════════════════');
+						console.log('🔊 SPEAKER DEBUG INFO:');
+						console.log('Speaker Position:', window.speakerPosition);
+						console.log('Speaker Direction:', speakerDir);
+						console.log('Inner Cone: 120° (Green)');
+						console.log('Outer Cone: 230° (Yellow)');
+
+						const camera = window.world.camera;
+						const toListener = new THREE.Vector3().subVectors(camera.position, window.speakerPosition).normalize();
+						const angle = speakerDir.angleTo(toListener) * (180 / Math.PI);
+
+						console.log('═══════════════════════════════════');
+						console.log('📍 YOUR POSITION:');
+						console.log('Camera Position:', camera.position);
+						console.log('Direction from Speaker:', toListener);
+						console.log('Angle from Speaker Front:', angle.toFixed(1) + '°');
+
+						if (angle < 120) {
+							console.log('🟢 STATUS: FRONT of speaker (clear audio)');
+						} else {
+							console.log('🔴 STATUS: BEHIND speaker (muffled + bass boost)');
+							const factor = (angle - 120) / 60;
+							console.log('Muffling Factor:', (factor * 100).toFixed(1) + '%');
+						}
+						console.log('═══════════════════════════════════');
+					}
 				}
 			});
 
@@ -4511,6 +5090,11 @@
 			radioOpen = !radioOpen;
 			if (radioOpen) {
 				carRadioDiv.classList.add('active');
+				// Show home screen, hide music app
+				document.getElementById('phone-home').classList.remove('hidden');
+				document.getElementById('phone-music-app').classList.remove('active');
+				// Update phone time
+				updatePhoneTime();
 				// Exit pointer lock for UI interaction
 				document.exitPointerLock();
 				// Disable character controls
@@ -4529,6 +5113,28 @@
 				}
 			}
 		};
+
+		// Open phone app
+		window.openPhoneApp = function(appName) {
+			if (appName === 'music') {
+				document.getElementById('phone-home').classList.add('hidden');
+				document.getElementById('phone-music-app').classList.add('active');
+			}
+		};
+
+		// Close music app back to home
+		window.closePhoneApp = function() {
+			document.getElementById('phone-music-app').classList.remove('active');
+			document.getElementById('phone-home').classList.remove('hidden');
+		};
+
+		// Update phone time
+		function updatePhoneTime() {
+			const now = new Date();
+			const hours = now.getHours();
+			const minutes = now.getMinutes().toString().padStart(2, '0');
+			document.getElementById('phone-time').textContent = `${hours}:${minutes}`;
+		}
 
 		// Click outside to close car radio
 		document.addEventListener('click', (e) => {
@@ -4586,19 +5192,43 @@
 			});
 		}
 
-		// Display tracks in radio
-		function displayRadioTracks() {
+		// Display tracks in radio (supports filtering)
+		function displayRadioTracks(tracksToDisplay = radioTracksData) {
 			const container = document.getElementById('radio-tracklist');
-			container.innerHTML = radioTracksData.map((track, index) => `
-				<div class="car-radio-track-item ${index === radioCurrentIndex ? 'playing' : ''}" onclick="playRadioTrack(${index})">
-					<div class="car-radio-track-number">${index + 1}</div>
-					<div class="car-radio-track-details">
-						<div class="car-radio-track-name">${track.title || 'Unknown'}</div>
-						<div class="car-radio-track-meta">${track.artistName || 'Unknown Artist'} • ${track.genre || 'Unknown'}</div>
+			container.innerHTML = tracksToDisplay.map((track, displayIndex) => {
+				// Find the actual index in the full radioTracksData array
+				const actualIndex = radioTracksData.indexOf(track);
+
+				const artistDisplay = track.artistUsername
+					? `<a href="https://www.sublair.com/u/${track.artistUsername}" target="_blank" class="artist-link" onclick="event.stopPropagation();">${track.artistName}</a>`
+					: (track.artistName || 'Unknown Artist');
+
+				return `
+					<div class="car-radio-track-item ${actualIndex === radioCurrentIndex ? 'playing' : ''}" onclick="playRadioTrack(${actualIndex})">
+						<div class="car-radio-track-number">${displayIndex + 1}</div>
+						<div class="car-radio-track-details">
+							<div class="car-radio-track-name">${track.title || 'Unknown'}</div>
+							<div class="car-radio-track-meta">${artistDisplay} • ${track.genre || 'Unknown'}</div>
+						</div>
 					</div>
-				</div>
-			`).join('');
+				`;
+			}).join('');
 		}
+
+		// Phone search functionality
+		document.getElementById('phone-search-input').addEventListener('input', (e) => {
+			const query = e.target.value.toLowerCase();
+			if (query === '') {
+				displayRadioTracks();
+			} else {
+				const filtered = radioTracksData.filter(track =>
+					(track.title && track.title.toLowerCase().includes(query)) ||
+					(track.artistName && track.artistName.toLowerCase().includes(query)) ||
+					(track.genre && track.genre.toLowerCase().includes(query))
+				);
+				displayRadioTracks(filtered);
+			}
+		});
 
 		// Play track from radio
 		window.playRadioTrack = function(index) {
@@ -4613,7 +5243,22 @@
 
 			// Update now playing display
 			document.getElementById('radio-current-title').textContent = track.title || 'Unknown';
-			document.getElementById('radio-current-artist').textContent = track.artistName || 'Unknown Artist';
+
+			const artistElement = document.getElementById('radio-current-artist');
+			if (track.artistUsername) {
+				artistElement.innerHTML = `<a href="https://www.sublair.com/u/${track.artistUsername}" target="_blank" class="artist-link">${track.artistName}</a>`;
+			} else {
+				artistElement.textContent = track.artistName || 'Unknown Artist';
+			}
+
+			// Update artwork
+			const artElement = document.querySelector('.car-radio-mini-art');
+			if (track.artwork_url) {
+				artElement.style.backgroundImage = `url('${track.artwork_url}')`;
+			} else {
+				// Fallback gradient if no artwork
+				artElement.style.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+			}
 
 			// Update play button
 			document.getElementById('radio-play-btn').textContent = '⏸';
@@ -4635,22 +5280,34 @@
 			audioLoader.load(streamUrl, (buffer) => {
 				window.carPositionalAudio.setBuffer(buffer);
 				window.carPositionalAudio.setLoop(false);
-				window.carPositionalAudio.setVolume(1.0);
+
+				// Set volume based on current vehicle state
+				// If outside car, start at 30%, if inside, start at 100%
+				const inVehicle = window.character && window.character.controlledObject && window.character.controlledObject.rayCastVehicle;
+				const initialVolume = inVehicle ? 1.0 : 0.3;
+				window.carPositionalAudio.setVolume(initialVolume);
 
 				// Connect to car-specific EQ chain (sounds like actual car speakers)
 				const source = window.carPositionalAudio.getOutput();
 				source.disconnect();
 
-				// Car EQ chain: source → bass boost → low-mid cut → high-mid cut → treble rolloff → analyser → destination
+				// Car EQ chain: source → bass boost → low-mid cut → high-mid cut → treble rolloff → outside lowpass → analyser → destination
 				source.connect(window.carEQ.bass);
 				window.carEQ.bass.connect(window.carEQ.lowMid);
 				window.carEQ.lowMid.connect(window.carEQ.highMid);
 				window.carEQ.highMid.connect(window.carEQ.treble);
-				window.carEQ.treble.connect(window.audioAnalyser);
+				window.carEQ.treble.connect(window.carEQ.outsideLowpass);
+				window.carEQ.outsideLowpass.connect(window.audioAnalyser);
 				window.audioAnalyser.connect(window.carPositionalAudio.context.destination);
 
 				window.carPositionalAudio.play();
 				window.carAudioSource = window.carPositionalAudio; // Store reference for controls
+
+				// Auto-play next track when current one ends
+				window.carPositionalAudio.onEnded = function() {
+					console.log('🔄 Track ended, playing next...');
+					window.radioSkipNext();
+				};
 
 				console.log('🚗 Playing from car:', track.title);
 			}, undefined, (error) => {

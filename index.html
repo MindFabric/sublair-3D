@@ -44,6 +44,9 @@
 
 		/* Fix z-index hierarchy */
 		#canvas {
+			position: fixed;
+			top: 0;
+			left: 0;
 			z-index: 1;
 		}
 
@@ -652,6 +655,213 @@
 		.car-radio-close:hover {
 			background: rgba(80, 80, 87, 0.8);
 			transform: scale(1.05);
+		}
+
+		/* Welcome Slideshow */
+		.welcome-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.95);
+			z-index: 999999;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.4s ease;
+		}
+
+		.welcome-overlay.active {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		.welcome-modal {
+			background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+			border: 2px solid #bee17b;
+			border-radius: 16px;
+			width: 90%;
+			max-width: 700px;
+			max-height: 80vh;
+			overflow: hidden;
+			position: relative;
+			box-shadow: 0 20px 60px rgba(190, 225, 123, 0.3);
+			animation: slideIn 0.5s ease;
+		}
+
+		@keyframes slideIn {
+			from {
+				transform: translateY(-30px);
+				opacity: 0;
+			}
+			to {
+				transform: translateY(0);
+				opacity: 1;
+			}
+		}
+
+		.welcome-header {
+			background: #000;
+			border-bottom: 2px solid #bee17b;
+			padding: 20px 24px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.welcome-title {
+			font-family: 'Share Tech Mono', monospace;
+			font-size: 24px;
+			font-weight: 700;
+			color: #bee17b;
+			letter-spacing: 2px;
+			text-transform: uppercase;
+		}
+
+		.welcome-close {
+			background: rgba(255, 255, 255, 0.1);
+			border: 1px solid rgba(255, 255, 255, 0.2);
+			color: #fff;
+			width: 32px;
+			height: 32px;
+			border-radius: 50%;
+			cursor: pointer;
+			font-size: 18px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: all 0.2s ease;
+		}
+
+		.welcome-close:hover {
+			background: rgba(255, 255, 255, 0.2);
+			transform: rotate(90deg);
+		}
+
+		.welcome-content {
+			padding: 40px;
+			min-height: 350px;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			text-align: center;
+		}
+
+		.welcome-slide {
+			display: none;
+			animation: fadeIn 0.5s ease;
+		}
+
+		.welcome-slide.active {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		@keyframes fadeIn {
+			from { opacity: 0; }
+			to { opacity: 1; }
+		}
+
+		.welcome-icon {
+			font-size: 64px;
+			margin-bottom: 24px;
+			filter: drop-shadow(0 4px 12px rgba(190, 225, 123, 0.4));
+		}
+
+		.welcome-slide h2 {
+			font-family: 'Share Tech Mono', monospace;
+			font-size: 28px;
+			font-weight: 700;
+			color: #bee17b;
+			margin: 0 0 16px 0;
+			letter-spacing: 1px;
+		}
+
+		.welcome-slide p {
+			font-family: 'Share Tech Mono', monospace;
+			font-size: 16px;
+			line-height: 1.6;
+			color: rgba(255, 255, 255, 0.8);
+			margin: 0;
+			max-width: 500px;
+		}
+
+		.welcome-footer {
+			background: #000;
+			border-top: 2px solid #bee17b;
+			padding: 20px 24px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.welcome-dots {
+			display: flex;
+			gap: 8px;
+		}
+
+		.welcome-dot {
+			width: 10px;
+			height: 10px;
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.3);
+			cursor: pointer;
+			transition: all 0.3s ease;
+		}
+
+		.welcome-dot.active {
+			background: #bee17b;
+			transform: scale(1.2);
+		}
+
+		.welcome-dot:hover {
+			background: rgba(190, 225, 123, 0.6);
+		}
+
+		.welcome-nav {
+			display: flex;
+			gap: 12px;
+		}
+
+		.welcome-btn {
+			background: rgba(190, 225, 123, 0.15);
+			border: 1px solid #bee17b;
+			color: #bee17b;
+			padding: 10px 20px;
+			border-radius: 6px;
+			font-family: 'Share Tech Mono', monospace;
+			font-size: 14px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+		}
+
+		.welcome-btn:hover {
+			background: rgba(190, 225, 123, 0.25);
+			transform: translateY(-2px);
+		}
+
+		.welcome-btn:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+			transform: none;
+		}
+
+		.welcome-btn.primary {
+			background: #bee17b;
+			color: #000;
+		}
+
+		.welcome-btn.primary:hover {
+			background: #d4f098;
+			box-shadow: 0 4px 12px rgba(190, 225, 123, 0.4);
 		}
 
 		/* OS View Scrollbar */
@@ -1350,6 +1560,66 @@
 </head>
 
 <body>
+	<!-- Welcome Slideshow -->
+	<div id="welcome-overlay" class="welcome-overlay active">
+		<div class="welcome-modal">
+			<div class="welcome-header">
+				<div class="welcome-title">Welcome to SUBLAIR 3D</div>
+				<button class="welcome-close" onclick="closeWelcome()">✕</button>
+			</div>
+			<div class="welcome-content">
+				<!-- Slide 1 -->
+				<div class="welcome-slide active" data-slide="0">
+					<img src="public/BRAND.png" alt="SUBLAIR" style="max-width: 200px; margin-bottom: 24px;">
+					<h2>>_SUBLAIR-3D</h2>
+					<p>Welcome to SUBLAIR 3D - an immersive music experience where you explore, discover, and interact with music in a fully realized 3D world.</p>
+				</div>
+				<!-- Slide 2 -->
+				<div class="welcome-slide" data-slide="1">
+					<h2>Explore the World</h2>
+					<p>Use <strong>WASD</strong> to move, <strong>SHIFT</strong> to sprint, and <strong>SPACE</strong> to jump. Press <strong>F</strong> to enter vehicles and interact with objects. Click to lock your cursor and look around.</p>
+				</div>
+				<!-- Slide 3 -->
+				<div class="welcome-slide" data-slide="2">
+					<h2>Interactive Computer</h2>
+					<p>Walk up to the computer terminal and press <strong>F</strong> to access the SUBLAIR OS. Browse music, adjust the EQ, and control playback with a retro DOS-inspired interface.</p>
+				</div>
+				<!-- Slide 4 -->
+				<div class="welcome-slide" data-slide="3">
+					<h2>Car Radio</h2>
+					<p>Get into any vehicle and press <strong>R</strong> to open your phone. Access the full music library on-the-go with a sleek mobile interface.</p>
+				</div>
+				<!-- Slide 5 -->
+				<div class="welcome-slide" data-slide="4">
+					<h2>Customize Your Character</h2>
+					<p>Press <strong>C</strong> anytime to customize your character's appearance. Change colors, patterns, and textures to make your avatar truly unique.</p>
+				</div>
+				<!-- Slide 6 -->
+				<div class="welcome-slide" data-slide="5">
+					<h2>Welcome to the Underground</h2>
+					<p>This is just the beginning. SUBLAIR 3D is in active development - a disruptive vision of what music discovery can be.</p>
+					<p style="margin-top: 16px; font-style: italic; opacity: 0.7;">Think big. Think disruptive. The network beneath.</p>
+					<p style="margin-top: 24px; font-size: 14px; opacity: 0.5; text-align: center;">-MF</p>
+				</div>
+			</div>
+			<div class="welcome-footer">
+				<div class="welcome-dots">
+					<div class="welcome-dot active" onclick="goToSlide(0)"></div>
+					<div class="welcome-dot" onclick="goToSlide(1)"></div>
+					<div class="welcome-dot" onclick="goToSlide(2)"></div>
+					<div class="welcome-dot" onclick="goToSlide(3)"></div>
+					<div class="welcome-dot" onclick="goToSlide(4)"></div>
+					<div class="welcome-dot" onclick="goToSlide(5)"></div>
+				</div>
+				<div class="welcome-nav">
+					<button class="welcome-btn" id="welcome-prev" onclick="prevSlide()" disabled>Previous</button>
+					<button class="welcome-btn" id="welcome-next" onclick="nextSlide()">Next</button>
+					<button class="welcome-btn primary" id="welcome-start" onclick="closeWelcome()" style="display: none;">Let's Go!</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<!-- CRT Scanline Overlay -->
 	<div id="crt-overlay"></div>
 
@@ -1603,6 +1873,15 @@
 				// Show CRT UI once game is loaded
 				document.getElementById('crt-ui').classList.add('visible');
 				document.getElementById('crt-engine-credit').classList.add('visible');
+
+				// Ensure welcome screen stays visible above everything
+				const welcomeOverlay = document.getElementById('welcome-overlay');
+				if (welcomeOverlay && welcomeOverlay.classList.contains('active')) {
+					// Keep it visible and above everything
+					welcomeOverlay.style.zIndex = '999999';
+					welcomeOverlay.style.opacity = '1';
+					welcomeOverlay.style.pointerEvents = 'auto';
+				}
 			};
 
 			window.car = null; // Store car reference globally
@@ -1781,6 +2060,17 @@
 								<div class="color-info">
 									<div class="color-info-label">Current Color</div>
 									<div class="color-info-value" id="pants-color-value">#0F00FF</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="customization-section">
+							<div class="section-label">Hat</div>
+							<div class="color-picker-container">
+								<input type="color" id="hat-color-picker" value="#191919">
+								<div class="color-info">
+									<div class="color-info-label">Current Color</div>
+									<div class="color-info-value" id="hat-color-value">#191919</div>
 								</div>
 							</div>
 						</div>
@@ -1982,6 +2272,7 @@
 				let skinColor = '#bee17b';
 				let shirtColor = '#ff1400';
 				let pantsColor = '#0f00ff';
+				let hatColor = '#191919';
 				let savedCameraTheta, savedCameraPhi, savedCameraRadius;
 
 				function updateCharacter() {
@@ -1996,6 +2287,8 @@
 								child.material.color.set(shirtColor);
 							} else if (materialName.includes('pants')) {
 								child.material.color.set(pantsColor);
+							} else if (materialName.includes('hat')) {
+								child.material.color.set(hatColor);
 							}
 
 							// Remove any texture
@@ -2129,10 +2422,12 @@
 					const skinColorPicker = document.getElementById('skin-color-picker');
 					const shirtColorPicker = document.getElementById('shirt-color-picker');
 					const pantsColorPicker = document.getElementById('pants-color-picker');
+					const hatColorPicker = document.getElementById('hat-color-picker');
 
 					const skinColorValue = document.getElementById('skin-color-value');
 					const shirtColorValue = document.getElementById('shirt-color-value');
 					const pantsColorValue = document.getElementById('pants-color-value');
+					const hatColorValue = document.getElementById('hat-color-value');
 
 					// Skin color picker
 					skinColorPicker.addEventListener('input', (e) => {
@@ -2152,6 +2447,13 @@
 					pantsColorPicker.addEventListener('input', (e) => {
 						pantsColor = e.target.value;
 						pantsColorValue.textContent = pantsColor.toUpperCase();
+						updateCharacter();
+					});
+
+					// Hat color picker
+					hatColorPicker.addEventListener('input', (e) => {
+						hatColor = e.target.value;
+						hatColorValue.textContent = hatColor.toUpperCase();
 						updateCharacter();
 					});
 				}, 1000);
@@ -2236,6 +2538,16 @@
 								<div style="background: #000; border: 2px solid #bee17b; padding: 15px; margin-bottom: 10px;">
 									<div style="color: #bee17b; font-weight: bold; margin-bottom: 10px; font-size: 14px;">[FREQUENCY ANALYZER]</div>
 									<canvas id="eq-visualizer" width="800" height="120" style="width: 100%; height: 120px; background: #000; border: 1px solid #bee17b;"></canvas>
+
+									<!-- dB Meter -->
+									<div style="margin-top: 15px;">
+										<div style="color: #bee17b; font-weight: bold; margin-bottom: 8px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+											<span>[dB METER]</span>
+											<span id="clip-indicator" style="color: #ff0000; font-weight: bold; opacity: 0; transition: opacity 0.1s;">CLIP</span>
+										</div>
+										<canvas id="db-meter" width="800" height="40" style="width: 100%; height: 40px; background: #000; border: 1px solid #bee17b;"></canvas>
+									</div>
+
 									<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; font-size: 12px;">
 										<div style="color: #bee17b;">PEAK: <span id="peak-db">-∞ dB</span></div>
 										<div style="color: #bee17b;">RMS: <span id="rms-db">-∞ dB</span></div>
@@ -2351,6 +2663,15 @@
 				const dataArray = new Uint8Array(bufferLength);
 				const timeDataArray = new Uint8Array(bufferLength);
 
+				// dB Meter setup
+				const dbMeterCanvas = document.getElementById('db-meter');
+				const dbMeterCtx = dbMeterCanvas ? dbMeterCanvas.getContext('2d') : null;
+				const clipIndicator = document.getElementById('clip-indicator');
+				let peakHold = -Infinity;
+				let peakHoldTime = 0;
+				let clipDetected = false;
+				let clipHoldTime = 0;
+
 				// Track peak LUFS
 				let peakLUFS = -Infinity;
 
@@ -2383,10 +2704,13 @@
 					window.audioAnalyser.getByteTimeDomainData(timeDataArray);
 					window.audioAnalyser.getByteFrequencyData(dataArray);
 
-					// Calculate Peak and RMS
+					// Calculate Peak and RMS properly
 					let peak = 0;
 					let sumSquares = 0;
 
+					// Use byte time domain data and convert properly
+					// Byte range is 0-255, center is at 128
+					// Convert to -1 to +1 range
 					for (let i = 0; i < bufferLength; i++) {
 						const normalized = (timeDataArray[i] - 128) / 128.0;
 						const abs = Math.abs(normalized);
@@ -2395,8 +2719,10 @@
 					}
 
 					const rms = Math.sqrt(sumSquares / bufferLength);
-					const peakDB = peak > 0 ? 20 * Math.log10(peak) : -Infinity;
-					const rmsDB = rms > 0 ? 20 * Math.log10(rms) : -Infinity;
+
+					// Calculate true dBFS
+					const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -Infinity;
+					const rmsDB = rms > 0.0000001 ? 20 * Math.log10(rms) : -Infinity;
 					const lufs = calculateLUFS(rms);
 
 					// Track peak LUFS
@@ -2453,6 +2779,119 @@
 						canvasCtx.moveTo(0, y);
 						canvasCtx.lineTo(canvas.width, y);
 						canvasCtx.stroke();
+					}
+
+					// ========================================
+					// DRAW dB METER
+					// ========================================
+					if (dbMeterCtx) {
+						// Clear meter
+						dbMeterCtx.fillStyle = '#000';
+						dbMeterCtx.fillRect(0, 0, dbMeterCanvas.width, dbMeterCanvas.height);
+
+						if (positionalAudio.isPlaying) {
+							// Map peakDB from -48dB to +6dB for better resolution
+							const dbMin = -48;
+							const dbMax = 6; // Allow +6dB headroom to show clipping
+							let normalizedPeak = (peakDB - dbMin) / (dbMax - dbMin);
+							normalizedPeak = Math.max(0, Math.min(1, normalizedPeak));
+
+							// Update peak hold
+							const currentTime = Date.now();
+							if (peakDB > peakHold) {
+								peakHold = peakDB;
+								peakHoldTime = currentTime;
+							} else if (currentTime - peakHoldTime > 1500) {
+								// Decay peak hold after 1.5 seconds
+								peakHold = Math.max(peakDB, peakHold - 0.5);
+							}
+
+							// Check for clipping (above -1dB or peak >= 0.95 is clipping)
+							// In digital audio, 0 dBFS is the absolute maximum
+							if (peakDB > -1.0) {
+								clipDetected = true;
+								clipHoldTime = currentTime;
+							}
+
+							// Hide clip indicator after 2 seconds
+							if (currentTime - clipHoldTime > 2000) {
+								clipDetected = false;
+							}
+
+							// Update clip indicator
+							if (clipIndicator) {
+								clipIndicator.style.opacity = clipDetected ? '1' : '0';
+							}
+
+							// Draw segmented meter bars (classic VU meter style)
+							const padding = 4;
+							const meterHeight = dbMeterCanvas.height - (padding * 2);
+							const meterWidth = dbMeterCanvas.width - (padding * 2);
+							const segmentCount = 60;
+							const segmentWidth = (meterWidth / segmentCount) - 2;
+
+							for (let i = 0; i < segmentCount; i++) {
+								const segmentLevel = i / segmentCount;
+								const segmentDB = dbMin + (segmentLevel * (dbMax - dbMin));
+								const x = padding + (i * (segmentWidth + 2));
+
+								// Determine segment color based on actual dB level
+								let color;
+								if (segmentDB < -12) {
+									// Green zone (-48dB to -12dB)
+									color = '#00ff00';
+								} else if (segmentDB < -3) {
+									// Yellow zone (-12dB to -3dB)
+									color = '#ffff00';
+								} else if (segmentDB < 0) {
+									// Orange zone (-3dB to 0dB)
+									color = '#ff9900';
+								} else {
+									// Red zone (0dB to +6dB) - CLIPPING!
+									color = '#ff0000';
+								}
+
+								// Draw segment if below peak level
+								if (segmentLevel <= normalizedPeak) {
+									dbMeterCtx.fillStyle = color;
+									dbMeterCtx.fillRect(x, padding, segmentWidth, meterHeight);
+								} else {
+									// Draw dim background segments
+									dbMeterCtx.fillStyle = '#1a1a1a';
+									dbMeterCtx.fillRect(x, padding, segmentWidth, meterHeight);
+								}
+							}
+
+							// Draw peak hold indicator
+							if (isFinite(peakHold) && peakHold > dbMin) {
+								const peakNormalized = Math.max(0, Math.min(1, (peakHold - dbMin) / (dbMax - dbMin)));
+								const peakX = padding + (peakNormalized * meterWidth);
+								dbMeterCtx.fillStyle = '#ffffff';
+								dbMeterCtx.fillRect(peakX - 1, padding, 2, meterHeight);
+							}
+
+							// Draw dB scale labels with better positioning
+							dbMeterCtx.fillStyle = '#bee17b';
+							dbMeterCtx.font = '9px Share';
+
+							// Calculate positions based on actual dB values
+							const labelPositions = [
+								{ db: -48, label: '-48' },
+								{ db: -24, label: '-24' },
+								{ db: -12, label: '-12' },
+								{ db: -6, label: '-6' },
+								{ db: -3, label: '-3' },
+								{ db: 0, label: '0' },
+								{ db: 3, label: '+3' },
+								{ db: 6, label: '+6' }
+							];
+
+							labelPositions.forEach(pos => {
+								const normPos = (pos.db - dbMin) / (dbMax - dbMin);
+								const xPos = padding + (normPos * meterWidth);
+								dbMeterCtx.fillText(pos.label, xPos - 8, 12);
+							});
+						}
 					}
 				}
 
@@ -2686,12 +3125,15 @@
 			document.getElementById('os-close').addEventListener('click', closeOS);
 
 			// Close OS when clicking outside the OS container
-			osDiv.addEventListener('click', (e) => {
-				// Only close if clicking the backdrop (not the OS container itself)
-				if (e.target === osDiv) {
-					closeOS();
+			const osContainer = document.querySelector('.os-container');
+			document.addEventListener('click', (e) => {
+				if (terminalOpen) {
+					// Check if click is outside the OS container
+					if (!osContainer.contains(e.target)) {
+						closeOS();
+					}
 				}
-			});
+			}, true);
 
 			// File explorer navigation
 			const fileSystem = {
@@ -3182,6 +3624,8 @@
 			loader.load(artworkUrl, (texture) => {
 				// Create normalized square canvas with artwork centered
 				const size = 512; // Fixed square size
+
+				// Draw everything in normal orientation
 				const canvas = document.createElement('canvas');
 				const ctx = canvas.getContext('2d');
 				canvas.width = size;
@@ -3193,17 +3637,27 @@
 
 				// Calculate dimensions to fit image in square while maintaining aspect ratio
 				const img = texture.image;
-				const scale = Math.min(size / img.width, size / img.height);
+				const scale = Math.min(size / img.width, size / img.height) * 0.5; // Scale down to 50% for padding
 				const scaledWidth = img.width * scale;
 				const scaledHeight = img.height * scale;
-				const x = (size - scaledWidth) / 2;
-				const y = (size - scaledHeight) / 2;
 
-				// Draw centered and scaled image
-				ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+				// Draw the album art centered, with space at top for VU meters
+				const artY = (size - scaledHeight) / 2 + 40; // Offset down for VU meters
+				const artX = (size - scaledWidth) / 2;
+				ctx.drawImage(img, artX, artY, scaledWidth, scaledHeight);
 
-				// Create new texture from normalized canvas
-				const normalizedTexture = new THREE.CanvasTexture(canvas);
+				// Store the base canvas for animation (normal orientation)
+				window.screenBaseCanvas = canvas;
+				window.screenBaseImage = ctx.getImageData(0, 0, size, size);
+
+				// Create animated canvas with glitch effects
+				const animCanvas = document.createElement('canvas');
+				animCanvas.width = size;
+				animCanvas.height = size;
+				const animCtx = animCanvas.getContext('2d');
+
+				// Create new texture from animated canvas
+				const normalizedTexture = new THREE.CanvasTexture(animCanvas);
 				normalizedTexture.wrapS = THREE.ClampToEdgeWrapping;
 				normalizedTexture.wrapT = THREE.ClampToEdgeWrapping;
 
@@ -3216,6 +3670,316 @@
 				window.computerScreenMesh.material.emissive = new THREE.Color(0x222222);
 				window.computerScreenMesh.material.emissiveIntensity = 0.3;
 				window.computerScreenMesh.material.needsUpdate = true;
+
+				// Glitch animation loop
+				let glitchOffset = 0;
+				let scanlineOffset = 0;
+				let glitchIntensity = 0;
+				let nextGlitch = Date.now() + Math.random() * 3000 + 2000; // Random glitch every 2-5 seconds
+
+				// Waveform history for Rekordbox-style display
+				const waveformHistory = [];
+				const waveformMaxBars = 60;
+
+				function animateScreen() {
+					if (!window.screenBaseCanvas || !window.screenBaseImage) return;
+
+					// Get audio data for reactive effects
+					let audioLevel = 0;
+					let bassLevel = 0;
+					let trebleLevel = 0;
+
+					if (window.audioAnalyser && positionalAudio && positionalAudio.isPlaying) {
+						const frequencyData = new Uint8Array(window.audioAnalyser.frequencyBinCount);
+						window.audioAnalyser.getByteFrequencyData(frequencyData);
+
+						// Calculate bass (low frequencies)
+						let bassSum = 0;
+						for (let i = 0; i < frequencyData.length * 0.1; i++) {
+							bassSum += frequencyData[i];
+						}
+						bassLevel = bassSum / (frequencyData.length * 0.1) / 255;
+
+						// Calculate treble (high frequencies)
+						let trebleSum = 0;
+						for (let i = Math.floor(frequencyData.length * 0.7); i < frequencyData.length; i++) {
+							trebleSum += frequencyData[i];
+						}
+						trebleLevel = trebleSum / (frequencyData.length * 0.3) / 255;
+
+						// Overall audio level
+						let sum = 0;
+						for (let i = 0; i < frequencyData.length; i++) {
+							sum += frequencyData[i];
+						}
+						audioLevel = sum / frequencyData.length / 255;
+					}
+
+					// Put base image on animated canvas
+					animCtx.putImageData(window.screenBaseImage, 0, 0);
+
+					// Draw mini VU meters, Stereoscope, and Waveform (inline, 75% width)
+					if (window.audioAnalyser && positionalAudio && positionalAudio.isPlaying) {
+						const frequencyData = new Uint8Array(window.audioAnalyser.frequencyBinCount);
+						window.audioAnalyser.getByteFrequencyData(frequencyData);
+
+						const timeData = new Uint8Array(window.audioAnalyser.frequencyBinCount);
+						window.audioAnalyser.getByteTimeDomainData(timeData);
+
+						const baseY = size / 2 - 135; // Moved up more to clear cover art
+						const totalContainerWidth = size * 0.75; // 75% of screen width
+						const containerStartX = (size - totalContainerWidth) / 2;
+						const gap = 10; // Gap between blocks
+						const blockWidth = (totalContainerWidth - gap * 2) / 3; // Each block gets 1/3
+
+						// ==== VU METERS (Left side) ====
+						const meterCount = 20; // Fewer meters to fit in smaller space
+						const meterWidth = Math.floor(blockWidth / meterCount) - 2;
+						const meterMaxHeight = 40;
+						const meterY = baseY;
+						const meterStartX = containerStartX;
+
+						// Dark background for VU meters
+						animCtx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+						animCtx.fillRect(meterStartX - 5, meterY - 10, blockWidth + 10, meterMaxHeight + 20);
+
+						for (let i = 0; i < meterCount; i++) {
+							const dataIndex = Math.floor((i / meterCount) * frequencyData.length);
+							const value = frequencyData[dataIndex] / 255;
+							const meterHeight = value * meterMaxHeight;
+							const x = meterStartX + i * (meterWidth + 2);
+
+							// Color based on height
+							let color;
+							if (value < 0.5) {
+								color = '#00ff00';
+							} else if (value < 0.8) {
+								color = '#ffff00';
+							} else {
+								color = '#ff0000';
+							}
+
+							animCtx.fillStyle = color;
+							animCtx.fillRect(x, meterY + meterMaxHeight - meterHeight, meterWidth, meterHeight);
+
+							animCtx.strokeStyle = '#bee17b';
+							animCtx.lineWidth = 1;
+							animCtx.strokeRect(x, meterY, meterWidth, meterMaxHeight);
+						}
+
+						// ==== STEREOSCOPE (Middle) ====
+						const scopeY = baseY;
+						const scopeWidth = blockWidth;
+						const scopeHeight = 40; // Match VU meter height
+						const scopeStartX = containerStartX + blockWidth + gap;
+
+						// Dark background for stereoscope
+						animCtx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+						animCtx.fillRect(scopeStartX - 5, scopeY - 10, scopeWidth + 10, scopeHeight + 20);
+
+						// Draw oscilloscope waveform
+						animCtx.strokeStyle = '#00ff00';
+						animCtx.lineWidth = 2;
+						animCtx.beginPath();
+
+						const sliceWidth = scopeWidth / timeData.length;
+						let x = scopeStartX;
+
+						for (let i = 0; i < timeData.length; i++) {
+							const v = timeData[i] / 128.0;
+							const y = scopeY + (v * scopeHeight / 2);
+
+							if (i === 0) {
+								animCtx.moveTo(x, y);
+							} else {
+								animCtx.lineTo(x, y);
+							}
+
+							x += sliceWidth;
+						}
+
+						animCtx.stroke();
+
+						// Draw border
+						animCtx.strokeStyle = '#bee17b';
+						animCtx.lineWidth = 1;
+						animCtx.strokeRect(scopeStartX, scopeY, scopeWidth, scopeHeight);
+
+						// ==== WAVEFORM (Right side - Rekordbox RGB style) ====
+						const waveY = baseY;
+						const waveWidth = blockWidth;
+						const waveHeight = 40;
+						const waveStartX = containerStartX + (blockWidth + gap) * 2;
+
+						// Calculate frequency bands for RGB waveform
+						const bassEnd = Math.floor(frequencyData.length * 0.1); // Low frequencies
+						const midEnd = Math.floor(frequencyData.length * 0.5); // Mid frequencies
+						// Rest is highs
+
+						let bassLevel = 0;
+						let midLevel = 0;
+						let highLevel = 0;
+
+						// Sum up each frequency band
+						for (let i = 0; i < bassEnd; i++) {
+							bassLevel += frequencyData[i];
+						}
+						for (let i = bassEnd; i < midEnd; i++) {
+							midLevel += frequencyData[i];
+						}
+						for (let i = midEnd; i < frequencyData.length; i++) {
+							highLevel += frequencyData[i];
+						}
+
+						// Normalize to 0-1 range
+						bassLevel = (bassLevel / bassEnd) / 255;
+						midLevel = (midLevel / (midEnd - bassEnd)) / 255;
+						highLevel = (highLevel / (frequencyData.length - midEnd)) / 255;
+
+						// Add to waveform history
+						waveformHistory.push({ bass: bassLevel, mid: midLevel, high: highLevel });
+						if (waveformHistory.length > waveformMaxBars) {
+							waveformHistory.shift(); // Remove oldest
+						}
+
+						// Dark background for waveform
+						animCtx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+						animCtx.fillRect(waveStartX - 5, waveY - 10, waveWidth + 10, waveHeight + 20);
+
+						// Draw center line
+						animCtx.strokeStyle = '#333333';
+						animCtx.lineWidth = 1;
+						animCtx.beginPath();
+						animCtx.moveTo(waveStartX, waveY + waveHeight / 2);
+						animCtx.lineTo(waveStartX + waveWidth, waveY + waveHeight / 2);
+						animCtx.stroke();
+
+						// Draw RGB waveform bars (Rekordbox style)
+						const barWidth = waveWidth / waveformMaxBars;
+						const centerY = waveY + waveHeight / 2;
+
+						for (let i = 0; i < waveformHistory.length; i++) {
+							const frame = waveformHistory[i];
+							const barX = waveStartX + i * barWidth;
+
+							// Calculate total amplitude and individual band heights
+							const totalAmplitude = (frame.bass + frame.mid + frame.high) / 3;
+							const maxBarHeight = waveHeight / 2;
+
+							// Draw stacked frequency bands (from center outward)
+							// Red (bass) at bottom/top
+							const bassHeight = frame.bass * maxBarHeight;
+							animCtx.fillStyle = '#ff0000';
+							animCtx.fillRect(barX, centerY - bassHeight, barWidth - 1, bassHeight);
+							animCtx.fillRect(barX, centerY, barWidth - 1, bassHeight);
+
+							// Green (mids) on top of bass
+							const midHeight = frame.mid * maxBarHeight;
+							animCtx.fillStyle = '#00ff00';
+							animCtx.fillRect(barX, centerY - bassHeight - midHeight, barWidth - 1, midHeight);
+							animCtx.fillRect(barX, centerY + bassHeight, barWidth - 1, midHeight);
+
+							// Blue (highs) on top of everything
+							const highHeight = frame.high * maxBarHeight;
+							animCtx.fillStyle = '#0088ff';
+							animCtx.fillRect(barX, centerY - bassHeight - midHeight - highHeight, barWidth - 1, highHeight);
+							animCtx.fillRect(barX, centerY + bassHeight + midHeight, barWidth - 1, highHeight);
+						}
+
+						// Draw border
+						animCtx.strokeStyle = '#bee17b';
+						animCtx.lineWidth = 1;
+						animCtx.strokeRect(waveStartX, waveY, waveWidth, waveHeight);
+					}
+
+					// Scanline effect - speed varies with music
+					const scanlineSpeed = 2 + (audioLevel * 8);
+					scanlineOffset = (scanlineOffset + scanlineSpeed) % size;
+					const scanlineOpacity = 0.03 + (audioLevel * 0.1);
+					animCtx.fillStyle = `rgba(0, 255, 0, ${scanlineOpacity})`;
+					for (let i = scanlineOffset; i < size; i += 4) {
+						animCtx.fillRect(0, i, size, 1);
+					}
+
+					// Bass-triggered glitch
+					if (bassLevel > 0.7) {
+						glitchIntensity = Math.max(glitchIntensity, bassLevel);
+					}
+
+					// Random glitch effect
+					const now = Date.now();
+					if (now > nextGlitch) {
+						glitchIntensity = 1.0;
+						nextGlitch = now + Math.random() * 3000 + 2000;
+					}
+
+					if (glitchIntensity > 0) {
+						// RGB shift glitch - intensity based on music
+						const shift = Math.floor(glitchIntensity * 10 * (1 + audioLevel));
+						const imgData = animCtx.getImageData(0, 0, size, size);
+						const data = imgData.data;
+
+						for (let i = 0; i < data.length; i += 4) {
+							const shiftIndex = i + shift * 4;
+							if (shiftIndex < data.length) {
+								data[i] = data[shiftIndex]; // R channel shift
+							}
+						}
+						animCtx.putImageData(imgData, 0, 0);
+
+						// Random horizontal glitch lines
+						if (Math.random() > 0.7) {
+							const y = Math.floor(Math.random() * size);
+							const height = Math.floor(Math.random() * 20) + 5;
+							const offset = (Math.random() - 0.5) * 30 * glitchIntensity;
+
+							const sliceData = animCtx.getImageData(0, y, size, height);
+							animCtx.putImageData(sliceData, offset, y);
+						}
+
+						glitchIntensity *= 0.85; // Decay glitch effect
+					}
+
+					// Screen flicker - treble reactive
+					if (trebleLevel > 0.6 || Math.random() > 0.95) {
+						animCtx.fillStyle = `rgba(190, 225, 123, ${Math.random() * 0.1 * (1 + trebleLevel)})`;
+						animCtx.fillRect(0, 0, size, size);
+					}
+
+					// Pulse glow effect on bass hits
+					if (bassLevel > 0.65) {
+						const pulseGradient = animCtx.createRadialGradient(size / 2, size / 2 + 40, 0, size / 2, size / 2 + 40, size / 2);
+						pulseGradient.addColorStop(0, `rgba(190, 225, 123, ${bassLevel * 0.3})`);
+						pulseGradient.addColorStop(1, 'rgba(190, 225, 123, 0)');
+						animCtx.fillStyle = pulseGradient;
+						animCtx.fillRect(0, 0, size, size);
+					}
+
+					// NOW apply rotation and flip to a final canvas
+					const rotatedCanvas = document.createElement('canvas');
+					rotatedCanvas.width = size;
+					rotatedCanvas.height = size;
+					const rotatedCtx = rotatedCanvas.getContext('2d');
+
+					rotatedCtx.save();
+					rotatedCtx.translate(size / 2, size / 2);
+					rotatedCtx.rotate(-Math.PI / 2);
+					rotatedCtx.scale(1, -1);
+					rotatedCtx.drawImage(animCanvas, -size / 2, -size / 2);
+					rotatedCtx.restore();
+
+					// Copy rotated result back to animCanvas
+					animCtx.clearRect(0, 0, size, size);
+					animCtx.drawImage(rotatedCanvas, 0, 0);
+
+					// Update texture
+					normalizedTexture.needsUpdate = true;
+
+					requestAnimationFrame(animateScreen);
+				}
+
+				// Start animation
+				animateScreen();
 
 				// Extract dominant color for light (sample center of normalized canvas)
 				const centerX = Math.floor(size / 2);
@@ -3574,6 +4338,8 @@
 
 			// Computer interaction system
 			let nearComputer = false;
+			let nearCar = false;
+			let radioPromptDismissed = false;
 
 			// Check distance to computer every frame
 			function checkComputerProximity() {
@@ -3584,10 +4350,34 @@
 
 				if (distance < 3 && !terminalOpen) {
 					nearComputer = true;
+					interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to use computer';
 					interactionPrompt.classList.add('show');
 				} else {
 					nearComputer = false;
-					interactionPrompt.classList.remove('show');
+					if (!nearCar) {
+						interactionPrompt.classList.remove('show');
+					}
+				}
+			}
+
+			// Check if character is in a car
+			function checkCarProximity() {
+				if (!character) return;
+
+				// Check if character is sitting in a vehicle (has controlledObject)
+				const inVehicle = character.controlledObject && character.controlledObject.rayCastVehicle;
+
+				if (inVehicle && !nearCar && !radioPromptDismissed) {
+					nearCar = true;
+					interactionPrompt.innerHTML = 'Press <kbd>R</kbd> for phone';
+					interactionPrompt.classList.add('show');
+				} else if (!inVehicle && nearCar) {
+					nearCar = false;
+					// Reset the dismissed flag when exiting vehicle
+					radioPromptDismissed = false;
+					if (!nearComputer) {
+						interactionPrompt.classList.remove('show');
+					}
 				}
 			}
 
@@ -3595,6 +4385,7 @@
 			const updateInterval = setInterval(() => {
 				if (character) {
 					checkComputerProximity();
+					checkCarProximity();
 
 					// Update directional lowpass based on position relative to speakers
 					if (window.speakerPosition && window.speakerDirectionalLowpass && window.speakerDirectionalBass && window.world) {
@@ -3682,6 +4473,17 @@
 				}
 			}, true);
 
+			// Handle R key press for radio
+			document.addEventListener('keydown', (e) => {
+				if (e.key === 'r' || e.key === 'R') {
+					if (nearCar && !radioPromptDismissed) {
+						// Dismiss the prompt
+						radioPromptDismissed = true;
+						interactionPrompt.classList.remove('show');
+					}
+				}
+			}, true);
+
 		}, 100);
 
 		// ========== CAR RADIO FUNCTIONALITY ==========
@@ -3727,6 +4529,16 @@
 				}
 			}
 		};
+
+		// Click outside to close car radio
+		document.addEventListener('click', (e) => {
+			if (radioOpen) {
+				// Check if click is outside the car radio menu
+				if (!carRadioDiv.contains(e.target)) {
+					window.toggleCarRadio();
+				}
+			}
+		}, true);
 
 		// Load tracks for radio
 		function loadRadioTracks() {
@@ -3875,6 +4687,102 @@
 			const prevIndex = radioCurrentIndex - 1 < 0 ? radioTracksData.length - 1 : radioCurrentIndex - 1;
 			playRadioTrack(prevIndex);
 		};
+
+		// ========== WELCOME SLIDESHOW ==========
+		let currentSlide = 0;
+		const totalSlides = 6;
+
+		function updateSlide() {
+			// Update slides
+			document.querySelectorAll('.welcome-slide').forEach((slide, index) => {
+				slide.classList.toggle('active', index === currentSlide);
+			});
+
+			// Update dots
+			document.querySelectorAll('.welcome-dot').forEach((dot, index) => {
+				dot.classList.toggle('active', index === currentSlide);
+			});
+
+			// Update buttons
+			const prevBtn = document.getElementById('welcome-prev');
+			const nextBtn = document.getElementById('welcome-next');
+			const startBtn = document.getElementById('welcome-start');
+
+			prevBtn.disabled = currentSlide === 0;
+
+			if (currentSlide === totalSlides - 1) {
+				nextBtn.style.display = 'none';
+				startBtn.style.display = 'block';
+			} else {
+				nextBtn.style.display = 'block';
+				startBtn.style.display = 'none';
+			}
+		}
+
+		window.nextSlide = function() {
+			if (currentSlide < totalSlides - 1) {
+				currentSlide++;
+				updateSlide();
+			}
+		};
+
+		window.prevSlide = function() {
+			if (currentSlide > 0) {
+				currentSlide--;
+				updateSlide();
+			}
+		};
+
+		window.goToSlide = function(slideIndex) {
+			currentSlide = slideIndex;
+			updateSlide();
+		};
+
+		window.closeWelcome = function() {
+			console.log('🎬 closeWelcome called');
+			const welcomeOverlay = document.getElementById('welcome-overlay');
+			console.log('welcomeOverlay element:', welcomeOverlay);
+			welcomeOverlay.classList.remove('active');
+
+			// Clear inline styles that were set by loading manager
+			welcomeOverlay.style.opacity = '';
+			welcomeOverlay.style.pointerEvents = '';
+			welcomeOverlay.style.zIndex = '';
+
+			console.log('Removed active class and cleared inline styles');
+
+			// Set a flag in localStorage so it doesn't show again
+			localStorage.setItem('welcomeShown', 'true');
+		};
+
+		// Click outside to close
+		document.addEventListener('click', (e) => {
+			console.log('Click detected, target:', e.target);
+			const welcomeOverlay = document.getElementById('welcome-overlay');
+			const welcomeModal = document.querySelector('.welcome-modal');
+
+			console.log('Welcome active?', welcomeOverlay.classList.contains('active'));
+			console.log('Click inside modal?', welcomeModal.contains(e.target));
+
+			if (welcomeOverlay.classList.contains('active') &&
+			    !welcomeModal.contains(e.target)) {
+				console.log('Calling closeWelcome from click outside');
+				closeWelcome();
+			}
+		}, true);
+
+		// Check if welcome has been shown before - DISABLED FOR NOW TO TEST
+		// Uncomment the localStorage check once testing is complete
+		/*
+		window.addEventListener('load', () => {
+			const welcomeShown = localStorage.getItem('welcomeShown');
+			const welcomeOverlay = document.getElementById('welcome-overlay');
+
+			if (welcomeShown === 'true') {
+				welcomeOverlay.classList.remove('active');
+			}
+		});
+		*/
 
 	</script>
 </body>

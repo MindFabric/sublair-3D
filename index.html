@@ -227,6 +227,60 @@
 			opacity: 0.8;
 		}
 
+		/* Collapsible sections */
+		.collapsible-section {
+			margin-bottom: 12px;
+			border: 1px solid rgba(190, 225, 123, 0.2);
+			border-radius: 8px;
+			overflow: hidden;
+			background: rgba(0, 0, 0, 0.3);
+		}
+
+		.collapsible-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 10px 12px;
+			background: rgba(190, 225, 123, 0.1);
+			cursor: pointer;
+			user-select: none;
+			transition: all 0.2s ease;
+		}
+
+		.collapsible-header:hover {
+			background: rgba(190, 225, 123, 0.15);
+		}
+
+		.collapsible-title {
+			font-size: 10px;
+			font-weight: 600;
+			letter-spacing: 2px;
+			color: #bee17b;
+			text-transform: uppercase;
+		}
+
+		.collapsible-arrow {
+			font-size: 12px;
+			color: #bee17b;
+			transition: transform 0.2s ease;
+		}
+
+		.collapsible-section.collapsed .collapsible-arrow {
+			transform: rotate(-90deg);
+		}
+
+		.collapsible-content {
+			padding: 10px;
+			max-height: 500px;
+			overflow: hidden;
+			transition: max-height 0.3s ease, padding 0.3s ease;
+		}
+
+		.collapsible-section.collapsed .collapsible-content {
+			max-height: 0;
+			padding: 0 10px;
+		}
+
 		.color-picker-container {
 			display: flex;
 			align-items: center;
@@ -2064,6 +2118,35 @@
 		// Try to apply CRT effect immediately and keep retrying
 		applyCRTEffect();
 
+		// Load asset colors from localStorage IMMEDIATELY (before assets load)
+		(function() {
+			let savedCustomization = localStorage.getItem('characterCustomization');
+			if (savedCustomization) {
+				let customizationData = JSON.parse(savedCustomization);
+				window.speakerCabColor = customizationData.speakerCabColor || '#191919';
+				window.speakerTrimColor = customizationData.speakerTrimColor || '#ffffff';
+				window.speakerFaceColor = customizationData.speakerFaceColor || '#000000';
+				window.speakerFrameColor = customizationData.speakerFrameColor || '#333333';
+				window.computerChassisColor = customizationData.computerChassisColor || '#ffffff';
+				window.computerKeyboardColor = customizationData.computerKeyboardColor || '#191919';
+				window.computerFeaturesColor = customizationData.computerFeaturesColor || '#bee17b';
+				window.carRimColor = customizationData.carRimColor || '#cccccc';
+				window.carTireColor = customizationData.carTireColor || '#191919';
+				console.log('✅ Loaded colors from localStorage');
+			} else {
+				// Set defaults if no saved data
+				window.speakerCabColor = '#191919';
+				window.speakerTrimColor = '#ffffff';
+				window.speakerFaceColor = '#000000';
+				window.speakerFrameColor = '#333333';
+				window.computerChassisColor = '#ffffff';
+				window.computerKeyboardColor = '#191919';
+				window.computerFeaturesColor = '#bee17b';
+				window.carRimColor = '#cccccc';
+				window.carTireColor = '#191919';
+			}
+		})();
+
 		// Keep trying to apply CRT effect until it succeeds
 		const crtRetryInterval = setInterval(() => {
 			if (world.composer && crtShaderReady && ShaderPass) {
@@ -2182,8 +2265,51 @@
 			window.car = null; // Store car reference globally
 			let car = window.car;
 			loadingManager.loadGLTF('build/assets/car.glb', (carModel) => {
+				console.log('🚗 Car GLB loaded, structure:', carModel.scene);
+
+				// Debug: Log all objects in the scene
+				carModel.scene.traverse((child) => {
+					if (child.isMesh) {
+						console.log('  Mesh:', child.name, 'Material:', child.material?.name);
+					}
+					if (child.userData?.data) {
+						console.log('  UserData:', child.name, 'Data:', child.userData.data);
+					}
+				});
+
+				console.log('🚗 Car GLB loaded, inspecting structure...');
+
+				// Apply saved car colors BEFORE creating Car object (so materials don't get lost)
+				console.log('🎨 Applying car colors to carModel.scene...');
+				console.log('   window.carTireColor:', window.carTireColor);
+				console.log('   window.carRimColor:', window.carRimColor);
+
+				carModel.scene.traverse((child) => {
+					if (child.isMesh && child.material) {
+						const matName = child.material.name;
+
+						if (matName === 'TIRES' || matName.toLowerCase().includes('tire')) {
+							if (window.carTireColor) {
+								child.material.color.set(window.carTireColor);
+								console.log('   ✅ Applied TIRES color to', child.name, ':', window.carTireColor);
+							}
+						} else if (matName === 'RIMS' || matName.toLowerCase().includes('rim')) {
+							if (window.carRimColor) {
+								child.material.color.set(window.carRimColor);
+								console.log('   ✅ Applied RIMS color to', child.name, ':', window.carRimColor);
+							}
+						}
+					}
+				});
+
 				window.car = car = new Sketchbook.Car(carModel);
 				car.setPosition(0, 2, 0);
+
+				// Create spawn point for the car (required by physics system)
+				car.spawnPoint = new THREE.Object3D();
+				car.spawnPoint.position.set(0, 2, 0);
+				world.graphicsWorld.add(car.spawnPoint);
+
 				world.add(car);
 
 				// Create spatial audio for the car
@@ -2299,8 +2425,10 @@
 
 			window.character = null; // Store character reference globally
 			let character = window.character; // Local reference for compatibility
-			let customizationOpen = false; // Global scope for terminal to access
-			let terminalOpen = false; // Global scope for C key check
+			window.customizationOpen = false; // Global scope for all menus to access
+			let customizationOpen = window.customizationOpen;
+			window.terminalOpen = false; // Global scope for C key check
+			let terminalOpen = window.terminalOpen;
 
 			// Create a dummy input receiver that does nothing - global scope
 			window.dummyInputReceiver = {
@@ -2416,23 +2544,152 @@
 						</div>
 					</div>
 					<div class="customization-content" id="environment-tab" style="display: none;">
-						<div class="customization-section">
-							<div class="section-label">Floor Grid Glow</div>
-							<div class="color-picker-container">
-								<input type="color" id="floor-glow-picker" value="#bee17b">
-								<div class="color-info">
-									<div class="color-info-label">Emissive Color</div>
-									<div class="color-info-value" id="floor-glow-value">#BEE17B</div>
+						<!-- Floor Section -->
+						<div class="collapsible-section collapsed">
+							<div class="collapsible-header">
+								<div class="collapsible-title">Floor</div>
+								<div class="collapsible-arrow">▼</div>
+							</div>
+							<div class="collapsible-content">
+								<div class="customization-section">
+									<div class="section-label">Grid Glow</div>
+									<div class="color-picker-container">
+										<input type="color" id="floor-glow-picker" value="#bee17b">
+										<div class="color-info">
+											<div class="color-info-label">Emissive Color</div>
+											<div class="color-info-value" id="floor-glow-value">#BEE17B</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Panel Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="floor-panel-picker" value="#000000">
+										<div class="color-info">
+											<div class="color-info-label">Base Color</div>
+											<div class="color-info-value" id="floor-panel-value">#000000</div>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
-						<div class="customization-section">
-							<div class="section-label">Floor Panel Color</div>
-							<div class="color-picker-container">
-								<input type="color" id="floor-panel-picker" value="#000000">
-								<div class="color-info">
-									<div class="color-info-label">Base Color</div>
-									<div class="color-info-value" id="floor-panel-value">#000000</div>
+
+						<!-- Speakers Section -->
+						<div class="collapsible-section collapsed">
+							<div class="collapsible-header">
+								<div class="collapsible-title">Speakers</div>
+								<div class="collapsible-arrow">▼</div>
+							</div>
+							<div class="collapsible-content">
+								<div class="customization-section">
+									<div class="section-label">Cabinet Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="speaker-cab-picker" value="#191919">
+										<div class="color-info">
+											<div class="color-info-label">CAB Material</div>
+											<div class="color-info-value" id="speaker-cab-value">#191919</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Trim Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="speaker-trim-picker" value="#ffffff">
+										<div class="color-info">
+											<div class="color-info-label">TRIM Material</div>
+											<div class="color-info-value" id="speaker-trim-value">#FFFFFF</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Face Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="speaker-face-picker" value="#000000">
+										<div class="color-info">
+											<div class="color-info-label">FACE Material</div>
+											<div class="color-info-value" id="speaker-face-value">#000000</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Frame Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="speaker-frame-picker" value="#333333">
+										<div class="color-info">
+											<div class="color-info-label">FRAME Material</div>
+											<div class="color-info-value" id="speaker-frame-value">#333333</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Computer Section -->
+						<div class="collapsible-section collapsed">
+							<div class="collapsible-header">
+								<div class="collapsible-title">Computer</div>
+								<div class="collapsible-arrow">▼</div>
+							</div>
+							<div class="collapsible-content">
+								<div class="customization-section">
+									<div class="section-label">Chassis Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="computer-chassis-picker" value="#ffffff">
+										<div class="color-info">
+											<div class="color-info-label">CHASIS Material</div>
+											<div class="color-info-value" id="computer-chassis-value">#FFFFFF</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Keyboard Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="computer-keyboard-picker" value="#191919">
+										<div class="color-info">
+											<div class="color-info-label">KEYBOARD Material</div>
+											<div class="color-info-value" id="computer-keyboard-value">#191919</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Features Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="computer-features-picker" value="#bee17b">
+										<div class="color-info">
+											<div class="color-info-label">FEATURES Material</div>
+											<div class="color-info-value" id="computer-features-value">#BEE17B</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Car Section -->
+						<div class="collapsible-section collapsed">
+							<div class="collapsible-header">
+								<div class="collapsible-title">Car</div>
+								<div class="collapsible-arrow">▼</div>
+							</div>
+							<div class="collapsible-content">
+								<div class="customization-section">
+									<div class="section-label">Rims Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-rim-picker" value="#cccccc">
+										<div class="color-info">
+											<div class="color-info-label">RIMS Material</div>
+											<div class="color-info-value" id="car-rim-value">#CCCCCC</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Tires Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-tire-picker" value="#191919">
+										<div class="color-info">
+											<div class="color-info-label">TIRES Material</div>
+											<div class="color-info-value" id="car-tire-value">#191919</div>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -2451,6 +2708,15 @@
 						const tabName = tab.getAttribute('data-tab');
 						document.getElementById('character-tab').style.display = tabName === 'character' ? 'block' : 'none';
 						document.getElementById('environment-tab').style.display = tabName === 'environment' ? 'block' : 'none';
+					});
+				});
+
+				// Collapsible section logic
+				const collapsibleHeaders = customizationDiv.querySelectorAll('.collapsible-header');
+				collapsibleHeaders.forEach(header => {
+					header.addEventListener('click', () => {
+						const section = header.parentElement;
+						section.classList.toggle('collapsed');
 					});
 				});
 
@@ -2652,6 +2918,10 @@
 					hatColor: '#191919',
 					floorGlowColor: '#bee17b',
 					floorPanelColor: '#000000',
+					speakerCabColor: '#191919',
+					speakerTrimColor: '#ffffff',
+					computerColor: '#ffffff',
+					carColor: '#ff0000',
 					textureType: 'solid',
 					textureScale: 1.0,
 					textureRotation: 0,
@@ -2665,7 +2935,27 @@
 				let hatColor = customizationData.hatColor;
 				let floorGlowColor = customizationData.floorGlowColor || '#bee17b';
 				let floorPanelColor = customizationData.floorPanelColor || '#000000';
+				let speakerCabColor = customizationData.speakerCabColor || '#191919';
+				let speakerTrimColor = customizationData.speakerTrimColor || '#ffffff';
+				let speakerFaceColor = customizationData.speakerFaceColor || '#000000';
+				let speakerFrameColor = customizationData.speakerFrameColor || '#333333';
+				let computerChassisColor = customizationData.computerChassisColor || '#ffffff';
+				let computerKeyboardColor = customizationData.computerKeyboardColor || '#191919';
+				let computerFeaturesColor = customizationData.computerFeaturesColor || '#bee17b';
+				let carRimColor = customizationData.carRimColor || '#cccccc';
+				let carTireColor = customizationData.carTireColor || '#191919';
 				let savedCameraTheta, savedCameraPhi, savedCameraRadius;
+
+				// Set colors globally IMMEDIATELY so they're available when assets load
+				window.speakerCabColor = speakerCabColor;
+				window.speakerTrimColor = speakerTrimColor;
+				window.speakerFaceColor = speakerFaceColor;
+				window.speakerFrameColor = speakerFrameColor;
+				window.computerChassisColor = computerChassisColor;
+				window.computerKeyboardColor = computerKeyboardColor;
+				window.computerFeaturesColor = computerFeaturesColor;
+				window.carRimColor = carRimColor;
+				window.carTireColor = carTireColor;
 
 				// Function to save customization to localStorage
 				function saveCustomization() {
@@ -2676,6 +2966,15 @@
 						hatColor,
 						floorGlowColor,
 						floorPanelColor,
+						speakerCabColor,
+						speakerTrimColor,
+						speakerFaceColor,
+						speakerFrameColor,
+						computerChassisColor,
+						computerKeyboardColor,
+						computerFeaturesColor,
+						carRimColor,
+						carTireColor,
 						textureType: document.getElementById('texture-type')?.value || 'solid',
 						textureScale: parseFloat(document.getElementById('texture-scale')?.value || 1.0),
 						textureRotation: parseFloat(document.getElementById('texture-rotation')?.value || 0),
@@ -2724,7 +3023,7 @@
 								// If character is nearly stopped (velocity < 0.1)
 								if (speed < 0.1) {
 									clearInterval(checkStopInterval);
-									customizationOpen = true;
+									window.customizationOpen = customizationOpen = true;
 									isOpeningCustomization = false;
 
 									// Disable character controls NOW
@@ -2764,7 +3063,7 @@
 
 						function closeCustomization() {
 							if (!customizationOpen) return; // Already closed
-							customizationOpen = false;
+							window.customizationOpen = customizationOpen = false;
 
 							// Hide menu
 							customizationDiv.classList.remove('active');
@@ -2818,15 +3117,27 @@
 							}
 						}, true);
 
-						// Click outside to close customization
-						document.addEventListener('click', (e) => {
-							if (customizationOpen) {
+						// Click outside to lock camera and enable free look (like normal gameplay)
+						let cameraLocked = false;
+						document.addEventListener('mousedown', (e) => {
+							if (customizationOpen && !cameraLocked) {
 								// Check if click is outside the customization menu and customize button
 								if (!customizationDiv.contains(e.target) && !customizeButton.contains(e.target)) {
-									closeCustomization();
+									// Lock pointer and enable camera control
+									cameraLocked = true;
+									world.inputManager.inputReceiver = world.cameraOperator;
+									world.renderer.domElement.requestPointerLock();
 								}
 							}
 						}, true);
+
+						// When pointer lock is released (ESC), restore menu control
+						document.addEventListener('pointerlockchange', () => {
+							if (customizationOpen && !document.pointerLockElement && cameraLocked) {
+								cameraLocked = false;
+								world.inputManager.inputReceiver = window.dummyInputReceiver;
+							}
+						});
 
 					// Color picker input handlers
 					const skinColorPicker = document.getElementById('skin-color-picker');
@@ -2835,6 +3146,15 @@
 					const hatColorPicker = document.getElementById('hat-color-picker');
 					const floorGlowPicker = document.getElementById('floor-glow-picker');
 					const floorPanelPicker = document.getElementById('floor-panel-picker');
+					const speakerCabPicker = document.getElementById('speaker-cab-picker');
+					const speakerTrimPicker = document.getElementById('speaker-trim-picker');
+					const speakerFacePicker = document.getElementById('speaker-face-picker');
+					const speakerFramePicker = document.getElementById('speaker-frame-picker');
+					const computerChassisPicker = document.getElementById('computer-chassis-picker');
+					const computerKeyboardPicker = document.getElementById('computer-keyboard-picker');
+					const computerFeaturesPicker = document.getElementById('computer-features-picker');
+					const carRimPicker = document.getElementById('car-rim-picker');
+					const carTirePicker = document.getElementById('car-tire-picker');
 
 					const skinColorValue = document.getElementById('skin-color-value');
 					const shirtColorValue = document.getElementById('shirt-color-value');
@@ -2842,6 +3162,15 @@
 					const hatColorValue = document.getElementById('hat-color-value');
 					const floorGlowValue = document.getElementById('floor-glow-value');
 					const floorPanelValue = document.getElementById('floor-panel-value');
+					const speakerCabValue = document.getElementById('speaker-cab-value');
+					const speakerTrimValue = document.getElementById('speaker-trim-value');
+					const speakerFaceValue = document.getElementById('speaker-face-value');
+					const speakerFrameValue = document.getElementById('speaker-frame-value');
+					const computerChassisValue = document.getElementById('computer-chassis-value');
+					const computerKeyboardValue = document.getElementById('computer-keyboard-value');
+					const computerFeaturesValue = document.getElementById('computer-features-value');
+					const carRimValue = document.getElementById('car-rim-value');
+					const carTireValue = document.getElementById('car-tire-value');
 
 					// Initialize UI with saved values
 					skinColorPicker.value = skinColor;
@@ -2856,6 +3185,35 @@
 					floorGlowValue.textContent = floorGlowColor.toUpperCase();
 					floorPanelPicker.value = floorPanelColor;
 					floorPanelValue.textContent = floorPanelColor.toUpperCase();
+					speakerCabPicker.value = speakerCabColor;
+					speakerCabValue.textContent = speakerCabColor.toUpperCase();
+					speakerTrimPicker.value = speakerTrimColor;
+					speakerTrimValue.textContent = speakerTrimColor.toUpperCase();
+					speakerFacePicker.value = speakerFaceColor;
+					speakerFaceValue.textContent = speakerFaceColor.toUpperCase();
+					speakerFramePicker.value = speakerFrameColor;
+					speakerFrameValue.textContent = speakerFrameColor.toUpperCase();
+					computerChassisPicker.value = computerChassisColor;
+					computerChassisValue.textContent = computerChassisColor.toUpperCase();
+					computerKeyboardPicker.value = computerKeyboardColor;
+					computerKeyboardValue.textContent = computerKeyboardColor.toUpperCase();
+					computerFeaturesPicker.value = computerFeaturesColor;
+					computerFeaturesValue.textContent = computerFeaturesColor.toUpperCase();
+					carRimPicker.value = carRimColor;
+					carRimValue.textContent = carRimColor.toUpperCase();
+					carTirePicker.value = carTireColor;
+					carTireValue.textContent = carTireColor.toUpperCase();
+
+					// Make colors globally accessible for applying to objects loaded later
+					window.speakerCabColor = speakerCabColor;
+					window.speakerTrimColor = speakerTrimColor;
+					window.speakerFaceColor = speakerFaceColor;
+					window.speakerFrameColor = speakerFrameColor;
+					window.computerChassisColor = computerChassisColor;
+					window.computerKeyboardColor = computerKeyboardColor;
+					window.computerFeaturesColor = computerFeaturesColor;
+					window.carRimColor = carRimColor;
+					window.carTireColor = carTireColor;
 
 					// Apply floor colors immediately
 					if (window.groundMesh && window.generateGridTexture) {
@@ -2917,6 +3275,196 @@
 						if (window.groundMesh && window.generateGridTexture) {
 							window.generateGridTexture(floorGlowColor, floorPanelColor);
 							window.groundMesh.material.color.set(floorPanelColor);
+						}
+						saveCustomization();
+					});
+
+					// Speaker cabinet color picker
+					speakerCabPicker.addEventListener('input', (e) => {
+						speakerCabColor = e.target.value;
+						window.speakerCabColor = speakerCabColor; // Update global
+						speakerCabValue.textContent = speakerCabColor.toUpperCase();
+						if (window.speakers) {
+							window.speakers.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'CAB' || matName.toLowerCase().includes('cab')) {
+										child.material.color.set(speakerCabColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Speaker trim color picker
+					speakerTrimPicker.addEventListener('input', (e) => {
+						speakerTrimColor = e.target.value;
+						window.speakerTrimColor = speakerTrimColor; // Update global
+						speakerTrimValue.textContent = speakerTrimColor.toUpperCase();
+						if (window.speakers) {
+							window.speakers.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'TRIM' || matName.toLowerCase().includes('trim')) {
+										child.material.color.set(speakerTrimColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Speaker face color picker
+					speakerFacePicker.addEventListener('input', (e) => {
+						speakerFaceColor = e.target.value;
+						window.speakerFaceColor = speakerFaceColor; // Update global
+						speakerFaceValue.textContent = speakerFaceColor.toUpperCase();
+						if (window.speakers) {
+							window.speakers.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'FACE' || matName.toLowerCase().includes('face')) {
+										child.material.color.set(speakerFaceColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Speaker frame color picker
+					speakerFramePicker.addEventListener('input', (e) => {
+						speakerFrameColor = e.target.value;
+						window.speakerFrameColor = speakerFrameColor; // Update global
+						speakerFrameValue.textContent = speakerFrameColor.toUpperCase();
+						if (window.speakers) {
+							window.speakers.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+										child.material.color.set(speakerFrameColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Computer chassis color picker
+					computerChassisPicker.addEventListener('input', (e) => {
+						computerChassisColor = e.target.value;
+						window.computerChassisColor = computerChassisColor; // Update global
+						computerChassisValue.textContent = computerChassisColor.toUpperCase();
+						if (window.computer) {
+							window.computer.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'CHASIS' || matName.toLowerCase().includes('chasis')) {
+										child.material.color.set(computerChassisColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Computer keyboard color picker
+					computerKeyboardPicker.addEventListener('input', (e) => {
+						computerKeyboardColor = e.target.value;
+						window.computerKeyboardColor = computerKeyboardColor; // Update global
+						computerKeyboardValue.textContent = computerKeyboardColor.toUpperCase();
+						if (window.computer) {
+							window.computer.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'KEYBOARD' || matName.toLowerCase().includes('keyboard')) {
+										child.material.color.set(computerKeyboardColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Computer features color picker
+					computerFeaturesPicker.addEventListener('input', (e) => {
+						computerFeaturesColor = e.target.value;
+						window.computerFeaturesColor = computerFeaturesColor; // Update global
+						computerFeaturesValue.textContent = computerFeaturesColor.toUpperCase();
+						if (window.computer) {
+							window.computer.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'FEATURES' || matName.toLowerCase().includes('features')) {
+										child.material.color.set(computerFeaturesColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Car rims color picker
+					carRimPicker.addEventListener('input', (e) => {
+						carRimColor = e.target.value;
+						window.carRimColor = carRimColor;
+						carRimValue.textContent = carRimColor.toUpperCase();
+						if (window.car) {
+							// Traverse car body
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'RIMS' || matName.toLowerCase().includes('rim')) {
+										child.material.color.set(carRimColor);
+									}
+								}
+							});
+							// Also traverse wheel objects (they're separate)
+							if (window.car.wheels) {
+								window.car.wheels.forEach((wheel) => {
+									wheel.wheelObject.traverse((child) => {
+										if (child.isMesh && child.material) {
+											const matName = child.material.name;
+											if (matName === 'RIMS' || matName.toLowerCase().includes('rim')) {
+												child.material.color.set(carRimColor);
+											}
+										}
+									});
+								});
+							}
+						}
+						saveCustomization();
+					});
+
+					// Car tires color picker
+					carTirePicker.addEventListener('input', (e) => {
+						carTireColor = e.target.value;
+						window.carTireColor = carTireColor;
+						carTireValue.textContent = carTireColor.toUpperCase();
+						if (window.car) {
+							// Traverse car body
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'TIRES' || matName.toLowerCase().includes('tire')) {
+										child.material.color.set(carTireColor);
+									}
+								}
+							});
+							// Also traverse wheel objects (they're separate)
+							if (window.car.wheels) {
+								window.car.wheels.forEach((wheel) => {
+									wheel.wheelObject.traverse((child) => {
+										if (child.isMesh && child.material) {
+											const matName = child.material.name;
+											if (matName === 'TIRES' || matName.toLowerCase().includes('tire')) {
+												child.material.color.set(carTireColor);
+											}
+										}
+									});
+								});
+							}
 						}
 						saveCustomization();
 					});
@@ -3571,7 +4119,7 @@
 			// Function to close OS
 			function closeOS() {
 				osDiv.classList.remove('active');
-				terminalOpen = false;
+				window.terminalOpen = terminalOpen = false;
 				character.takeControl();
 				setTimeout(() => {
 					world.renderer.domElement.requestPointerLock();
@@ -3591,7 +4139,7 @@
 			// Close OS when clicking outside the OS container
 			const osContainer = document.querySelector('.os-container');
 			document.addEventListener('click', (e) => {
-				if (terminalOpen) {
+				if (terminalOpen && !customizationOpen) {
 					// Check if click is outside the OS container
 					if (!osContainer.contains(e.target)) {
 						closeOS();
@@ -4002,13 +4550,14 @@
 			let computerPosition = new THREE.Vector3(-5, 0.75, 5);
 			loadingManager.loadGLTF('build/assets/retro_computer.glb', (computerModel) => {
 				const computer = computerModel.scene;
+				window.computer = computer; // Make globally accessible for customization
 				computer.position.copy(computerPosition);
 				computer.scale.set(1, 1, 1);
 
 				// Add to world
 				world.graphicsWorld.add(computer);
 
-				// Setup materials for shadows and find screen
+				// Setup materials for shadows, apply saved colors, and find screen
 				let screenMesh = null;
 				computer.traverse((child) => {
 					if (child.isMesh) {
@@ -4016,10 +4565,23 @@
 						child.receiveShadow = true;
 						if (child.material) {
 							world.sky.csm.setupMaterial(child.material);
+
+							// Apply saved customization colors - check both lowercase and uppercase
+							const matName = child.material.name;
+							if ((matName === 'CHASIS' || matName.toLowerCase().includes('chasis')) && window.computerChassisColor) {
+								child.material.color.set(window.computerChassisColor);
+								console.log('✅ Applied CHASIS color:', window.computerChassisColor);
+							} else if ((matName === 'KEYBOARD' || matName.toLowerCase().includes('keyboard')) && window.computerKeyboardColor) {
+								child.material.color.set(window.computerKeyboardColor);
+								console.log('✅ Applied KEYBOARD color:', window.computerKeyboardColor);
+							} else if ((matName === 'FEATURES' || matName.toLowerCase().includes('features')) && window.computerFeaturesColor) {
+								child.material.color.set(window.computerFeaturesColor);
+								console.log('✅ Applied FEATURES color:', window.computerFeaturesColor);
+							}
 						}
 
 					// Look for screen material by name
-					if (child.material && child.material.name && 
+					if (child.material && child.material.name &&
 					    child.material.name.toLowerCase().includes('screen')) {
 						screenMesh = child;
 						console.log('✅ Found screen mesh:', child.name, 'with material:', child.material.name);
@@ -4081,6 +4643,7 @@
 				});
 				world.physicsWorld.addBody(computerBody);
 			});
+
 
 		// Function to update computer screen with album artwork
 		window.updateComputerScreen = function(artworkUrl) {
@@ -4715,7 +5278,8 @@
 
 			// Load the speakers behind the computer
 			loadingManager.loadGLTF('build/assets/speakers.glb', (speakersModel) => {
-				speakers = speakersModel.scene;
+				const speakers = speakersModel.scene;
+				window.speakers = speakers; // Make globally accessible for customization
 				speakers.position.set(-10, 0, 5); // Behind the computer, Y at ground level
 				speakers.scale.set(1, 1, 1);
 
@@ -4859,13 +5423,29 @@
 
 				console.log('🔍 Debug speaker cones created (press Q to toggle)');
 
-				// Setup materials for shadows
+				// Setup materials for shadows and apply saved colors
 				speakers.traverse((child) => {
 					if (child.isMesh) {
 						child.castShadow = true;
 						child.receiveShadow = true;
 						if (child.material) {
 							world.sky.csm.setupMaterial(child.material);
+
+							// Apply saved customization colors - check both lowercase and uppercase
+							const matName = child.material.name;
+							if ((matName === 'CAB' || matName.toLowerCase().includes('cab')) && window.speakerCabColor) {
+								child.material.color.set(window.speakerCabColor);
+								console.log('✅ Applied CAB color:', window.speakerCabColor);
+							} else if ((matName === 'TRIM' || matName.toLowerCase().includes('trim')) && window.speakerTrimColor) {
+								child.material.color.set(window.speakerTrimColor);
+								console.log('✅ Applied TRIM color:', window.speakerTrimColor);
+							} else if ((matName === 'FACE' || matName.toLowerCase().includes('face')) && window.speakerFaceColor) {
+								child.material.color.set(window.speakerFaceColor);
+								console.log('✅ Applied FACE color:', window.speakerFaceColor);
+							} else if ((matName === 'FRAME' || matName.toLowerCase().includes('frame')) && window.speakerFrameColor) {
+								child.material.color.set(window.speakerFrameColor);
+								console.log('✅ Applied FRAME color:', window.speakerFrameColor);
+							}
 						}
 					}
 				});
@@ -5175,7 +5755,7 @@
 						e.stopImmediatePropagation();
 
 						// Open OS
-						terminalOpen = true;
+						window.terminalOpen = terminalOpen = true;
 						osDiv.classList.add('active');
 						interactionPrompt.classList.remove('show');
 
@@ -5220,14 +5800,15 @@
 			return shuffled;
 		}
 
-		let radioOpen = false;
+		window.radioOpen = false;
+	let radioOpen = window.radioOpen;
 		let radioTracksData = [];
 		let radioCurrentIndex = -1;
 		const carRadioDiv = document.getElementById('car-radio');
 
 		// Toggle car radio
 		window.toggleCarRadio = function() {
-			radioOpen = !radioOpen;
+			window.radioOpen = radioOpen = !radioOpen;
 			if (radioOpen) {
 				carRadioDiv.classList.add('active');
 				// Show home screen, hide music app
@@ -5278,7 +5859,7 @@
 
 		// Click outside to close car radio
 		document.addEventListener('click', (e) => {
-			if (radioOpen) {
+			if (radioOpen && !customizationOpen) {
 				// Check if click is outside the car radio menu
 				if (!carRadioDiv.contains(e.target)) {
 					window.toggleCarRadio();
@@ -5554,6 +6135,8 @@
 
 		// Click outside to close
 		document.addEventListener('click', (e) => {
+			if (customizationOpen) return; // Don't interfere with customization menu
+
 			console.log('Click detected, target:', e.target);
 			const welcomeOverlay = document.getElementById('welcome-overlay');
 			const welcomeModal = document.querySelector('.welcome-modal');

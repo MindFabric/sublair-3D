@@ -2085,35 +2085,46 @@
 			canvas.height = 512;
 			const ctx = canvas.getContext('2d');
 
-			// Draw dark background
-			ctx.fillStyle = '#2a2a2a';
-			ctx.fillRect(0, 0, 512, 512);
+			// Function to generate grid texture with custom colors
+			window.generateGridTexture = function(lineColor = '#bee17b', bgColor = '#2a2a2a') {
+				ctx.fillStyle = bgColor;
+				ctx.fillRect(0, 0, 512, 512);
 
-			// Draw grid lines - brighter for glow effect
-			ctx.strokeStyle = '#bee17b'; // Green glow color
-			ctx.lineWidth = 2;
+				// Draw grid lines
+				ctx.strokeStyle = lineColor;
+				ctx.lineWidth = 2;
 
-			const gridSize = 64;
-			// Vertical lines
-			for (let i = 0; i <= 512; i += gridSize) {
-				ctx.beginPath();
-				ctx.moveTo(i, 0);
-				ctx.lineTo(i, 512);
-				ctx.stroke();
-			}
-			// Horizontal lines
-			for (let i = 0; i <= 512; i += gridSize) {
-				ctx.beginPath();
-				ctx.moveTo(0, i);
-				ctx.lineTo(512, i);
-				ctx.stroke();
-			}
+				const gridSize = 64;
+				// Vertical lines
+				for (let i = 0; i <= 512; i += gridSize) {
+					ctx.beginPath();
+					ctx.moveTo(i, 0);
+					ctx.lineTo(i, 512);
+					ctx.stroke();
+				}
+				// Horizontal lines
+				for (let i = 0; i <= 512; i += gridSize) {
+					ctx.beginPath();
+					ctx.moveTo(0, i);
+					ctx.lineTo(512, i);
+					ctx.stroke();
+				}
+
+				// Update texture
+				if (window.gridTexture) {
+					window.gridTexture.needsUpdate = true;
+				}
+			};
+
+			// Initial generation
+			window.generateGridTexture('#bee17b', '#2a2a2a');
 
 			// Create texture from canvas
 			const gridTexture = new THREE.CanvasTexture(canvas);
 			gridTexture.wrapS = THREE.RepeatWrapping;
 			gridTexture.wrapT = THREE.RepeatWrapping;
 			gridTexture.repeat.set(50, 50);
+			window.gridTexture = gridTexture;
 
 			// Add a large ground plane (visual)
 			const groundGeometry = new THREE.PlaneGeometry(200, 200, 1, 1);
@@ -2847,7 +2858,8 @@
 					floorPanelValue.textContent = floorPanelColor.toUpperCase();
 
 					// Apply floor colors immediately
-					if (window.groundMesh) {
+					if (window.groundMesh && window.generateGridTexture) {
+						window.generateGridTexture(floorGlowColor, floorPanelColor);
 						window.groundMesh.material.emissive.set(floorGlowColor);
 						window.groundMesh.material.color.set(floorPanelColor);
 					}
@@ -2891,7 +2903,8 @@
 					floorGlowPicker.addEventListener('input', (e) => {
 						floorGlowColor = e.target.value;
 						floorGlowValue.textContent = floorGlowColor.toUpperCase();
-						if (window.groundMesh) {
+						if (window.groundMesh && window.generateGridTexture) {
+							window.generateGridTexture(floorGlowColor, floorPanelColor);
 							window.groundMesh.material.emissive.set(floorGlowColor);
 						}
 						saveCustomization();
@@ -2901,7 +2914,8 @@
 					floorPanelPicker.addEventListener('input', (e) => {
 						floorPanelColor = e.target.value;
 						floorPanelValue.textContent = floorPanelColor.toUpperCase();
-						if (window.groundMesh) {
+						if (window.groundMesh && window.generateGridTexture) {
+							window.generateGridTexture(floorGlowColor, floorPanelColor);
 							window.groundMesh.material.color.set(floorPanelColor);
 						}
 						saveCustomization();

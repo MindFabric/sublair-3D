@@ -5143,9 +5143,25 @@
 									 'USER';
 					console.log('Setting username to:', username.toUpperCase());
 					profileStatus.textContent = username.toUpperCase();
+
+					// Update computer screen with user's photoURL
+					const photoURL = window.authState.user?.photoURL;
+					if (photoURL && window.updateComputerScreen) {
+						console.log('Updating computer screen with user photo:', photoURL);
+						window.updateComputerScreen(photoURL);
+					}
+
+					// Update hat material with username text
+					if (window.updateHatWithUsername) {
+						window.updateHatWithUsername(username);
+					}
 				} else {
 					console.log('Setting to GUEST');
 					profileStatus.textContent = 'GUEST';
+					// Clear computer screen when logged out
+					if (window.updateComputerScreen) {
+						window.updateComputerScreen(null);
+					}
 				}
 			}
 
@@ -5192,10 +5208,18 @@
 						throw new Error(result.error || 'Login failed');
 					}
 
-					// Save auth data with login timestamp
+					// Fetch full user profile from users endpoint
+					const userProfileResponse = await fetch(`${API_BASE_URL}/api/v1/users/${result.data.localId}`);
+					const userProfileResult = await userProfileResponse.json();
+
+					if (!userProfileResponse.ok || !userProfileResult.success) {
+						console.warn('Could not fetch full user profile, using minimal data');
+					}
+
+					// Save auth data with login timestamp and full user profile
 					saveAuth({
 						isLoggedIn: true,
-						user: result.data.user,
+						user: userProfileResult.success ? userProfileResult.data : result.data.user,
 						email: result.data.email,
 						uid: result.data.localId,
 						idToken: result.data.idToken,
@@ -6063,6 +6087,68 @@
 				// Fallback to green glow
 				window.updateComputerScreen(null);
 			});
+		};
+
+		// Function to update hat material with username text
+		window.updateHatWithUsername = function(username) {
+			if (!window.character) {
+				console.warn('Character not ready for hat update');
+				return;
+			}
+
+			// Find the hat mesh in the character model
+			let hatMesh = null;
+			window.character.modelContainer.traverse((child) => {
+				if (child.isMesh && child.material) {
+					const materialName = child.material.name?.toLowerCase() || '';
+					if (materialName.includes('hat')) {
+						hatMesh = child;
+					}
+				}
+			});
+
+			if (!hatMesh) {
+				console.warn('Hat mesh not found on character');
+				return;
+			}
+
+			// Clone the material so we don't affect other instances
+			if (!hatMesh.userData.originalMaterial) {
+				hatMesh.userData.originalMaterial = hatMesh.material;
+			}
+			hatMesh.material = hatMesh.material.clone();
+
+			// Create canvas for text (transparent background)
+			const canvas = document.createElement('canvas');
+			canvas.width = 512;
+			canvas.height = 256;
+			const ctx = canvas.getContext('2d');
+
+			// Transparent background - let the hat color show through
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+			// Draw username text (much smaller)
+			ctx.fillStyle = '#bee17b'; // SUBLAIR green
+			ctx.font = 'bold 2px Arial';
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'middle';
+			ctx.fillText(username.toUpperCase(), canvas.width / 2, canvas.height / 2);
+
+			// Create texture from canvas
+			const texture = new THREE.CanvasTexture(canvas);
+			texture.wrapS = THREE.RepeatWrapping;
+			texture.wrapT = THREE.RepeatWrapping;
+			texture.needsUpdate = true;
+
+			// Apply texture to hat material (additive, keeping the base color)
+			if (hatMesh.material.map) {
+				hatMesh.material.map.dispose();
+			}
+			hatMesh.material.map = texture;
+			// Keep the existing color - texture will be overlaid
+			hatMesh.material.needsUpdate = true;
+
+			console.log('🧢 Hat updated with username:', username.toUpperCase());
 		};
 
 			// Load the dome surrounding everything

@@ -4,6 +4,20 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const fetch = require('node-fetch');
+const admin = require('firebase-admin');
+
+// Initialize Firebase Admin
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  }),
+  databaseURL: process.env.FIREBASE_DATABASE_URL
+});
+
+const db = admin.firestore();
+const realtimeDb = admin.database();
 
 // Initialize Express
 const app = express();
@@ -24,6 +38,13 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use('/api/', limiter);
+
+// Chat-specific rate limiting (stricter for spam prevention)
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // Max 10 messages per minute per IP
+  message: 'Too many messages, please slow down.'
+});
 
 // Body Parser
 app.use(express.json());
@@ -183,6 +204,261 @@ v1Router.get('/stream/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to stream track'
+    });
+  }
+});
+
+// ========================================
+// CHAT ENDPOINTS
+// ========================================
+
+// POST /api/v1/chat/messages - Send a chat message
+v1Router.post('/chat/messages', chatLimiter, async (req, res) => {
+  const { text, idToken } = req.body;
+  console.log('💬 POST /api/v1/chat/messages');
+
+  if (!text || !idToken) {
+    return res.status(400).json({
+      success: false,
+      error: 'Message text and auth token required'
+    });
+  }
+
+  // Validate message length
+  if (text.length > 500) {
+    return res.status(400).json({
+      success: false,
+      error: 'Message too long (max 500 characters)'
+    });
+  }
+
+  try {
+    // Verify Firebase token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Get user data
+    const userResponse = await fetch(`${FIREBASE_DB_URL}/users/${uid}.json`);
+    const userData = await userResponse.json();
+
+    if (!userData) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Create message document
+    const messageData = {
+      text: text.trim(),
+      username: userData.username || userData.displayName || 'Anonymous',
+      uid: uid,
+      photoURL: userData.photoURL || null,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: Date.now()
+    };
+
+    const docRef = await db.collection('messages').add(messageData);
+
+    console.log(`✅ Message sent by ${messageData.username}`);
+    res.json({
+      success: true,
+      data: {
+        id: docRef.id,
+        ...messageData,
+        timestamp: Date.now()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error sending message:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send message'
+    });
+  }
+});
+
+// DELETE /api/v1/chat/messages/:id - Delete a message
+v1Router.delete('/chat/messages/:id', async (req, res) => {
+  const { id } = req.params;
+  const authHeader = req.headers.authorization;
+  console.log(`🗑️ DELETE /api/v1/chat/messages/${id}`);
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      success: false,
+      error: 'No token provided'
+    });
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+
+  try {
+    // Verify Firebase token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Get the message to verify ownership
+    const messageDoc = await db.collection('messages').doc(id).get();
+
+    if (!messageDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Message not found'
+      });
+    }
+
+    const messageData = messageDoc.data();
+
+    // Verify the user owns this message
+    if (messageData.uid !== uid) {
+      return res.status(403).json({
+        success: false,
+        error: 'You can only delete your own messages'
+      });
+    }
+
+    // Delete the message
+    await db.collection('messages').doc(id).delete();
+
+    console.log(`✅ Message ${id} deleted by ${uid}`);
+    res.json({
+      success: true,
+      message: 'Message deleted'
+    });
+  } catch (error) {
+    console.error('❌ Error deleting message:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete message'
+    });
+  }
+});
+
+// GET /api/v1/chat/messages - Get recent chat messages
+v1Router.get('/chat/messages', async (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  const before = req.query.before ? parseInt(req.query.before) : null;
+  console.log(`💬 GET /api/v1/chat/messages (limit: ${limit})`);
+
+  try {
+    let query = db.collection('messages')
+      .orderBy('createdAt', 'desc')
+      .limit(limit);
+
+    if (before) {
+      query = query.where('createdAt', '<', before);
+    }
+
+    const snapshot = await query.get();
+    const messages = [];
+
+    snapshot.forEach(doc => {
+      messages.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    console.log(`✅ Returned ${messages.length} messages`);
+    res.json({
+      success: true,
+      data: messages.reverse() // Oldest first for display
+    });
+  } catch (error) {
+    console.error('❌ Error fetching messages:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch messages'
+    });
+  }
+});
+
+// POST /api/v1/chat/presence - Update user presence (online status)
+v1Router.post('/chat/presence', async (req, res) => {
+  const { idToken, status } = req.body;
+  console.log('👤 POST /api/v1/chat/presence');
+
+  if (!idToken) {
+    return res.status(400).json({
+      success: false,
+      error: 'Auth token required'
+    });
+  }
+
+  try {
+    // Verify Firebase token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Get user data
+    const userResponse = await fetch(`${FIREBASE_DB_URL}/users/${uid}.json`);
+    const userData = await userResponse.json();
+
+    if (!userData) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Update presence in Realtime Database (better for presence)
+    const presenceData = {
+      username: userData.username || userData.displayName || 'Anonymous',
+      uid: uid,
+      photoURL: userData.photoURL || null,
+      status: status || 'online',
+      lastSeen: Date.now()
+    };
+
+    await realtimeDb.ref(`presence/${uid}`).set(presenceData);
+
+    // Set up disconnect handler to mark offline
+    await realtimeDb.ref(`presence/${uid}`).onDisconnect().update({
+      status: 'offline',
+      lastSeen: Date.now()
+    });
+
+    console.log(`✅ Presence updated for ${presenceData.username}`);
+    res.json({
+      success: true,
+      data: presenceData
+    });
+  } catch (error) {
+    console.error('❌ Error updating presence:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update presence'
+    });
+  }
+});
+
+// GET /api/v1/chat/presence - Get online users
+v1Router.get('/chat/presence', async (req, res) => {
+  console.log('👥 GET /api/v1/chat/presence');
+
+  try {
+    const snapshot = await realtimeDb.ref('presence').once('value');
+    const presence = snapshot.val() || {};
+
+    // Filter online users (last seen within 30 seconds)
+    const now = Date.now();
+    const onlineUsers = Object.entries(presence)
+      .filter(([uid, data]) => {
+        return data.status === 'online' && (now - data.lastSeen) < 30000;
+      })
+      .map(([uid, data]) => data);
+
+    console.log(`✅ Returned ${onlineUsers.length} online users`);
+    res.json({
+      success: true,
+      data: onlineUsers
+    });
+  } catch (error) {
+    console.error('❌ Error fetching presence:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch presence'
     });
   }
 });

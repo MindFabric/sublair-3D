@@ -3391,11 +3391,23 @@
 							} else if (materialName.includes('pants')) {
 								child.material.color.set(pantsColor);
 							} else if (materialName.includes('hat')) {
-								child.material.color.set(hatColor);
+								// If hat has username texture, regenerate it with new color
+								if (child.material.map && window.authState?.isLoggedIn) {
+									child.material.color.set(hatColor);
+									const username = window.authState.user?.username ||
+													 window.authState.user?.displayName ||
+													 window.authState.email?.split('@')[0] ||
+													 'USER';
+									window.updateHatWithUsername(username);
+								} else {
+									child.material.color.set(hatColor);
+								}
 							}
 
-							// Remove any texture
-							child.material.map = null;
+							// Remove any texture EXCEPT on hat (preserve username texture)
+							if (!materialName.includes('hat')) {
+								child.material.map = null;
+							}
 							child.material.needsUpdate = true;
 						}
 					});
@@ -6096,13 +6108,16 @@
 				return;
 			}
 
-			// Find the hat mesh in the character model
+			// Find the hat mesh in the character model (use character.traverse, not modelContainer)
 			let hatMesh = null;
-			window.character.modelContainer.traverse((child) => {
+			console.log('🔍 Searching for hat mesh on character...');
+			window.character.traverse((child) => {
 				if (child.isMesh && child.material) {
 					const materialName = child.material.name?.toLowerCase() || '';
+					console.log('  Character mesh:', child.name, 'material:', child.material.name);
 					if (materialName.includes('hat')) {
 						hatMesh = child;
+						console.log('✅ Found hat mesh:', child.name, 'material:', child.material.name);
 					}
 				}
 			});
@@ -6118,37 +6133,57 @@
 			}
 			hatMesh.material = hatMesh.material.clone();
 
-			// Create canvas for text (transparent background)
+			// Create canvas with hat color as background and fixed text color
 			const canvas = document.createElement('canvas');
 			canvas.width = 512;
-			canvas.height = 256;
+			canvas.height = 512;
 			const ctx = canvas.getContext('2d');
 
-			// Transparent background - let the hat color show through
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			// Fill entire canvas with current hat color (darker to compensate for white material)
+			const currentColor = hatMesh.material.color;
+			const r = Math.floor(currentColor.r * 255 * 0.6); // Darken by 40%
+			const g = Math.floor(currentColor.g * 255 * 0.6);
+			const b = Math.floor(currentColor.b * 255 * 0.6);
+			ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-			// Draw username text (much smaller)
-			ctx.fillStyle = '#bee17b'; // SUBLAIR green
-			ctx.font = 'bold 2px Arial';
+			// Draw username text with fixed SUBLAIR green (smaller, centered once)
+			const text = username.toUpperCase();
+			ctx.fillStyle = '#bee17b'; // SUBLAIR green - always this color
+			ctx.font = 'bold 16px Arial';
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
-			ctx.fillText(username.toUpperCase(), canvas.width / 2, canvas.height / 2);
+
+			// Add outline for better visibility
+			ctx.strokeStyle = '#000000';
+			ctx.lineWidth = 1;
+
+			// Mirror horizontally and move up slightly
+			ctx.save();
+			ctx.scale(-1, 1); // Mirror horizontally
+			ctx.strokeText(text, -canvas.width / 2, canvas.height / 2 - 50); // Move up 50px
+			ctx.fillText(text, -canvas.width / 2, canvas.height / 2 - 50);
+			ctx.restore();
 
 			// Create texture from canvas
 			const texture = new THREE.CanvasTexture(canvas);
-			texture.wrapS = THREE.RepeatWrapping;
-			texture.wrapT = THREE.RepeatWrapping;
+			texture.wrapS = THREE.ClampToEdgeWrapping; // Prevent wrapping
+			texture.wrapT = THREE.ClampToEdgeWrapping; // Prevent wrapping
 			texture.needsUpdate = true;
 
-			// Apply texture to hat material (additive, keeping the base color)
+			// Apply texture to hat material
 			if (hatMesh.material.map) {
 				hatMesh.material.map.dispose();
 			}
 			hatMesh.material.map = texture;
-			// Keep the existing color - texture will be overlaid
+			hatMesh.material.color = new THREE.Color(0xffffff); // Set to white so texture colors show exactly
+			hatMesh.material.roughness = 1.0; // Make it less glossy
+			hatMesh.material.metalness = 0.0; // No metallic effect
 			hatMesh.material.needsUpdate = true;
 
 			console.log('🧢 Hat updated with username:', username.toUpperCase());
+			console.log('Hat material:', hatMesh.material);
+			console.log('Hat has texture:', !!hatMesh.material.map);
 		};
 
 			// Load the dome surrounding everything

@@ -217,6 +217,36 @@
 			margin-bottom: 0;
 		}
 
+		.customization-footer {
+			padding: 15px;
+			border-top: 1px solid rgba(190, 225, 123, 0.2);
+			display: flex;
+			justify-content: center;
+			background: rgba(0, 0, 0, 0.3);
+		}
+
+		.reset-defaults-button {
+			padding: 10px 20px;
+			background: rgba(190, 225, 123, 0.1);
+			border: 1px solid rgba(190, 225, 123, 0.3);
+			border-radius: 6px;
+			color: #bee17b;
+			font-family: 'Courier New', monospace;
+			font-size: 13px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.reset-defaults-button:hover {
+			background: rgba(190, 225, 123, 0.2);
+			border-color: #bee17b;
+			transform: translateY(-1px);
+		}
+
+		.reset-defaults-button:active {
+			transform: translateY(0);
+		}
+
 		.section-label {
 			font-size: 9px;
 			font-weight: 400;
@@ -271,9 +301,26 @@
 
 		.collapsible-content {
 			padding: 10px;
-			max-height: 500px;
-			overflow: hidden;
+			max-height: 1000px;
+			overflow-y: auto;
 			transition: max-height 0.3s ease, padding 0.3s ease;
+		}
+
+		.collapsible-content::-webkit-scrollbar {
+			width: 4px;
+		}
+
+		.collapsible-content::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		.collapsible-content::-webkit-scrollbar-thumb {
+			background: rgba(190, 225, 123, 0.3);
+			border-radius: 2px;
+		}
+
+		.collapsible-content::-webkit-scrollbar-thumb:hover {
+			background: rgba(190, 225, 123, 0.5);
 		}
 
 		.collapsible-section.collapsed .collapsible-content {
@@ -2123,27 +2170,43 @@
 			let savedCustomization = localStorage.getItem('characterCustomization');
 			if (savedCustomization) {
 				let customizationData = JSON.parse(savedCustomization);
-				window.speakerCabColor = customizationData.speakerCabColor || '#191919';
-				window.speakerTrimColor = customizationData.speakerTrimColor || '#ffffff';
-				window.speakerFaceColor = customizationData.speakerFaceColor || '#000000';
-				window.speakerFrameColor = customizationData.speakerFrameColor || '#333333';
-				window.computerChassisColor = customizationData.computerChassisColor || '#ffffff';
+				window.speakerCabColor = customizationData.speakerCabColor || '#282828';
+				window.speakerTrimColor = customizationData.speakerTrimColor || '#282828';
+				window.speakerFaceColor = customizationData.speakerFaceColor || '#282828';
+				window.speakerFrameColor = customizationData.speakerFrameColor || '#282828';
+				window.computerChassisColor = customizationData.computerChassisColor || '#282828';
 				window.computerKeyboardColor = customizationData.computerKeyboardColor || '#191919';
 				window.computerFeaturesColor = customizationData.computerFeaturesColor || '#bee17b';
-				window.carRimColor = customizationData.carRimColor || '#cccccc';
-				window.carTireColor = customizationData.carTireColor || '#191919';
+				window.carDoorColor = customizationData.carDoorColor || '#282828';
+				window.carFrameColor = customizationData.carFrameColor || '#282828';
+				window.carHeadlightsColor = customizationData.carHeadlightsColor || '#282828';
+				window.carHoodColor = customizationData.carHoodColor || '#282828';
+				window.carInteriorColor = customizationData.carInteriorColor || '#282828';
+				window.carRimColor = customizationData.carRimColor || '#282828';
+				window.carSteeringColor = customizationData.carSteeringColor || '#282828';
+				window.carTaillightsColor = customizationData.carTaillightsColor || '#282828';
+				window.carTireColor = customizationData.carTireColor || '#282828';
+				window.carTrimColor = customizationData.carTrimColor || '#282828';
 				console.log('✅ Loaded colors from localStorage');
 			} else {
 				// Set defaults if no saved data
-				window.speakerCabColor = '#191919';
-				window.speakerTrimColor = '#ffffff';
-				window.speakerFaceColor = '#000000';
-				window.speakerFrameColor = '#333333';
-				window.computerChassisColor = '#ffffff';
+				window.speakerCabColor = '#282828';
+				window.speakerTrimColor = '#282828';
+				window.speakerFaceColor = '#282828';
+				window.speakerFrameColor = '#282828';
+				window.computerChassisColor = '#282828';
 				window.computerKeyboardColor = '#191919';
 				window.computerFeaturesColor = '#bee17b';
-				window.carRimColor = '#cccccc';
-				window.carTireColor = '#191919';
+				window.carDoorColor = '#282828';
+				window.carFrameColor = '#282828';
+				window.carHeadlightsColor = '#282828';
+				window.carHoodColor = '#282828';
+				window.carInteriorColor = '#282828';
+				window.carRimColor = '#282828';
+				window.carSteeringColor = '#282828';
+				window.carTaillightsColor = '#282828';
+				window.carTireColor = '#282828';
+				window.carTrimColor = '#282828';
 			}
 		})();
 
@@ -2288,15 +2351,55 @@
 					if (child.isMesh && child.material) {
 						const matName = child.material.name;
 
-						if (matName === 'TIRES' || matName.toLowerCase().includes('tire')) {
-							if (window.carTireColor) {
-								child.material.color.set(window.carTireColor);
-								console.log('   ✅ Applied TIRES color to', child.name, ':', window.carTireColor);
+						if (matName === 'DOOR' || matName.toLowerCase().includes('door')) {
+							if (window.carDoorColor) {
+								child.material.color.set(window.carDoorColor);
+								console.log('   ✅ Applied DOOR color to', child.name, ':', window.carDoorColor);
+							}
+						} else if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+							if (window.carFrameColor) {
+								child.material.color.set(window.carFrameColor);
+								console.log('   ✅ Applied FRAME color to', child.name, ':', window.carFrameColor);
+							}
+						} else if (matName === 'HEADLIGHTS' || matName.toLowerCase().includes('headlight')) {
+							if (window.carHeadlightsColor) {
+								child.material.color.set(window.carHeadlightsColor);
+								console.log('   ✅ Applied HEADLIGHTS color to', child.name, ':', window.carHeadlightsColor);
+							}
+						} else if (matName === 'HOOD' || matName.toLowerCase().includes('hood')) {
+							if (window.carHoodColor) {
+								child.material.color.set(window.carHoodColor);
+								console.log('   ✅ Applied HOOD color to', child.name, ':', window.carHoodColor);
+							}
+						} else if (matName === 'INTERIOR' || matName.toLowerCase().includes('interior')) {
+							if (window.carInteriorColor) {
+								child.material.color.set(window.carInteriorColor);
+								console.log('   ✅ Applied INTERIOR color to', child.name, ':', window.carInteriorColor);
 							}
 						} else if (matName === 'RIMS' || matName.toLowerCase().includes('rim')) {
 							if (window.carRimColor) {
 								child.material.color.set(window.carRimColor);
 								console.log('   ✅ Applied RIMS color to', child.name, ':', window.carRimColor);
+							}
+						} else if (matName === 'STEERING' || matName.toLowerCase().includes('steering')) {
+							if (window.carSteeringColor) {
+								child.material.color.set(window.carSteeringColor);
+								console.log('   ✅ Applied STEERING color to', child.name, ':', window.carSteeringColor);
+							}
+						} else if (matName === 'TAILLIGHTS' || matName.toLowerCase().includes('taillight')) {
+							if (window.carTaillightsColor) {
+								child.material.color.set(window.carTaillightsColor);
+								console.log('   ✅ Applied TAILLIGHTS color to', child.name, ':', window.carTaillightsColor);
+							}
+						} else if (matName === 'TIRES' || matName.toLowerCase().includes('tire')) {
+							if (window.carTireColor) {
+								child.material.color.set(window.carTireColor);
+								console.log('   ✅ Applied TIRES color to', child.name, ':', window.carTireColor);
+							}
+						} else if (matName === 'TRIM' || matName.toLowerCase().includes('trim')) {
+							if (window.carTrimColor) {
+								child.material.color.set(window.carTrimColor);
+								console.log('   ✅ Applied TRIM color to', child.name, ':', window.carTrimColor);
 							}
 						}
 					}
@@ -2672,27 +2775,110 @@
 							</div>
 							<div class="collapsible-content">
 								<div class="customization-section">
+									<div class="section-label">Door Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-door-picker" value="#282828">
+										<div class="color-info">
+											<div class="color-info-label">DOOR Material</div>
+											<div class="color-info-value" id="car-door-value">#282828</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Frame Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-frame-picker" value="#282828">
+										<div class="color-info">
+											<div class="color-info-label">FRAME Material</div>
+											<div class="color-info-value" id="car-frame-value">#282828</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Headlights Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-headlights-picker" value="#282828">
+										<div class="color-info">
+											<div class="color-info-label">HEADLIGHTS Material</div>
+											<div class="color-info-value" id="car-headlights-value">#282828</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Hood Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-hood-picker" value="#282828">
+										<div class="color-info">
+											<div class="color-info-label">HOOD Material</div>
+											<div class="color-info-value" id="car-hood-value">#282828</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Interior Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-interior-picker" value="#282828">
+										<div class="color-info">
+											<div class="color-info-label">INTERIOR Material</div>
+											<div class="color-info-value" id="car-interior-value">#282828</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
 									<div class="section-label">Rims Color</div>
 									<div class="color-picker-container">
-										<input type="color" id="car-rim-picker" value="#cccccc">
+										<input type="color" id="car-rim-picker" value="#282828">
 										<div class="color-info">
 											<div class="color-info-label">RIMS Material</div>
-											<div class="color-info-value" id="car-rim-value">#CCCCCC</div>
+											<div class="color-info-value" id="car-rim-value">#282828</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Steering Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-steering-picker" value="#282828">
+										<div class="color-info">
+											<div class="color-info-label">STEERING Material</div>
+											<div class="color-info-value" id="car-steering-value">#282828</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Taillights Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-taillights-picker" value="#282828">
+										<div class="color-info">
+											<div class="color-info-label">TAILLIGHTS Material</div>
+											<div class="color-info-value" id="car-taillights-value">#282828</div>
 										</div>
 									</div>
 								</div>
 								<div class="customization-section">
 									<div class="section-label">Tires Color</div>
 									<div class="color-picker-container">
-										<input type="color" id="car-tire-picker" value="#191919">
+										<input type="color" id="car-tire-picker" value="#282828">
 										<div class="color-info">
 											<div class="color-info-label">TIRES Material</div>
-											<div class="color-info-value" id="car-tire-value">#191919</div>
+											<div class="color-info-value" id="car-tire-value">#282828</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Trim Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="car-trim-picker" value="#282828">
+										<div class="color-info">
+											<div class="color-info-label">TRIM Material</div>
+											<div class="color-info-value" id="car-trim-value">#282828</div>
 										</div>
 									</div>
 								</div>
 							</div>
 						</div>
+					</div>
+					<div class="customization-footer">
+						<button class="reset-defaults-button" id="reset-defaults-btn">Reset to Defaults</button>
 					</div>
 				`;
 
@@ -2913,15 +3099,28 @@
 				let savedCustomization = localStorage.getItem('characterCustomization');
 				let customizationData = savedCustomization ? JSON.parse(savedCustomization) : {
 					skinColor: '#bee17b',
-					shirtColor: '#ff1400',
-					pantsColor: '#0f00ff',
-					hatColor: '#191919',
+					shirtColor: '#282828',
+					pantsColor: '#282828',
+					hatColor: '#282828',
 					floorGlowColor: '#bee17b',
-					floorPanelColor: '#000000',
-					speakerCabColor: '#191919',
-					speakerTrimColor: '#ffffff',
-					computerColor: '#ffffff',
-					carColor: '#ff0000',
+					floorPanelColor: '#282828',
+					speakerCabColor: '#282828',
+					speakerTrimColor: '#282828',
+					speakerFaceColor: '#282828',
+					speakerFrameColor: '#282828',
+					computerChassisColor: '#282828',
+					computerKeyboardColor: '#191919',
+					computerFeaturesColor: '#bee17b',
+					carDoorColor: '#282828',
+					carFrameColor: '#282828',
+					carHeadlightsColor: '#282828',
+					carHoodColor: '#282828',
+					carInteriorColor: '#282828',
+					carRimColor: '#282828',
+					carSteeringColor: '#282828',
+					carTaillightsColor: '#282828',
+					carTireColor: '#282828',
+					carTrimColor: '#282828',
 					textureType: 'solid',
 					textureScale: 1.0,
 					textureRotation: 0,
@@ -2934,16 +3133,24 @@
 				let pantsColor = customizationData.pantsColor;
 				let hatColor = customizationData.hatColor;
 				let floorGlowColor = customizationData.floorGlowColor || '#bee17b';
-				let floorPanelColor = customizationData.floorPanelColor || '#000000';
-				let speakerCabColor = customizationData.speakerCabColor || '#191919';
-				let speakerTrimColor = customizationData.speakerTrimColor || '#ffffff';
-				let speakerFaceColor = customizationData.speakerFaceColor || '#000000';
-				let speakerFrameColor = customizationData.speakerFrameColor || '#333333';
-				let computerChassisColor = customizationData.computerChassisColor || '#ffffff';
+				let floorPanelColor = customizationData.floorPanelColor || '#282828';
+				let speakerCabColor = customizationData.speakerCabColor || '#282828';
+				let speakerTrimColor = customizationData.speakerTrimColor || '#282828';
+				let speakerFaceColor = customizationData.speakerFaceColor || '#282828';
+				let speakerFrameColor = customizationData.speakerFrameColor || '#282828';
+				let computerChassisColor = customizationData.computerChassisColor || '#282828';
 				let computerKeyboardColor = customizationData.computerKeyboardColor || '#191919';
 				let computerFeaturesColor = customizationData.computerFeaturesColor || '#bee17b';
-				let carRimColor = customizationData.carRimColor || '#cccccc';
-				let carTireColor = customizationData.carTireColor || '#191919';
+				let carDoorColor = customizationData.carDoorColor || '#282828';
+				let carFrameColor = customizationData.carFrameColor || '#282828';
+				let carHeadlightsColor = customizationData.carHeadlightsColor || '#282828';
+				let carHoodColor = customizationData.carHoodColor || '#282828';
+				let carInteriorColor = customizationData.carInteriorColor || '#282828';
+				let carRimColor = customizationData.carRimColor || '#282828';
+				let carSteeringColor = customizationData.carSteeringColor || '#282828';
+				let carTaillightsColor = customizationData.carTaillightsColor || '#282828';
+				let carTireColor = customizationData.carTireColor || '#282828';
+				let carTrimColor = customizationData.carTrimColor || '#282828';
 				let savedCameraTheta, savedCameraPhi, savedCameraRadius;
 
 				// Set colors globally IMMEDIATELY so they're available when assets load
@@ -2954,8 +3161,16 @@
 				window.computerChassisColor = computerChassisColor;
 				window.computerKeyboardColor = computerKeyboardColor;
 				window.computerFeaturesColor = computerFeaturesColor;
+				window.carDoorColor = carDoorColor;
+				window.carFrameColor = carFrameColor;
+				window.carHeadlightsColor = carHeadlightsColor;
+				window.carHoodColor = carHoodColor;
+				window.carInteriorColor = carInteriorColor;
 				window.carRimColor = carRimColor;
+				window.carSteeringColor = carSteeringColor;
+				window.carTaillightsColor = carTaillightsColor;
 				window.carTireColor = carTireColor;
+				window.carTrimColor = carTrimColor;
 
 				// Function to save customization to localStorage
 				function saveCustomization() {
@@ -2973,8 +3188,16 @@
 						computerChassisColor,
 						computerKeyboardColor,
 						computerFeaturesColor,
+						carDoorColor,
+						carFrameColor,
+						carHeadlightsColor,
+						carHoodColor,
+						carInteriorColor,
 						carRimColor,
+						carSteeringColor,
+						carTaillightsColor,
 						carTireColor,
+						carTrimColor,
 						textureType: document.getElementById('texture-type')?.value || 'solid',
 						textureScale: parseFloat(document.getElementById('texture-scale')?.value || 1.0),
 						textureRotation: parseFloat(document.getElementById('texture-rotation')?.value || 0),
@@ -3119,17 +3342,26 @@
 
 						// Click outside to lock camera and enable free look (like normal gameplay)
 						let cameraLocked = false;
-						document.addEventListener('mousedown', (e) => {
-							if (customizationOpen && !cameraLocked) {
+						document.addEventListener('click', (e) => {
+							if (customizationOpen) {
 								// Check if click is outside the customization menu and customize button
 								if (!customizationDiv.contains(e.target) && !customizeButton.contains(e.target)) {
-									// Lock pointer and enable camera control
-									cameraLocked = true;
-									world.inputManager.inputReceiver = world.cameraOperator;
-									world.renderer.domElement.requestPointerLock();
+									if (!cameraLocked) {
+										// Lock pointer and enable camera control
+										cameraLocked = true;
+										world.inputManager.inputReceiver = world.cameraOperator;
+										world.renderer.domElement.requestPointerLock();
+									} else {
+										// Unlock pointer - toggle off
+										cameraLocked = false;
+										world.inputManager.inputReceiver = window.dummyInputReceiver;
+										if (document.pointerLockElement) {
+											document.exitPointerLock();
+										}
+									}
 								}
 							}
-						}, true);
+						});
 
 						// When pointer lock is released (ESC), restore menu control
 						document.addEventListener('pointerlockchange', () => {
@@ -3153,8 +3385,16 @@
 					const computerChassisPicker = document.getElementById('computer-chassis-picker');
 					const computerKeyboardPicker = document.getElementById('computer-keyboard-picker');
 					const computerFeaturesPicker = document.getElementById('computer-features-picker');
+					const carDoorPicker = document.getElementById('car-door-picker');
+					const carFramePicker = document.getElementById('car-frame-picker');
+					const carHeadlightsPicker = document.getElementById('car-headlights-picker');
+					const carHoodPicker = document.getElementById('car-hood-picker');
+					const carInteriorPicker = document.getElementById('car-interior-picker');
 					const carRimPicker = document.getElementById('car-rim-picker');
+					const carSteeringPicker = document.getElementById('car-steering-picker');
+					const carTaillightsPicker = document.getElementById('car-taillights-picker');
 					const carTirePicker = document.getElementById('car-tire-picker');
+					const carTrimPicker = document.getElementById('car-trim-picker');
 
 					const skinColorValue = document.getElementById('skin-color-value');
 					const shirtColorValue = document.getElementById('shirt-color-value');
@@ -3169,8 +3409,16 @@
 					const computerChassisValue = document.getElementById('computer-chassis-value');
 					const computerKeyboardValue = document.getElementById('computer-keyboard-value');
 					const computerFeaturesValue = document.getElementById('computer-features-value');
+					const carDoorValue = document.getElementById('car-door-value');
+					const carFrameValue = document.getElementById('car-frame-value');
+					const carHeadlightsValue = document.getElementById('car-headlights-value');
+					const carHoodValue = document.getElementById('car-hood-value');
+					const carInteriorValue = document.getElementById('car-interior-value');
 					const carRimValue = document.getElementById('car-rim-value');
+					const carSteeringValue = document.getElementById('car-steering-value');
+					const carTaillightsValue = document.getElementById('car-taillights-value');
 					const carTireValue = document.getElementById('car-tire-value');
+					const carTrimValue = document.getElementById('car-trim-value');
 
 					// Initialize UI with saved values
 					skinColorPicker.value = skinColor;
@@ -3199,10 +3447,26 @@
 					computerKeyboardValue.textContent = computerKeyboardColor.toUpperCase();
 					computerFeaturesPicker.value = computerFeaturesColor;
 					computerFeaturesValue.textContent = computerFeaturesColor.toUpperCase();
+					carDoorPicker.value = carDoorColor;
+					carDoorValue.textContent = carDoorColor.toUpperCase();
+					carFramePicker.value = carFrameColor;
+					carFrameValue.textContent = carFrameColor.toUpperCase();
+					carHeadlightsPicker.value = carHeadlightsColor;
+					carHeadlightsValue.textContent = carHeadlightsColor.toUpperCase();
+					carHoodPicker.value = carHoodColor;
+					carHoodValue.textContent = carHoodColor.toUpperCase();
+					carInteriorPicker.value = carInteriorColor;
+					carInteriorValue.textContent = carInteriorColor.toUpperCase();
 					carRimPicker.value = carRimColor;
 					carRimValue.textContent = carRimColor.toUpperCase();
+					carSteeringPicker.value = carSteeringColor;
+					carSteeringValue.textContent = carSteeringColor.toUpperCase();
+					carTaillightsPicker.value = carTaillightsColor;
+					carTaillightsValue.textContent = carTaillightsColor.toUpperCase();
 					carTirePicker.value = carTireColor;
 					carTireValue.textContent = carTireColor.toUpperCase();
+					carTrimPicker.value = carTrimColor;
+					carTrimValue.textContent = carTrimColor.toUpperCase();
 
 					// Make colors globally accessible for applying to objects loaded later
 					window.speakerCabColor = speakerCabColor;
@@ -3212,8 +3476,16 @@
 					window.computerChassisColor = computerChassisColor;
 					window.computerKeyboardColor = computerKeyboardColor;
 					window.computerFeaturesColor = computerFeaturesColor;
+					window.carDoorColor = carDoorColor;
+					window.carFrameColor = carFrameColor;
+					window.carHeadlightsColor = carHeadlightsColor;
+					window.carHoodColor = carHoodColor;
+					window.carInteriorColor = carInteriorColor;
 					window.carRimColor = carRimColor;
+					window.carSteeringColor = carSteeringColor;
+					window.carTaillightsColor = carTaillightsColor;
 					window.carTireColor = carTireColor;
+					window.carTrimColor = carTrimColor;
 
 					// Apply floor colors immediately
 					if (window.groundMesh && window.generateGridTexture) {
@@ -3306,7 +3578,7 @@
 							window.speakers.traverse((child) => {
 								if (child.isMesh && child.material) {
 									const matName = child.material.name;
-									if (matName === 'TRIM' || matName.toLowerCase().includes('trim')) {
+									if (matName === 'TRIM' || matName === 'SPEAKER_TRIM' || (matName.toLowerCase().includes('trim') && matName.toLowerCase().includes('speaker'))) {
 										child.material.color.set(speakerTrimColor);
 									}
 								}
@@ -3342,7 +3614,7 @@
 							window.speakers.traverse((child) => {
 								if (child.isMesh && child.material) {
 									const matName = child.material.name;
-									if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+									if (matName === 'FRAME' || matName === 'SPEAKER_FRAME' || (matName.toLowerCase().includes('frame') && matName.toLowerCase().includes('speaker'))) {
 										child.material.color.set(speakerFrameColor);
 									}
 								}
@@ -3405,6 +3677,96 @@
 						saveCustomization();
 					});
 
+					// Car door color picker
+					carDoorPicker.addEventListener('input', (e) => {
+						carDoorColor = e.target.value;
+						window.carDoorColor = carDoorColor;
+						carDoorValue.textContent = carDoorColor.toUpperCase();
+						if (window.car) {
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'DOOR' || matName.toLowerCase().includes('door')) {
+										child.material.color.set(carDoorColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Car frame color picker
+					carFramePicker.addEventListener('input', (e) => {
+						carFrameColor = e.target.value;
+						window.carFrameColor = carFrameColor;
+						carFrameValue.textContent = carFrameColor.toUpperCase();
+						if (window.car) {
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+										child.material.color.set(carFrameColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Car headlights color picker
+					carHeadlightsPicker.addEventListener('input', (e) => {
+						carHeadlightsColor = e.target.value;
+						window.carHeadlightsColor = carHeadlightsColor;
+						carHeadlightsValue.textContent = carHeadlightsColor.toUpperCase();
+						if (window.car) {
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'HEADLIGHTS' || matName.toLowerCase().includes('headlight')) {
+										child.material.color.set(carHeadlightsColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Car hood color picker
+					carHoodPicker.addEventListener('input', (e) => {
+						carHoodColor = e.target.value;
+						window.carHoodColor = carHoodColor;
+						carHoodValue.textContent = carHoodColor.toUpperCase();
+						if (window.car) {
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'HOOD' || matName.toLowerCase().includes('hood')) {
+										child.material.color.set(carHoodColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Car interior color picker
+					carInteriorPicker.addEventListener('input', (e) => {
+						carInteriorColor = e.target.value;
+						window.carInteriorColor = carInteriorColor;
+						carInteriorValue.textContent = carInteriorColor.toUpperCase();
+						if (window.car) {
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'INTERIOR' || matName.toLowerCase().includes('interior')) {
+										child.material.color.set(carInteriorColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
 					// Car rims color picker
 					carRimPicker.addEventListener('input', (e) => {
 						carRimColor = e.target.value;
@@ -3437,13 +3799,48 @@
 						saveCustomization();
 					});
 
+					// Car steering color picker
+					carSteeringPicker.addEventListener('input', (e) => {
+						carSteeringColor = e.target.value;
+						window.carSteeringColor = carSteeringColor;
+						carSteeringValue.textContent = carSteeringColor.toUpperCase();
+						if (window.car) {
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'STEERING' || matName.toLowerCase().includes('steering')) {
+										child.material.color.set(carSteeringColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Car taillights color picker
+					carTaillightsPicker.addEventListener('input', (e) => {
+						carTaillightsColor = e.target.value;
+						window.carTaillightsColor = carTaillightsColor;
+						carTaillightsValue.textContent = carTaillightsColor.toUpperCase();
+						if (window.car) {
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'TAILLIGHTS' || matName.toLowerCase().includes('taillight')) {
+										child.material.color.set(carTaillightsColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
 					// Car tires color picker
 					carTirePicker.addEventListener('input', (e) => {
 						carTireColor = e.target.value;
 						window.carTireColor = carTireColor;
 						carTireValue.textContent = carTireColor.toUpperCase();
 						if (window.car) {
-							// Traverse car body
 							window.car.traverse((child) => {
 								if (child.isMesh && child.material) {
 									const matName = child.material.name;
@@ -3452,7 +3849,6 @@
 									}
 								}
 							});
-							// Also traverse wheel objects (they're separate)
 							if (window.car.wheels) {
 								window.car.wheels.forEach((wheel) => {
 									wheel.wheelObject.traverse((child) => {
@@ -3467,6 +3863,268 @@
 							}
 						}
 						saveCustomization();
+					});
+
+					// Car trim color picker
+					carTrimPicker.addEventListener('input', (e) => {
+						carTrimColor = e.target.value;
+						window.carTrimColor = carTrimColor;
+						carTrimValue.textContent = carTrimColor.toUpperCase();
+						if (window.car) {
+							window.car.traverse((child) => {
+								if (child.isMesh && child.material) {
+									const matName = child.material.name;
+									if (matName === 'TRIM' || matName.toLowerCase().includes('trim')) {
+										child.material.color.set(carTrimColor);
+									}
+								}
+							});
+						}
+						saveCustomization();
+					});
+
+					// Reset to Defaults button
+					const resetButton = document.getElementById('reset-defaults-btn');
+					resetButton.addEventListener('click', () => {
+						if (confirm('Reset all colors to defaults? This will clear your saved customization.')) {
+							// Clear localStorage
+							localStorage.removeItem('characterCustomization');
+
+							// Define default colors
+							const defaults = {
+								skinColor: '#bee17b',
+								shirtColor: '#282828',
+								pantsColor: '#282828',
+								hatColor: '#282828',
+								floorGlowColor: '#bee17b',
+								floorPanelColor: '#282828',
+								speakerCabColor: '#282828',
+								speakerTrimColor: '#282828',
+								speakerFaceColor: '#282828',
+								speakerFrameColor: '#282828',
+								computerChassisColor: '#282828',
+								computerKeyboardColor: '#191919',
+								computerFeaturesColor: '#bee17b',
+								carDoorColor: '#282828',
+								carFrameColor: '#282828',
+								carHeadlightsColor: '#282828',
+								carHoodColor: '#282828',
+								carInteriorColor: '#282828',
+								carRimColor: '#282828',
+								carSteeringColor: '#282828',
+								carTaillightsColor: '#282828',
+								carTireColor: '#282828',
+								carTrimColor: '#282828'
+							};
+
+							// Update all pickers and values
+							skinColorPicker.value = defaults.skinColor;
+							skinColorValue.textContent = defaults.skinColor.toUpperCase();
+							skinColor = defaults.skinColor;
+
+							shirtColorPicker.value = defaults.shirtColor;
+							shirtColorValue.textContent = defaults.shirtColor.toUpperCase();
+							shirtColor = defaults.shirtColor;
+
+							pantsColorPicker.value = defaults.pantsColor;
+							pantsColorValue.textContent = defaults.pantsColor.toUpperCase();
+							pantsColor = defaults.pantsColor;
+
+							hatColorPicker.value = defaults.hatColor;
+							hatColorValue.textContent = defaults.hatColor.toUpperCase();
+							hatColor = defaults.hatColor;
+
+							floorGlowPicker.value = defaults.floorGlowColor;
+							floorGlowValue.textContent = defaults.floorGlowColor.toUpperCase();
+							floorGlowColor = defaults.floorGlowColor;
+
+							floorPanelPicker.value = defaults.floorPanelColor;
+							floorPanelValue.textContent = defaults.floorPanelColor.toUpperCase();
+							floorPanelColor = defaults.floorPanelColor;
+
+							speakerCabPicker.value = defaults.speakerCabColor;
+							speakerCabValue.textContent = defaults.speakerCabColor.toUpperCase();
+							speakerCabColor = defaults.speakerCabColor;
+
+							speakerTrimPicker.value = defaults.speakerTrimColor;
+							speakerTrimValue.textContent = defaults.speakerTrimColor.toUpperCase();
+							speakerTrimColor = defaults.speakerTrimColor;
+
+							speakerFacePicker.value = defaults.speakerFaceColor;
+							speakerFaceValue.textContent = defaults.speakerFaceColor.toUpperCase();
+							speakerFaceColor = defaults.speakerFaceColor;
+
+							speakerFramePicker.value = defaults.speakerFrameColor;
+							speakerFrameValue.textContent = defaults.speakerFrameColor.toUpperCase();
+							speakerFrameColor = defaults.speakerFrameColor;
+
+							computerChassisPicker.value = defaults.computerChassisColor;
+							computerChassisValue.textContent = defaults.computerChassisColor.toUpperCase();
+							computerChassisColor = defaults.computerChassisColor;
+
+							computerKeyboardPicker.value = defaults.computerKeyboardColor;
+							computerKeyboardValue.textContent = defaults.computerKeyboardColor.toUpperCase();
+							computerKeyboardColor = defaults.computerKeyboardColor;
+
+							computerFeaturesPicker.value = defaults.computerFeaturesColor;
+							computerFeaturesValue.textContent = defaults.computerFeaturesColor.toUpperCase();
+							computerFeaturesColor = defaults.computerFeaturesColor;
+
+							carDoorPicker.value = defaults.carDoorColor;
+							carDoorValue.textContent = defaults.carDoorColor.toUpperCase();
+							carDoorColor = defaults.carDoorColor;
+
+							carFramePicker.value = defaults.carFrameColor;
+							carFrameValue.textContent = defaults.carFrameColor.toUpperCase();
+							carFrameColor = defaults.carFrameColor;
+
+							carHeadlightsPicker.value = defaults.carHeadlightsColor;
+							carHeadlightsValue.textContent = defaults.carHeadlightsColor.toUpperCase();
+							carHeadlightsColor = defaults.carHeadlightsColor;
+
+							carHoodPicker.value = defaults.carHoodColor;
+							carHoodValue.textContent = defaults.carHoodColor.toUpperCase();
+							carHoodColor = defaults.carHoodColor;
+
+							carInteriorPicker.value = defaults.carInteriorColor;
+							carInteriorValue.textContent = defaults.carInteriorColor.toUpperCase();
+							carInteriorColor = defaults.carInteriorColor;
+
+							carRimPicker.value = defaults.carRimColor;
+							carRimValue.textContent = defaults.carRimColor.toUpperCase();
+							carRimColor = defaults.carRimColor;
+
+							carSteeringPicker.value = defaults.carSteeringColor;
+							carSteeringValue.textContent = defaults.carSteeringColor.toUpperCase();
+							carSteeringColor = defaults.carSteeringColor;
+
+							carTaillightsPicker.value = defaults.carTaillightsColor;
+							carTaillightsValue.textContent = defaults.carTaillightsColor.toUpperCase();
+							carTaillightsColor = defaults.carTaillightsColor;
+
+							carTirePicker.value = defaults.carTireColor;
+							carTireValue.textContent = defaults.carTireColor.toUpperCase();
+							carTireColor = defaults.carTireColor;
+
+							carTrimPicker.value = defaults.carTrimColor;
+							carTrimValue.textContent = defaults.carTrimColor.toUpperCase();
+							carTrimColor = defaults.carTrimColor;
+
+							// Update globals
+							window.speakerCabColor = defaults.speakerCabColor;
+							window.speakerTrimColor = defaults.speakerTrimColor;
+							window.speakerFaceColor = defaults.speakerFaceColor;
+							window.speakerFrameColor = defaults.speakerFrameColor;
+							window.computerChassisColor = defaults.computerChassisColor;
+							window.computerKeyboardColor = defaults.computerKeyboardColor;
+							window.computerFeaturesColor = defaults.computerFeaturesColor;
+							window.carDoorColor = defaults.carDoorColor;
+							window.carFrameColor = defaults.carFrameColor;
+							window.carHeadlightsColor = defaults.carHeadlightsColor;
+							window.carHoodColor = defaults.carHoodColor;
+							window.carInteriorColor = defaults.carInteriorColor;
+							window.carRimColor = defaults.carRimColor;
+							window.carSteeringColor = defaults.carSteeringColor;
+							window.carTaillightsColor = defaults.carTaillightsColor;
+							window.carTireColor = defaults.carTireColor;
+							window.carTrimColor = defaults.carTrimColor;
+
+							// Apply to character
+							updateCharacter();
+
+							// Apply to floor
+							if (window.groundMesh && window.generateGridTexture) {
+								window.generateGridTexture(defaults.floorGlowColor, defaults.floorPanelColor);
+								window.groundMesh.material.emissive.set(defaults.floorGlowColor);
+								window.groundMesh.material.color.set(defaults.floorPanelColor);
+								window.groundMesh.material.needsUpdate = true;
+							}
+
+							// Apply to speakers
+							if (window.speakers) {
+								window.speakers.traverse((child) => {
+									if (child.isMesh && child.material) {
+										const matName = child.material.name;
+										if (matName === 'CAB' || matName.toLowerCase().includes('cab')) {
+											child.material.color.set(defaults.speakerCabColor);
+										} else if (matName === 'TRIM' || matName === 'SPEAKER_TRIM' || (matName.toLowerCase().includes('trim') && matName.toLowerCase().includes('speaker'))) {
+											child.material.color.set(defaults.speakerTrimColor);
+										} else if (matName === 'FACE' || matName.toLowerCase().includes('face')) {
+											child.material.color.set(defaults.speakerFaceColor);
+										} else if (matName === 'FRAME' || matName === 'SPEAKER_FRAME' || (matName.toLowerCase().includes('frame') && matName.toLowerCase().includes('speaker'))) {
+											child.material.color.set(defaults.speakerFrameColor);
+										}
+										child.material.needsUpdate = true;
+									}
+								});
+							}
+
+							// Apply to computer
+							if (window.computer) {
+								window.computer.traverse((child) => {
+									if (child.isMesh && child.material) {
+										const matName = child.material.name;
+										if (matName === 'CHASIS' || matName.toLowerCase().includes('chasis')) {
+											child.material.color.set(defaults.computerChassisColor);
+										} else if (matName === 'KEYBOARD' || matName.toLowerCase().includes('keyboard')) {
+											child.material.color.set(defaults.computerKeyboardColor);
+										} else if (matName === 'FEATURES' || matName.toLowerCase().includes('features')) {
+											child.material.color.set(defaults.computerFeaturesColor);
+										}
+										child.material.needsUpdate = true;
+									}
+								});
+							}
+
+							// Apply to car
+							if (window.car) {
+								window.car.traverse((child) => {
+									if (child.isMesh && child.material) {
+										const matName = child.material.name;
+										if (matName === 'DOOR' || matName.toLowerCase().includes('door')) {
+											child.material.color.set(defaults.carDoorColor);
+										} else if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+											child.material.color.set(defaults.carFrameColor);
+										} else if (matName === 'HEADLIGHTS' || matName.toLowerCase().includes('headlight')) {
+											child.material.color.set(defaults.carHeadlightsColor);
+										} else if (matName === 'HOOD' || matName.toLowerCase().includes('hood')) {
+											child.material.color.set(defaults.carHoodColor);
+										} else if (matName === 'INTERIOR' || matName.toLowerCase().includes('interior')) {
+											child.material.color.set(defaults.carInteriorColor);
+										} else if (matName === 'RIMS' || matName.toLowerCase().includes('rim')) {
+											child.material.color.set(defaults.carRimColor);
+										} else if (matName === 'STEERING' || matName.toLowerCase().includes('steering')) {
+											child.material.color.set(defaults.carSteeringColor);
+										} else if (matName === 'TAILLIGHTS' || matName.toLowerCase().includes('taillight')) {
+											child.material.color.set(defaults.carTaillightsColor);
+										} else if (matName === 'TIRES' || matName.toLowerCase().includes('tire')) {
+											child.material.color.set(defaults.carTireColor);
+										} else if (matName === 'TRIM' || matName.toLowerCase().includes('trim')) {
+											child.material.color.set(defaults.carTrimColor);
+										}
+										child.material.needsUpdate = true;
+									}
+								});
+								if (window.car.wheels) {
+									window.car.wheels.forEach((wheel) => {
+										wheel.wheelObject.traverse((child) => {
+											if (child.isMesh && child.material) {
+												const matName = child.material.name;
+												if (matName === 'RIMS' || matName.toLowerCase().includes('rim')) {
+													child.material.color.set(defaults.carRimColor);
+												} else if (matName === 'TIRES' || matName.toLowerCase().includes('tire')) {
+													child.material.color.set(defaults.carTireColor);
+												}
+												child.material.needsUpdate = true;
+											}
+										});
+									});
+								}
+							}
+
+							saveCustomization();
+							console.log('✅ Reset to defaults complete!');
+						}
 					});
 				}, 1000);
 			});
@@ -5436,15 +6094,15 @@
 							if ((matName === 'CAB' || matName.toLowerCase().includes('cab')) && window.speakerCabColor) {
 								child.material.color.set(window.speakerCabColor);
 								console.log('✅ Applied CAB color:', window.speakerCabColor);
-							} else if ((matName === 'TRIM' || matName.toLowerCase().includes('trim')) && window.speakerTrimColor) {
+							} else if ((matName === 'TRIM' || matName === 'SPEAKER_TRIM' || (matName.toLowerCase().includes('trim') && matName.toLowerCase().includes('speaker'))) && window.speakerTrimColor) {
 								child.material.color.set(window.speakerTrimColor);
-								console.log('✅ Applied TRIM color:', window.speakerTrimColor);
+								console.log('✅ Applied SPEAKER TRIM color:', window.speakerTrimColor);
 							} else if ((matName === 'FACE' || matName.toLowerCase().includes('face')) && window.speakerFaceColor) {
 								child.material.color.set(window.speakerFaceColor);
 								console.log('✅ Applied FACE color:', window.speakerFaceColor);
-							} else if ((matName === 'FRAME' || matName.toLowerCase().includes('frame')) && window.speakerFrameColor) {
+							} else if ((matName === 'FRAME' || matName === 'SPEAKER_FRAME' || (matName.toLowerCase().includes('frame') && matName.toLowerCase().includes('speaker'))) && window.speakerFrameColor) {
 								child.material.color.set(window.speakerFrameColor);
-								console.log('✅ Applied FRAME color:', window.speakerFrameColor);
+								console.log('✅ Applied SPEAKER FRAME color:', window.speakerFrameColor);
 							}
 						}
 					}
@@ -5677,9 +6335,9 @@
 				}
 			}, 100);
 
-			// Handle Q key for debug mode toggle
+			// Handle ` (backtick) key for debug mode toggle
 			document.addEventListener('keydown', (e) => {
-				if (e.key === 'q' || e.key === 'Q') {
+				if (e.key === '`') {
 					let isVisible = false;
 
 					// Toggle speaker cones

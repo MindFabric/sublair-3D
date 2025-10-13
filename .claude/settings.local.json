@@ -13,7 +13,8 @@
       "Bash(python3:*)",
       "Bash(git check-ignore:*)",
       "Bash(pkill:*)",
-      "Bash(file:*)"
+      "Bash(file:*)",
+      "Bash(npm start)"
     ],
     "deny": [],
     "ask": []

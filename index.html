@@ -1623,6 +1623,30 @@
 			background: #000;
 		}
 
+		/* File Details Panel Scrollbar */
+		#file-details-panel {
+			scrollbar-width: thin;
+			scrollbar-color: #bee17b #111;
+		}
+
+		#file-details-panel::-webkit-scrollbar {
+			width: 8px;
+		}
+
+		#file-details-panel::-webkit-scrollbar-track {
+			background: #111;
+			border-left: 1px solid #333;
+		}
+
+		#file-details-panel::-webkit-scrollbar-thumb {
+			background: #bee17b;
+			border-radius: 0;
+		}
+
+		#file-details-panel::-webkit-scrollbar-thumb:hover {
+			background: #d4f19b;
+		}
+
 		.file-path {
 			font-size: 11px;
 			color: #bee17b;
@@ -2227,6 +2251,7 @@
 	</div>
 
 	<script src="./build/sketchbook.min.js"></script>
+
 	<script>
 		// Update CRT timestamp
 		function updateTimestamp() {
@@ -2245,6 +2270,7 @@
 		// Update timestamp every second
 		updateTimestamp();
 		setInterval(updateTimestamp, 1000);
+
 
 		// Preload CRT shader before world creation
 		let crtShaderReady = false;
@@ -2721,6 +2747,37 @@
 			};
 
 			loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
+				// Apply saved customization colors IMMEDIATELY to the model before creating Character
+				let savedCustomization = localStorage.getItem('characterCustomization');
+				if (savedCustomization) {
+					let customizationData = JSON.parse(savedCustomization);
+					let skinColor = customizationData.skinColor || '#bee17b';
+					let shirtColor = customizationData.shirtColor || '#282828';
+					let pantsColor = customizationData.pantsColor || '#282828';
+					let hatColor = customizationData.hatColor || '#282828';
+
+					console.log('🎨 Applying saved colors to character BEFORE first render...');
+					charModel.scene.traverse((child) => {
+						if (child.isMesh && child.material) {
+							const materialName = child.material.name.toLowerCase();
+							if (materialName.includes('skin')) {
+								child.material.color.set(skinColor);
+								console.log('  ✓ Skin:', skinColor);
+							} else if (materialName.includes('shirt')) {
+								child.material.color.set(shirtColor);
+								console.log('  ✓ Shirt:', shirtColor);
+							} else if (materialName.includes('pants')) {
+								child.material.color.set(pantsColor);
+								console.log('  ✓ Pants:', pantsColor);
+							} else if (materialName.includes('hat')) {
+								child.material.color.set(hatColor);
+								console.log('  ✓ Hat:', hatColor);
+							}
+							child.material.needsUpdate = true;
+						}
+					});
+				}
+
 				window.character = character = new Sketchbook.Character(charModel);
 				character.setPosition(5, 2, 0);
 				world.add(character);
@@ -4336,6 +4393,9 @@
 							<div class="taskbar-app" data-app="eq">
 								[EQ]
 							</div>
+							<div class="taskbar-app" data-app="files">
+								[FILES]
+							</div>
 							<div class="taskbar-app" data-app="chat">
 								[CHAT]
 							</div>
@@ -4355,9 +4415,9 @@
 									<div class="icon">[S]</div>
 									<div class="label">SUBLAIR.EXE</div>
 								</div>
-								<div class="desktop-icon" data-app="eq">
-									<div class="icon">[E]</div>
-									<div class="label">EQ.EXE</div>
+								<div class="desktop-icon" data-app="files">
+									<div class="icon">[D]</div>
+									<div class="label">DEEPWAVES.EXE</div>
 								</div>
 								<div class="desktop-icon" data-app="chat">
 									<div class="icon">[C]</div>
@@ -4518,6 +4578,49 @@
 									<div id="online-users" style="flex: 1; overflow-y: auto; padding: 10px; font-family: 'Share', monospace; font-size: 13px;">
 										<div style="color: #666; text-align: center; padding: 20px;">
 											[LOADING...]
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- DEEPWAVES File Browser -->
+					<div class="os-view" id="files-view" style="display: none;">
+						<div class="app-window">
+							<div class="app-header">
+								<div class="app-title">DEEPWAVES.EXE v1.0</div>
+								<div class="file-path" id="current-path">C:\DEEPWAVES\</div>
+								<button id="files-refresh" class="audio-btn" style="width: auto; margin-left: auto;">[REFRESH]</button>
+							</div>
+							<div class="app-content">
+								<!-- Toolbar -->
+								<div style="background: #111; border-bottom: 2px solid #bee17b; padding: 12px; display: flex; gap: 10px; align-items: center;">
+									<button id="files-back" class="audio-btn" style="width: auto; padding: 8px 16px;" disabled>[← BACK]</button>
+									<input type="text" id="files-search" placeholder="Search files..." style="flex: 1; padding: 8px 12px; background: #000; border: 1px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 13px;" />
+									<div style="color: #bee17b; font-size: 12px; white-space: nowrap;">
+										<span id="file-count">0</span> FILES | <span id="folder-count">0</span> FOLDERS
+									</div>
+								</div>
+
+								<!-- File Browser Container -->
+								<div style="display: flex; height: calc(100% - 60px);">
+									<!-- Main File List -->
+									<div style="flex: 1; overflow-y: auto; background: #000;">
+										<div id="files-container" style="padding: 15px;">
+											<div style="text-align: center; color: #bee17b; padding: 40px 20px;">
+												[LOADING FILES...]
+											</div>
+										</div>
+									</div>
+
+									<!-- File Details Sidebar -->
+									<div id="file-details-panel" style="width: 280px; border-left: 2px solid #bee17b; background: #000; overflow-y: auto; display: none;">
+										<div style="padding: 15px; border-bottom: 1px solid #bee17b; font-family: 'Share', monospace; color: #bee17b; font-weight: bold; font-size: 14px;">
+											[FILE DETAILS]
+										</div>
+										<div id="file-details-content" style="padding: 15px; font-family: 'Share', monospace; font-size: 12px; color: #bee17b;">
+											<!-- Details will be populated here -->
 										</div>
 									</div>
 								</div>
@@ -4976,6 +5079,26 @@
 
 			// OS Navigation System
 			function switchToApp(appName) {
+				// Check if trying to access protected apps without being logged in
+				const protectedApps = ['chat', 'files'];
+				if (protectedApps.includes(appName) && !window.authState?.isLoggedIn) {
+					console.log(`🔒 ${appName.toUpperCase()} requires login, showing login modal`);
+					// Show login modal
+					const loginModal = document.getElementById('login-modal');
+					if (loginModal) {
+						loginModal.classList.add('show');
+					}
+					return; // Don't switch to the app
+				}
+
+				// Check if leaving chat view
+				const chatView = document.getElementById('chat-view');
+				if (chatView.style.display === 'block' && appName !== 'chat') {
+					// Leaving chat, stop polling and set offline
+					stopChatPolling();
+					setPresenceOffline();
+				}
+
 				// Hide all views
 				document.querySelectorAll('.os-view').forEach(view => {
 					view.style.display = 'none';
@@ -4989,6 +5112,11 @@
 					app.classList.remove('active');
 				});
 				document.querySelector(`.taskbar-app[data-app="${appName}"]`).classList.add('active');
+
+				// If switching to chat, start polling
+				if (appName === 'chat' && window.authState?.isLoggedIn) {
+					startChatPolling();
+				}
 			}
 
 			// Taskbar app click handlers
@@ -5009,6 +5137,10 @@
 
 			// Function to close OS
 			function closeOS() {
+				// Stop chat polling and set offline when closing OS
+				stopChatPolling();
+				setPresenceOffline();
+
 				osDiv.classList.remove('active');
 				window.terminalOpen = terminalOpen = false;
 				character.takeControl();
@@ -5054,13 +5186,21 @@
 			let lastMessageTimestamp = null;
 			let chatPollInterval = null;
 			let presencePollInterval = null;
+			let displayedMessageIds = new Set(); // Track displayed message IDs to prevent duplicates
 
 			function addChatMessage(username, message, timestamp, photoURL, messageId, uid) {
+				// Check if message already displayed
+				if (messageId && displayedMessageIds.has(messageId)) {
+					console.log('⚠️ Skipping duplicate message:', messageId);
+					return;
+				}
+
 				const messageDiv = document.createElement('div');
 				messageDiv.style.marginBottom = '10px';
 				messageDiv.style.display = 'flex';
 				messageDiv.style.alignItems = 'center';
 				messageDiv.style.justifyContent = 'space-between';
+				messageDiv.setAttribute('data-msg-id', messageId); // Store message ID on element
 				const time = new Date(timestamp).toLocaleTimeString();
 
 				const isMyMessage = window.authState?.uid === uid;
@@ -5075,6 +5215,11 @@
 				`;
 
 				chatMessages.appendChild(messageDiv);
+
+				// Track this message as displayed
+				if (messageId) {
+					displayedMessageIds.add(messageId);
+				}
 
 				// Add delete handler if it's the user's message
 				if (isMyMessage && messageId) {
@@ -5101,6 +5246,8 @@
 
 					if (result.success) {
 						messageDiv.remove();
+						// Remove from tracking set
+						displayedMessageIds.delete(messageId);
 					} else {
 						alert('Failed to delete message');
 					}
@@ -5117,6 +5264,8 @@
 
 					if (result.success && result.data.length > 0) {
 						chatMessages.innerHTML = '';
+						displayedMessageIds.clear(); // Clear tracking set when reloading all messages
+
 						result.data.forEach(msg => {
 							addChatMessage(msg.username, msg.text, msg.createdAt, msg.photoURL, msg.id, msg.uid);
 							lastMessageTimestamp = msg.createdAt;
@@ -5208,6 +5357,7 @@
 				}
 			}
 
+			// Fast polling presence system
 			async function updatePresence() {
 				if (!window.authState?.isLoggedIn) return;
 
@@ -5222,6 +5372,23 @@
 					});
 				} catch (error) {
 					console.error('Error updating presence:', error);
+				}
+			}
+
+			async function setPresenceOffline() {
+				if (!window.authState?.isLoggedIn) return;
+
+				try {
+					await fetch(`${API_BASE_URL}/api/v1/chat/presence`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							idToken: window.authState.idToken,
+							status: 'offline'
+						})
+					});
+				} catch (error) {
+					console.error('Error setting presence offline:', error);
 				}
 			}
 
@@ -5249,31 +5416,46 @@
 			function startChatPolling() {
 				if (chatPollInterval) return;
 
+				console.log('🚀 Starting chat polling');
+
+				// Load initial data
 				loadChatMessages();
 				loadOnlineUsers();
 
+				// Set presence online immediately
 				if (window.authState?.isLoggedIn) {
 					updatePresence();
 				}
 
+				// Poll for new messages every 2 seconds
 				chatPollInterval = setInterval(pollNewMessages, 2000);
+
+				// Update presence and poll online users every 2 seconds (fast for instant feel)
 				presencePollInterval = setInterval(() => {
-					loadOnlineUsers();
 					if (window.authState?.isLoggedIn) {
 						updatePresence();
 					}
-				}, 10000);
+					loadOnlineUsers();
+				}, 2000);
 			}
 
 			function stopChatPolling() {
+				console.log('🛑 Stopping chat polling');
+
+				// Stop message polling
 				if (chatPollInterval) {
 					clearInterval(chatPollInterval);
 					chatPollInterval = null;
 				}
+
+				// Stop presence polling
 				if (presencePollInterval) {
 					clearInterval(presencePollInterval);
 					presencePollInterval = null;
 				}
+
+				// Set presence offline
+				setPresenceOffline();
 			}
 
 			chatSend.addEventListener('click', sendChatMessage);
@@ -5283,16 +5465,450 @@
 				}
 			});
 
-			// Start polling when chat view opens
+			// Handle files view
 			const originalSwitchToApp = switchToApp;
 			switchToApp = function(appName) {
 				originalSwitchToApp(appName);
-				if (appName === 'chat') {
-					startChatPolling();
-				} else {
-					stopChatPolling();
+				if (appName === 'files') {
+					loadFileSystem();
 				}
 			};
+
+			// ========================================
+			// DEEPWAVES FILE BROWSER SYSTEM
+			// ========================================
+
+			let currentFolderId = null; // null = root
+			let folderStack = []; // For navigation history
+			let allFiles = []; // Cache of all files for search
+
+			// Load file system from API
+			async function loadFileSystem(projectId = null) {
+				const filesContainer = document.getElementById('files-container');
+				const currentPath = document.getElementById('current-path');
+				const backButton = document.getElementById('files-back');
+				const fileDetailsPanel = document.getElementById('file-details-panel');
+
+				try {
+					filesContainer.innerHTML = '<div style="text-align: center; color: #bee17b; padding: 40px 20px;">[LOADING FILES...]</div>';
+
+					// Hide details panel when loading new folder
+					fileDetailsPanel.style.display = 'none';
+
+					// Build URL with user UID if logged in
+					let endpoint = `${API_BASE_URL}/api/v1/files`;
+					const params = new URLSearchParams();
+
+					if (projectId) {
+						params.append('projectId', projectId);
+					}
+
+					// Add user UID if logged in
+					if (window.authState?.isLoggedIn && window.authState?.uid) {
+						params.append('uid', window.authState.uid);
+					}
+
+					if (params.toString()) {
+						endpoint += '?' + params.toString();
+					}
+
+					const response = await fetch(endpoint);
+					const result = await response.json();
+
+					if (!result.success) {
+						throw new Error(result.error || 'Failed to load files');
+					}
+
+					currentFolderId = projectId;
+					allFiles = result.data.files || [];
+
+					// Update path display
+					const pathParts = result.data.path || ['C:', 'DEEPWAVES'];
+					currentPath.textContent = pathParts.join('\\') + '\\';
+
+					// Enable/disable back button
+					backButton.disabled = folderStack.length === 0;
+
+					// Render files and folders
+					renderFileSystem(result.data);
+
+				} catch (error) {
+					console.error('Error loading files:', error);
+					filesContainer.innerHTML = `
+						<div style="text-align: center; color: #f00; padding: 40px 20px;">
+							[ERROR LOADING FILES]<br>
+							<span style="font-size: 12px;">${error.message}</span>
+						</div>
+					`;
+				}
+			}
+
+			// Render file system UI
+			function renderFileSystem(data) {
+				const filesContainer = document.getElementById('files-container');
+				const fileCount = document.getElementById('file-count');
+				const folderCount = document.getElementById('folder-count');
+
+				const folders = data.folders || [];
+				const files = data.files || [];
+
+				fileCount.textContent = files.length;
+				folderCount.textContent = folders.length;
+
+				if (folders.length === 0 && files.length === 0) {
+					// Check if user is not logged in
+					if (!window.authState?.isLoggedIn) {
+						filesContainer.innerHTML = `
+							<div style="text-align: center; color: #bee17b; padding: 40px 20px; line-height: 1.6;">
+								[LOGIN REQUIRED]<br><br>
+								<span style="color: #666; font-size: 12px;">
+									Please login to view your DEEPWAVES projects.<br>
+									Click the profile button in the top-right to login.
+								</span>
+							</div>
+						`;
+					} else {
+						filesContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px 20px;">[NO PROJECTS FOUND]</div>';
+					}
+					return;
+				}
+
+				// Use different layouts for folders vs files
+				const hasFolders = folders.length > 0;
+				const hasFiles = files.length > 0;
+
+				let html = '';
+
+				// Folders in grid layout
+				if (hasFolders) {
+					html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px;">';
+				}
+
+				// Render folders first
+				folders.forEach(folder => {
+					html += `
+						<div class="file-item" data-type="folder" data-id="${folder.id}" style="cursor: pointer; padding: 12px; background: #111; border: 2px solid #bee17b; transition: all 0.2s;">
+							<div style="font-size: 32px; text-align: center; margin-bottom: 8px;">[F]</div>
+							<div style="color: #bee17b; font-size: 12px; text-align: center; word-break: break-word; font-family: 'Share', monospace; font-weight: bold;">${folder.name}</div>
+							<div style="color: #666; font-size: 10px; text-align: center; margin-top: 4px;">${folder.itemCount || 0} items</div>
+						</div>
+					`;
+				});
+
+				// Close folders grid
+				if (hasFolders) {
+					html += '</div>';
+				}
+
+				// Files (versions) in list layout
+				if (hasFiles) {
+					html += '<div style="display: flex; flex-direction: column; gap: 10px;">';
+				}
+
+				// Render files (versions)
+				files.forEach(file => {
+					const sizeText = formatFileSize(file.size);
+					const versionNum = file.metadata?.version_number || 'v1.0.0';
+					const commitType = file.metadata?.commit_type || 'update';
+					const commitMsg = file.description || 'No description';
+					const commitDate = file.createdAt ? new Date(file.createdAt).toLocaleDateString() : '';
+
+					// Determine commit badge styling
+					let badgeBg = '#333';
+					let badgeText = '#bee17b';
+					let badgeBorder = '#bee17b';
+
+					if (commitType === 'initial') {
+						badgeBg = 'transparent';
+						badgeText = '#bee17b';
+						badgeBorder = '#bee17b';
+					} else if (commitType === 'update') {
+						badgeBg = 'transparent';
+						badgeText = '#5b9bd5';
+						badgeBorder = '#5b9bd5';
+					} else if (commitType === 'fix') {
+						badgeBg = 'transparent';
+						badgeText = '#e06c75';
+						badgeBorder = '#e06c75';
+					}
+
+					html += `
+						<div class="file-item version-item" data-type="file" data-id="${file.id}" style="cursor: pointer; padding: 15px; background: #0a0a0a; border: 2px solid #333; transition: all 0.2s; display: flex; flex-direction: column; gap: 8px;">
+							<div style="display: flex; justify-content: space-between; align-items: center;">
+								<div style="display: flex; align-items: center; gap: 10px;">
+									<div style="color: #bee17b; font-size: 16px; font-weight: bold; font-family: 'Share', monospace;">${versionNum}</div>
+									<div style="background: ${badgeBg}; color: ${badgeText}; border: 1px solid ${badgeBorder}; padding: 3px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; font-family: 'Share', monospace; letter-spacing: 0.5px;">[${commitType}]</div>
+								</div>
+								<div style="color: #666; font-size: 10px;">${commitDate}</div>
+							</div>
+							<div style="color: #888; font-size: 11px; font-family: 'Share', monospace; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${commitMsg}</div>
+							<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid #222;">
+								<div style="color: #666; font-size: 10px;">${sizeText}</div>
+								${file.metadata?.bpm ? `<div style="color: #bee17b; font-size: 10px;">${file.metadata.bpm} BPM</div>` : ''}
+								${file.metadata?.key ? `<div style="color: #bee17b; font-size: 10px;">KEY: ${file.metadata.key}</div>` : ''}
+							</div>
+						</div>
+					`;
+				});
+
+				// Close files list
+				if (hasFiles) {
+					html += '</div>';
+				}
+
+				filesContainer.innerHTML = html;
+
+				// Add hover effects and click handlers
+				document.querySelectorAll('.file-item').forEach(item => {
+					// Hover effect
+					item.addEventListener('mouseenter', function() {
+						if (this.classList.contains('version-item')) {
+							this.style.background = '#151515';
+							this.style.borderColor = '#bee17b';
+						} else {
+							this.style.background = '#222';
+							this.style.borderColor = '#bee17b';
+						}
+					});
+					item.addEventListener('mouseleave', function() {
+						if (this.classList.contains('version-item')) {
+							this.style.background = '#0a0a0a';
+							this.style.borderColor = '#333';
+						} else {
+							this.style.background = '#111';
+							if (this.dataset.type === 'folder') {
+								this.style.borderColor = '#bee17b';
+							} else {
+								this.style.borderColor = '#555';
+							}
+						}
+					});
+
+					// Click handler
+					item.addEventListener('click', function() {
+						const type = this.dataset.type;
+						const id = this.dataset.id;
+
+						if (type === 'folder') {
+							openFolder(id);
+						} else {
+							showFileDetails(id, files);
+						}
+					});
+				});
+			}
+
+			// Open folder
+			function openFolder(folderId) {
+				// Push current location to stack (null = root)
+				folderStack.push(currentFolderId);
+				loadFileSystem(folderId);
+			}
+
+			// Go back to parent folder
+			function goBackFolder() {
+				if (folderStack.length > 0) {
+					const parentId = folderStack.pop();
+					loadFileSystem(parentId);
+				} else {
+					// Already at root, do nothing
+					loadFileSystem(null);
+				}
+			}
+
+			// Show file details in sidebar
+			function showFileDetails(fileId, files) {
+				const file = files.find(f => f.id === fileId);
+				if (!file) return;
+
+				const detailsPanel = document.getElementById('file-details-panel');
+				const detailsContent = document.getElementById('file-details-content');
+
+				const uploadDate = file.createdAt ? new Date(file.createdAt).toLocaleString() : 'N/A';
+
+				// Build metadata display
+				let metadataHTML = '';
+				if (file.metadata) {
+					if (file.metadata.bpm) {
+						metadataHTML += `
+							<div style="margin-bottom: 12px;">
+								<div style="color: #666; font-size: 10px; margin-bottom: 3px;">BPM:</div>
+								<div style="color: #bee17b;">${file.metadata.bpm}</div>
+							</div>
+						`;
+					}
+					if (file.metadata.key) {
+						metadataHTML += `
+							<div style="margin-bottom: 12px;">
+								<div style="color: #666; font-size: 10px; margin-bottom: 3px;">KEY:</div>
+								<div style="color: #bee17b;">${file.metadata.key}</div>
+							</div>
+						`;
+					}
+					if (file.metadata.genre) {
+						metadataHTML += `
+							<div style="margin-bottom: 12px;">
+								<div style="color: #666; font-size: 10px; margin-bottom: 3px;">GENRE:</div>
+								<div style="color: #bee17b;">${file.metadata.genre}</div>
+							</div>
+						`;
+					}
+					if (file.metadata.version_number) {
+						metadataHTML += `
+							<div style="margin-bottom: 12px;">
+								<div style="color: #666; font-size: 10px; margin-bottom: 3px;">VERSION:</div>
+								<div style="color: #bee17b;">${file.metadata.version_number}</div>
+							</div>
+						`;
+					}
+				}
+
+				detailsContent.innerHTML = `
+					<div style="margin-bottom: 12px;">
+						<div style="color: #666; font-size: 10px; margin-bottom: 3px;">NAME:</div>
+						<div style="color: #bee17b; word-break: break-word; font-size: 11px;">${file.name}</div>
+					</div>
+					<div style="margin-bottom: 12px;">
+						<div style="color: #666; font-size: 10px; margin-bottom: 3px;">TYPE:</div>
+						<div style="color: #bee17b;">${file.type || 'Unknown'}</div>
+					</div>
+					<div style="margin-bottom: 12px;">
+						<div style="color: #666; font-size: 10px; margin-bottom: 3px;">SIZE:</div>
+						<div style="color: #bee17b;">${formatFileSize(file.size)}</div>
+					</div>
+					${file.createdAt ? `
+						<div style="margin-bottom: 12px;">
+							<div style="color: #666; font-size: 10px; margin-bottom: 3px;">COMMITTED:</div>
+							<div style="color: #bee17b; font-size: 11px;">${uploadDate}</div>
+						</div>
+					` : ''}
+					${file.description ? `
+						<div style="margin-bottom: 12px;">
+							<div style="color: #666; font-size: 10px; margin-bottom: 3px;">COMMIT MESSAGE:</div>
+							<div style="color: #bee17b; font-size: 11px; line-height: 1.4;">${file.description}</div>
+						</div>
+					` : ''}
+					${metadataHTML}
+					${file.previewUrl ? `
+						<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #333;">
+							<button class="audio-btn" id="play-preview-btn" style="width: 100%;">[PLAY PREVIEW]</button>
+						</div>
+					` : ''}
+				`;
+
+				// Add event listener for play button
+				if (file.previewUrl) {
+					const playBtn = document.getElementById('play-preview-btn');
+					if (playBtn) {
+						playBtn.addEventListener('click', () => {
+							playPreviewTrack(file.previewUrl, file.name);
+						});
+					}
+				}
+
+				detailsPanel.style.display = 'block';
+			}
+
+			// Play preview track using the same audio system as music player
+			function playPreviewTrack(previewUrl, trackName) {
+				// Update desktop audio player
+				document.getElementById('desktop-audio-status').textContent = 'LOADING...';
+				document.getElementById('audio-play-pause').disabled = false;
+				document.getElementById('audio-stop').disabled = false;
+				currentTrackTitle = trackName || 'UNKNOWN TRACK';
+
+				// Stop current track if playing
+				if (positionalAudio.isPlaying) {
+					positionalAudio.stop();
+				}
+
+				// Load and play preview
+				const audioLoader = new THREE.AudioLoader();
+				audioLoader.load(previewUrl, (buffer) => {
+					positionalAudio.setBuffer(buffer);
+					positionalAudio.setLoop(false);
+					positionalAudio.setVolume(1.0);
+
+					// Connect EQ filters chain
+					const source = positionalAudio.getOutput();
+					source.disconnect();
+					source.connect(window.speakerDirectionalBass);
+					window.speakerDirectionalBass.connect(window.speakerDirectionalLowpass);
+					window.speakerDirectionalLowpass.connect(window.eqFilters.vehicleLowpass);
+					window.eqFilters.vehicleLowpass.connect(window.eqFilters.lowpass);
+					window.eqFilters.lowpass.connect(window.eqFilters.highpass);
+					window.eqFilters.highpass.connect(window.eqFilters.low);
+					window.eqFilters.low.connect(window.eqFilters.mid);
+					window.eqFilters.mid.connect(window.eqFilters.high);
+					window.eqFilters.high.connect(window.audioAnalyser);
+					window.audioAnalyser.connect(audioListener.context.destination);
+
+					positionalAudio.play();
+					isPlaying = true;
+
+					// Update UI
+					document.getElementById('desktop-audio-status').textContent = trackName;
+					document.getElementById('audio-play-pause').textContent = '⏸ PAUSE';
+
+					console.log('🎵 Playing preview:', trackName);
+				}, undefined, (error) => {
+					console.error('Error loading preview:', error);
+					alert('Failed to load audio preview');
+					document.getElementById('desktop-audio-status').textContent = 'ERROR LOADING';
+				});
+			}
+
+			// Helper: Get file icon based on type
+			function getFileIcon(type, filename) {
+				if (!type && filename) {
+					const ext = filename.split('.').pop().toLowerCase();
+					if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) return '🎵';
+					if (['mp4', 'avi', 'mkv', 'mov'].includes(ext)) return '🎬';
+					if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return '🖼️';
+					if (['txt', 'doc', 'docx', 'pdf'].includes(ext)) return '📄';
+					if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return '📦';
+				}
+
+				if (type?.includes('audio')) return '🎵';
+				if (type?.includes('video')) return '🎬';
+				if (type?.includes('image')) return '🖼️';
+				if (type?.includes('text') || type?.includes('document')) return '📄';
+				if (type?.includes('archive') || type?.includes('zip')) return '📦';
+				return '📄';
+			}
+
+			// Helper: Format file size
+			function formatFileSize(bytes) {
+				if (!bytes) return '0 B';
+				const k = 1024;
+				const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+				const i = Math.floor(Math.log(bytes) / Math.log(k));
+				return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+			}
+
+			// Search files
+			function searchFiles(query) {
+				if (!query.trim()) {
+					loadFileSystem(currentFolderId);
+					return;
+				}
+
+				const filesContainer = document.getElementById('files-container');
+				const searchLower = query.toLowerCase();
+				const filtered = allFiles.filter(f => f.name.toLowerCase().includes(searchLower));
+
+				if (filtered.length === 0) {
+					filesContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px 20px;">[NO RESULTS FOUND]</div>';
+					return;
+				}
+
+				renderFileSystem({ folders: [], files: filtered });
+			}
+
+			// Event Listeners
+			document.getElementById('files-back').addEventListener('click', goBackFolder);
+			document.getElementById('files-refresh').addEventListener('click', () => loadFileSystem(currentFolderId));
+			document.getElementById('files-search').addEventListener('input', (e) => searchFiles(e.target.value));
 
 			// Text reader close button
 			document.getElementById('text-close').addEventListener('click', () => {
@@ -6444,7 +7060,7 @@
 			ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-			// Draw username text with fixed SUBLAIR green (smaller, centered once)
+			// Draw username text with fixed SUBLAIR green (on front of hat)
 			const text = username.toUpperCase();
 			ctx.fillStyle = '#bee17b'; // SUBLAIR green - always this color
 			ctx.font = 'bold 16px Arial';
@@ -6455,17 +7071,17 @@
 			ctx.strokeStyle = '#000000';
 			ctx.lineWidth = 1;
 
-			// Mirror horizontally and move up slightly
+			// Mirror text horizontally so it's readable
 			ctx.save();
-			ctx.scale(-1, 1); // Mirror horizontally
-			ctx.strokeText(text, -canvas.width / 2, canvas.height / 2 - 50); // Move up 50px
+			ctx.scale(-1, 1);
+			ctx.strokeText(text, -canvas.width / 2, canvas.height / 2 - 50);
 			ctx.fillText(text, -canvas.width / 2, canvas.height / 2 - 50);
 			ctx.restore();
 
 			// Create texture from canvas
 			const texture = new THREE.CanvasTexture(canvas);
-			texture.wrapS = THREE.ClampToEdgeWrapping; // Prevent wrapping
-			texture.wrapT = THREE.ClampToEdgeWrapping; // Prevent wrapping
+			texture.wrapS = THREE.ClampToEdgeWrapping;
+			texture.wrapT = THREE.ClampToEdgeWrapping;
 			texture.needsUpdate = true;
 
 			// Apply texture to hat material
@@ -6479,8 +7095,6 @@
 			hatMesh.material.needsUpdate = true;
 
 			console.log('🧢 Hat updated with username:', username.toUpperCase());
-			console.log('Hat material:', hatMesh.material);
-			console.log('Hat has texture:', !!hatMesh.material.map);
 		};
 
 			// Load the dome surrounding everything
@@ -7199,6 +7813,13 @@
 						// Enable mouse cursor - exit pointer lock directly
 						if (document.pointerLockElement) {
 							document.exitPointerLock();
+						}
+
+						// Check if chat view is visible and restart polling if needed
+						const chatView = document.getElementById('chat-view');
+						if (chatView && chatView.style.display === 'block') {
+							console.log('📱 Chat view is visible, restarting polling');
+							startChatPolling();
 						}
 
 						return false;

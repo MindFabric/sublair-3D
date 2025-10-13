@@ -14,7 +14,9 @@
       "Bash(git check-ignore:*)",
       "Bash(pkill:*)",
       "Bash(file:*)",
-      "Bash(npm start)"
+      "Bash(npm start)",
+      "Bash(lsof:*)",
+      "Bash(netstat:*)"
     ],
     "deny": [],
     "ask": []

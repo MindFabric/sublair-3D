@@ -34,7 +34,7 @@ app.use(cors({
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs (supports fast polling)
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use('/api/', limiter);
@@ -48,6 +48,7 @@ const chatLimiter = rateLimit({
 
 // Body Parser
 app.use(express.json());
+app.use(express.text({ type: 'text/plain' })); // Support sendBeacon requests
 
 // Firebase Database URL
 const FIREBASE_DB_URL = process.env.FIREBASE_DATABASE_URL;
@@ -376,8 +377,25 @@ v1Router.get('/chat/messages', async (req, res) => {
 
 // POST /api/v1/chat/presence - Update user presence (online status)
 v1Router.post('/chat/presence', async (req, res) => {
-  const { idToken, status } = req.body;
-  console.log('👤 POST /api/v1/chat/presence');
+  // Handle both JSON and sendBeacon (text/plain) requests
+  let idToken, status;
+
+  if (typeof req.body === 'string') {
+    // sendBeacon sends as text/plain
+    try {
+      const parsed = JSON.parse(req.body);
+      idToken = parsed.idToken;
+      status = parsed.status;
+    } catch (e) {
+      return res.status(400).json({ success: false, error: 'Invalid request format' });
+    }
+  } else {
+    // Normal JSON request
+    idToken = req.body.idToken;
+    status = req.body.status;
+  }
+
+  console.log('👤 POST /api/v1/chat/presence -', status || 'online');
 
   if (!idToken) {
     return res.status(400).json({
@@ -441,11 +459,11 @@ v1Router.get('/chat/presence', async (req, res) => {
     const snapshot = await realtimeDb.ref('presence').once('value');
     const presence = snapshot.val() || {};
 
-    // Filter online users (last seen within 30 seconds)
+    // Filter online users (last seen within 10 seconds for fast polling)
     const now = Date.now();
     const onlineUsers = Object.entries(presence)
       .filter(([uid, data]) => {
-        return data.status === 'online' && (now - data.lastSeen) < 30000;
+        return data.status === 'online' && (now - data.lastSeen) < 10000;
       })
       .map(([uid, data]) => data);
 
@@ -574,6 +592,124 @@ v1Router.post('/auth/refresh', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Token refresh failed'
+    });
+  }
+});
+
+// ========================================
+// DEEPWAVES FILE SYSTEM ENDPOINTS
+// ========================================
+
+// GET /api/v1/files - Get root projects or specific project versions
+v1Router.get('/files', async (req, res) => {
+  const { projectId, uid } = req.query;
+  console.log(`📁 GET /api/v1/files${projectId ? `?projectId=${projectId}` : ' (root)'}${uid ? ` uid=${uid}` : ''}`);
+
+  try {
+    // If no projectId, return root level (all projects as folders)
+    if (!projectId) {
+      const response = await fetch(`${FIREBASE_DB_URL}/projects.json`);
+      const projects = await response.json();
+
+      if (!projects) {
+        return res.json({
+          success: true,
+          data: {
+            path: ['C:', 'DEEPWAVES'],
+            folders: [],
+            files: []
+          }
+        });
+      }
+
+      // Filter projects by owner_uid if provided
+      let filteredProjects = Object.entries(projects);
+      if (uid) {
+        filteredProjects = filteredProjects.filter(([id, project]) => project.owner_uid === uid);
+        console.log(`🔒 Filtering projects for user: ${uid}`);
+      }
+
+      // Transform projects into folders
+      const folders = filteredProjects.map(([id, project]) => ({
+        id: id,
+        name: project.name || 'Untitled Project',
+        itemCount: project.version_count || (project.versions ? project.versions.length : 0),
+        created_at: project.created_at,
+        owner_uid: project.owner_uid
+      }));
+
+      console.log(`✅ Returned ${folders.length} projects${uid ? ' (user filtered)' : ''}`);
+      res.json({
+        success: true,
+        data: {
+          path: ['C:', 'DEEPWAVES'],
+          folders: folders,
+          files: []
+        }
+      });
+    } else {
+      // Return specific project's versions as files
+      const response = await fetch(`${FIREBASE_DB_URL}/projects/${projectId}.json`);
+      const project = await response.json();
+
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          error: 'Project not found'
+        });
+      }
+
+      // Verify ownership if uid is provided
+      if (uid && project.owner_uid !== uid) {
+        console.log(`🚫 Access denied: Project ${projectId} does not belong to user ${uid}`);
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied: You do not own this project'
+        });
+      }
+
+      // Transform versions into files
+      const files = [];
+      if (project.versions && Array.isArray(project.versions)) {
+        project.versions.forEach((version, index) => {
+          if (version.files?.preview_track) {
+            files.push({
+              id: `${projectId}_${version.version_id}`,
+              name: `${project.name} - ${version.version_number || `v${index + 1}`}`,
+              type: 'audio/wav',
+              size: version.files.project_zip?.size || 0,
+              previewUrl: version.files.preview_track.url,
+              downloadUrl: version.files.project_zip?.url,
+              createdAt: version.committed_at,
+              description: version.commit_message || 'No description',
+              metadata: {
+                bpm: version.metadata?.bpm,
+                key: version.metadata?.key,
+                genre: version.metadata?.genre,
+                vibe: version.metadata?.vibe,
+                commit_type: version.commit_type,
+                version_number: version.version_number
+              }
+            });
+          }
+        });
+      }
+
+      console.log(`✅ Returned ${files.length} versions for project: ${project.name}`);
+      res.json({
+        success: true,
+        data: {
+          path: ['C:', 'DEEPWAVES', project.name || 'Untitled'],
+          folders: [],
+          files: files
+        }
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error fetching files:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch files'
     });
   }
 });

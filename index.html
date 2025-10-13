@@ -1316,10 +1316,8 @@
 
 		/* Desktop View */
 		.desktop-split {
-			display: grid;
-			grid-template-columns: 1fr 1fr;
+			position: relative;
 			height: 100%;
-			gap: 20px;
 			padding: 20px;
 		}
 
@@ -1328,6 +1326,7 @@
 			grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
 			gap: 20px;
 			align-content: start;
+			padding-bottom: 180px;
 		}
 
 		.desktop-icon {
@@ -1361,47 +1360,219 @@
 
 		/* Desktop Audio Player */
 		.desktop-audio-player {
+			position: absolute;
+			bottom: 60px;
+			left: 20px;
+			right: 20px;
 			border: 2px solid #bee17b;
-			padding: 15px;
+			background: #000;
 			display: flex;
 			flex-direction: column;
-			gap: 15px;
+			overflow: hidden;
 		}
 
 		.audio-player-header {
 			font-weight: bold;
-			font-size: 13px;
-			color: #bee17b;
+			font-size: 12px;
+			color: #000;
+			background: #bee17b;
 			text-transform: uppercase;
-			border-bottom: 1px solid #bee17b;
-			padding-bottom: 10px;
+			padding: 10px 16px;
+			letter-spacing: 1px;
+		}
+
+		.audio-player-body {
+			display: flex;
+			gap: 16px;
+			padding: 16px;
+			align-items: center;
+		}
+
+		.audio-album-art-container {
+			flex-shrink: 0;
+		}
+
+		#desktop-album-art {
+			width: 80px;
+			height: 80px;
+			background: #000;
+			border: 2px solid #bee17b;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: #bee17b;
+			font-size: 10px;
+			background-size: cover;
+			background-position: center;
+			text-align: center;
+		}
+
+		.audio-info-controls {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			gap: 16px;
+			min-width: 0;
 		}
 
 		.audio-status {
 			font-size: 12px;
 			color: #bee17b;
-			padding: 10px;
+			padding: 12px 16px;
 			border: 1px solid #bee17b;
 			background: #000;
-			min-height: 60px;
+			flex: 1;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 		}
 
 		.audio-controls {
 			display: flex;
-			gap: 10px;
+			gap: 8px;
+			flex-shrink: 0;
 		}
 
 		.audio-btn {
-			flex: 1;
 			background: #000;
 			color: #bee17b;
 			border: 1px solid #bee17b;
-			padding: 8px 16px;
+			padding: 10px 20px;
 			font-family: 'Share', 'Courier New', monospace;
 			font-weight: bold;
 			font-size: 12px;
 			cursor: pointer;
 			transition: all 0.1s ease;
+			min-width: 100px;
+		}
+
+		/* Profile Button */
+		.desktop-profile-btn {
+			background: #000;
+			color: #bee17b;
+			border: 1px solid #bee17b;
+			border-right: none;
+			padding: 6px 12px;
+			font-family: 'Share', 'Courier New', monospace;
+			font-weight: bold;
+			font-size: 12px;
+			cursor: pointer;
+			transition: all 0.1s ease;
+		}
+
+		.desktop-profile-btn:hover {
+			background: rgba(190, 225, 123, 0.2);
+		}
+
+		/* Login Modal */
+		.login-modal-overlay {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.8);
+			z-index: 10000;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.login-modal-overlay.show {
+			display: flex;
+		}
+
+		.login-modal-box {
+			background: #000;
+			border: 2px solid #bee17b;
+			width: 400px;
+			max-width: 90%;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+		}
+
+		.login-modal-header {
+			background: #bee17b;
+			color: #000;
+			padding: 12px 16px;
+			font-weight: bold;
+			font-size: 13px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		.login-modal-close {
+			background: none;
+			border: none;
+			color: #000;
+			font-family: 'Share', 'Courier New', monospace;
+			font-weight: bold;
+			font-size: 14px;
+			cursor: pointer;
+			padding: 0;
+		}
+
+		.login-modal-body {
+			padding: 24px;
+		}
+
+		.login-form-group {
+			margin-bottom: 16px;
+		}
+
+		.login-form-group label {
+			display: block;
+			color: #bee17b;
+			font-size: 11px;
+			font-weight: bold;
+			margin-bottom: 6px;
+			letter-spacing: 1px;
+		}
+
+		.login-form-group input {
+			width: 100%;
+			background: #000;
+			border: 1px solid #bee17b;
+			color: #bee17b;
+			padding: 10px;
+			font-family: 'Share', 'Courier New', monospace;
+			font-size: 12px;
+			box-sizing: border-box;
+		}
+
+		.login-form-group input:focus {
+			outline: none;
+			border-color: #bee17b;
+			box-shadow: 0 0 0 2px rgba(190, 225, 123, 0.2);
+		}
+
+		.login-submit-btn {
+			width: 100%;
+			background: #bee17b;
+			color: #000;
+			border: none;
+			padding: 12px;
+			font-family: 'Share', 'Courier New', monospace;
+			font-weight: bold;
+			font-size: 12px;
+			cursor: pointer;
+			transition: all 0.1s ease;
+			letter-spacing: 1px;
+		}
+
+		.login-submit-btn:hover {
+			background: #a8cc6b;
+		}
+
+		.login-error {
+			color: #ff6b6b;
+			font-size: 11px;
+			margin-top: 12px;
+			display: none;
+		}
+
+		.login-error.show {
+			display: block;
 		}
 
 		.audio-btn:hover:not(:disabled) {
@@ -4147,16 +4318,17 @@
 							<div class="taskbar-app" data-app="eq">
 								[EQ]
 							</div>
-							<div class="taskbar-app" data-app="files">
-								[FILES]
-							</div>
 						</div>
+						<button class="desktop-profile-btn" id="profile-btn">
+							<span id="profile-status">GUEST</span>
+						</button>
 						<div class="os-close" id="os-close">[X]</div>
 					</div>
 
 					<!-- Desktop View -->
 					<div class="os-view" id="desktop-view">
 						<div class="desktop-split">
+
 							<div class="desktop-icons">
 								<div class="desktop-icon" data-app="music">
 									<div class="icon">[S]</div>
@@ -4166,17 +4338,20 @@
 									<div class="icon">[E]</div>
 									<div class="label">EQ.EXE</div>
 								</div>
-								<div class="desktop-icon" data-app="files">
-									<div class="icon">[F]</div>
-									<div class="label">FILES</div>
-								</div>
 							</div>
 							<div class="desktop-audio-player">
-								<div class="audio-player-header">AUDIO PLAYER v1.0</div>
-								<div id="desktop-audio-status" class="audio-status">NO TRACK LOADED</div>
-								<div id="desktop-audio-controls" class="audio-controls">
-									<button id="audio-play-pause" class="audio-btn" disabled>[PLAY]</button>
-									<button id="audio-stop" class="audio-btn" disabled>[STOP]</button>
+								<div class="audio-player-header">♪ MEDIA PLAYER</div>
+								<div class="audio-player-body">
+									<div class="audio-album-art-container">
+										<div id="desktop-album-art">NO ARTWORK</div>
+									</div>
+									<div class="audio-info-controls">
+										<div id="desktop-audio-status" class="audio-status">NO TRACK LOADED</div>
+										<div id="desktop-audio-controls" class="audio-controls">
+											<button id="audio-play-pause" class="audio-btn" disabled>▶ PLAY</button>
+											<button id="audio-stop" class="audio-btn" disabled>■ STOP</button>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -4276,32 +4451,6 @@
 						</div>
 					</div>
 
-					<!-- File Explorer App -->
-					<div class="os-view" id="files-view" style="display: none;">
-						<div class="app-window">
-							<div class="app-header">
-								<div class="app-title">FILE MANAGER v1.0</div>
-								<div class="file-path" id="file-path">C:\HOME</div>
-							</div>
-							<div class="app-content">
-								<div id="file-explorer">
-									<div class="folder-item" data-folder="Desktop">
-										<span class="folder-icon">[DIR]</span> DESKTOP
-									</div>
-									<div class="folder-item" data-folder="Music">
-										<span class="folder-icon">[DIR]</span> MUSIC
-									</div>
-									<div class="folder-item" data-folder="Documents">
-										<span class="folder-icon">[DIR]</span> DOCUMENTS
-									</div>
-									<div class="folder-item" data-folder="System">
-										<span class="folder-icon">[SYS]</span> SYSTEM
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-
 					<!-- Text Reader App -->
 					<div class="os-view" id="text-view" style="display: none;">
 						<div class="app-window">
@@ -4312,6 +4461,30 @@
 							</div>
 							<div class="app-content">
 								<div id="text-content" style="font-family: 'Share', 'Courier New', monospace; color: #bee17b; line-height: 1.6; white-space: pre-wrap; padding: 20px; background: #000;"></div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Login Modal -->
+					<div class="login-modal-overlay" id="login-modal">
+						<div class="login-modal-box">
+							<div class="login-modal-header">
+								<span>SUBLAIR LOGIN</span>
+								<button class="login-modal-close" id="login-modal-close">[X]</button>
+							</div>
+							<div class="login-modal-body">
+								<form id="login-form">
+									<div class="login-form-group">
+										<label>EMAIL</label>
+										<input type="email" id="login-email" placeholder="user@sublair.com" required />
+									</div>
+									<div class="login-form-group">
+										<label>PASSWORD</label>
+										<input type="password" id="login-password" placeholder="••••••••" required />
+									</div>
+									<div class="login-error" id="login-error">Invalid credentials</div>
+									<button type="submit" class="login-submit-btn">LOGIN</button>
+								</form>
 							</div>
 						</div>
 					</div>
@@ -4805,77 +4978,6 @@
 				}
 			}, true);
 
-			// File explorer navigation
-			const fileSystem = {
-				'C:\\HOME': [
-					{ name: 'DESKTOP', icon: '[DIR]', type: 'folder' },
-					{ name: 'MUSIC', icon: '[DIR]', type: 'folder' },
-					{ name: 'DOCUMENTS', icon: '[DIR]', type: 'folder' },
-					{ name: 'SYSTEM', icon: '[SYS]', type: 'folder' }
-				],
-				'C:\\HOME\\DESKTOP': [
-					{ name: '..', icon: '[UP]', type: 'back' },
-					{ name: 'SUBLAIR.EXE', icon: '[EXE]', type: 'app', action: 'music' }
-				],
-				'C:\\HOME\\MUSIC': [
-					{ name: '..', icon: '[UP]', type: 'back' },
-					{ name: 'README.TXT', icon: '[TXT]', type: 'file', content: 'THIS FOLDER IS FOR REFERENCE ONLY.\n\nMUSIC FILES ARE STREAMED DIRECTLY FROM SUBLAIR SERVERS.\n\nNO LOCAL FILES ARE STORED HERE.\n\nUSE SUBLAIR.EXE TO BROWSE AND PLAY TRACKS.' }
-				],
-				'C:\\HOME\\DOCUMENTS': [
-					{ name: '..', icon: '[UP]', type: 'back' },
-					{ name: 'WELCOME.TXT', icon: '[TXT]', type: 'file', content: 'WELCOME TO SUBLAIR OS!\n\nTHIS IS A SIMPLE OPERATING SYSTEM INTERFACE.\n\nEXPLORE THE FOLDERS AND APPLICATIONS!' }
-				],
-				'C:\\HOME\\SYSTEM': [
-					{ name: '..', icon: '[UP]', type: 'back' },
-					{ name: 'CONFIG.SYS', icon: '[SYS]', type: 'file', content: 'SUBLAIR OS v1.0\nBUILD: 2025.10.10\n\nSYSTEM INITIALIZED SUCCESSFULLY.' }
-				]
-			};
-
-			let currentPath = 'C:\\HOME';
-
-			function renderFileExplorer(path) {
-				currentPath = path;
-				document.getElementById('file-path').textContent = path;
-
-				const explorer = document.getElementById('file-explorer');
-				const items = fileSystem[path] || [];
-
-				explorer.innerHTML = items.map(item => `
-					<div class="folder-item" data-name="${item.name}" data-type="${item.type}" data-action="${item.action || ''}">
-						<span class="folder-icon">${item.icon}</span> ${item.name}
-					</div>
-				`).join('');
-
-				// Add click handlers
-				document.querySelectorAll('#file-explorer .folder-item').forEach(item => {
-					item.addEventListener('click', function() {
-						const itemName = this.getAttribute('data-name');
-						const itemType = this.getAttribute('data-type');
-						const itemAction = this.getAttribute('data-action');
-
-						if (itemType === 'back') {
-							const pathParts = currentPath.split('\\');
-							pathParts.pop();
-							const parentPath = pathParts.join('\\') || 'C:\\HOME';
-							renderFileExplorer(parentPath);
-						} else if (itemType === 'folder') {
-							const newPath = `${currentPath}\\${itemName}`;
-							renderFileExplorer(newPath);
-						} else if (itemType === 'app' && itemAction) {
-							switchToApp(itemAction);
-						} else if (itemType === 'file') {
-							const fileData = items.find(i => i.name === itemName);
-							if (fileData && fileData.content) {
-								openTextReader(itemName, fileData.content);
-							}
-						}
-					});
-				});
-			}
-
-			// Initialize file explorer
-			renderFileExplorer('C:\\HOME');
-
 			// Text Reader functionality
 			function openTextReader(fileName, content) {
 				document.getElementById('text-file-name').textContent = fileName;
@@ -4886,6 +4988,46 @@
 			// Text reader close button
 			document.getElementById('text-close').addEventListener('click', () => {
 				switchToApp('files');
+			});
+
+			// Login Modal Handlers
+			const loginModal = document.getElementById('login-modal');
+			const profileBtn = document.getElementById('profile-btn');
+			const loginModalClose = document.getElementById('login-modal-close');
+			const loginForm = document.getElementById('login-form');
+			const loginError = document.getElementById('login-error');
+
+			// Open login modal
+			profileBtn.addEventListener('click', () => {
+				loginModal.classList.add('show');
+			});
+
+			// Close login modal
+			loginModalClose.addEventListener('click', () => {
+				loginModal.classList.remove('show');
+				loginError.classList.remove('show');
+			});
+
+			// Close when clicking outside
+			loginModal.addEventListener('click', (e) => {
+				if (e.target === loginModal) {
+					loginModal.classList.remove('show');
+					loginError.classList.remove('show');
+				}
+			});
+
+			// Form submit (placeholder - Firebase logic will go here)
+			loginForm.addEventListener('submit', (e) => {
+				e.preventDefault();
+				const email = document.getElementById('login-email').value;
+				const password = document.getElementById('login-password').value;
+
+				// TODO: Add Firebase authentication here
+				console.log('Login attempt:', email);
+
+				// For now, just show error as placeholder
+				loginError.textContent = 'Firebase authentication not yet implemented';
+				loginError.classList.add('show');
 			});
 
 			// Shuffle array function
@@ -5010,13 +5152,13 @@
 					// Pause
 					positionalAudio.pause();
 					isAudioPaused = true;
-					document.getElementById('audio-play-pause').textContent = '[PLAY]';
+					document.getElementById('audio-play-pause').textContent = '▶ PLAY';
 					document.getElementById('desktop-audio-status').textContent = 'PAUSED';
 				} else {
 					// Play/Resume
 					positionalAudio.play();
 					isAudioPaused = false;
-					document.getElementById('audio-play-pause').textContent = '[PAUSE]';
+					document.getElementById('audio-play-pause').textContent = '❚❚ PAUSE';
 					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${currentTrackTitle}`;
 				}
 			});
@@ -5027,7 +5169,7 @@
 					positionalAudio.stop();
 					isAudioPaused = false;
 					document.getElementById('desktop-audio-status').textContent = 'STOPPED';
-					document.getElementById('audio-play-pause').textContent = '[PLAY]';
+					document.getElementById('audio-play-pause').textContent = '▶ PLAY';
 					document.getElementById('audio-play-pause').disabled = true;
 					document.getElementById('audio-stop').disabled = true;
 				}
@@ -5146,10 +5288,23 @@
 
 					// Update desktop audio player
 					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${currentTrackTitle}`;
-					document.getElementById('audio-play-pause').textContent = '[PAUSE]';
+					document.getElementById('audio-play-pause').textContent = '❚❚ PAUSE';
 					document.getElementById('audio-play-pause').disabled = false;
 					document.getElementById('audio-stop').disabled = false;
 					isAudioPaused = false;
+
+					// Update desktop album art
+					const albumArtEl = document.getElementById('desktop-album-art');
+					if (artworkUrl) {
+						albumArtEl.style.backgroundImage = `url(${artworkUrl})`;
+						albumArtEl.style.backgroundSize = 'cover';
+						albumArtEl.style.backgroundPosition = 'center';
+						albumArtEl.textContent = '';
+					} else {
+						albumArtEl.style.backgroundImage = 'none';
+						albumArtEl.textContent = 'NO ARTWORK';
+					}
+
 					// Update computer screen with artwork
 					if (window.updateComputerScreen) {
 						window.updateComputerScreen(artworkUrl);

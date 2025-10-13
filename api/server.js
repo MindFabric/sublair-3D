@@ -187,6 +187,174 @@ v1Router.get('/stream/:id', async (req, res) => {
   }
 });
 
+// POST /api/v1/auth/login - Firebase Authentication Login
+v1Router.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  console.log(`🔐 POST /api/v1/auth/login - ${email}`);
+
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      error: 'Email and password are required'
+    });
+  }
+
+  try {
+    // Firebase Auth REST API for sign in
+    const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
+    const authUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`;
+
+    const response = await fetch(authUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password,
+        returnSecureToken: true
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.log(`❌ Login failed for ${email}: ${data.error.message}`);
+      return res.status(401).json({
+        success: false,
+        error: data.error.message || 'Invalid credentials'
+      });
+    }
+
+    // Get user data from database
+    const userResponse = await fetch(`${FIREBASE_DB_URL}/users/${data.localId}.json`);
+    const userData = await userResponse.json();
+
+    console.log(`✅ User logged in: ${email}`);
+    res.json({
+      success: true,
+      data: {
+        idToken: data.idToken,
+        refreshToken: data.refreshToken,
+        expiresIn: data.expiresIn,
+        localId: data.localId,
+        email: data.email,
+        user: userData || {}
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error during login:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    });
+  }
+});
+
+// POST /api/v1/auth/refresh - Refresh ID Token
+v1Router.post('/auth/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+  console.log(`🔄 POST /api/v1/auth/refresh`);
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      success: false,
+      error: 'Refresh token is required'
+    });
+  }
+
+  try {
+    const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
+    const refreshUrl = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`;
+
+    const response = await fetch(refreshUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.log(`❌ Token refresh failed`);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid refresh token'
+      });
+    }
+
+    console.log(`✅ Token refreshed`);
+    res.json({
+      success: true,
+      data: {
+        idToken: data.id_token,
+        refreshToken: data.refresh_token,
+        expiresIn: data.expires_in
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error refreshing token:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Token refresh failed'
+    });
+  }
+});
+
+// GET /api/v1/auth/verify - Verify ID Token
+v1Router.get('/auth/verify', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  console.log(`🔍 GET /api/v1/auth/verify`);
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      success: false,
+      error: 'No token provided'
+    });
+  }
+
+  const idToken = authHeader.split('Bearer ')[1];
+
+  try {
+    const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
+    const verifyUrl = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`;
+
+    const response = await fetch(verifyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.users || data.users.length === 0) {
+      console.log(`❌ Token verification failed`);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token'
+      });
+    }
+
+    const user = data.users[0];
+    console.log(`✅ Token verified for: ${user.email}`);
+    res.json({
+      success: true,
+      data: {
+        uid: user.localId,
+        email: user.email,
+        emailVerified: user.emailVerified
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error verifying token:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Token verification failed'
+    });
+  }
+});
+
 // Mount v1 router
 app.use('/api/v1', v1Router);
 

@@ -4997,11 +4997,6 @@
 			const loginForm = document.getElementById('login-form');
 			const loginError = document.getElementById('login-error');
 
-			// Open login modal
-			profileBtn.addEventListener('click', () => {
-				loginModal.classList.add('show');
-			});
-
 			// Close login modal
 			loginModalClose.addEventListener('click', () => {
 				loginModal.classList.remove('show');
@@ -5016,19 +5011,227 @@
 				}
 			});
 
-			// Form submit (placeholder - Firebase logic will go here)
-			loginForm.addEventListener('submit', (e) => {
+			// Global auth state
+			window.authState = {
+				isLoggedIn: false,
+				user: null,
+				idToken: null,
+				refreshToken: null
+			};
+
+			// Save auth to localStorage
+			function saveAuth(authData) {
+				localStorage.setItem('sublair_auth', JSON.stringify(authData));
+				window.authState = authData;
+			}
+
+			// Load auth from localStorage and verify/refresh token
+			async function loadAuth() {
+				const saved = localStorage.getItem('sublair_auth');
+				if (!saved) {
+					console.log('No saved auth found');
+					return false;
+				}
+
+				try {
+					const authData = JSON.parse(saved);
+					window.authState = authData;
+
+					// Check if token is expired or about to expire (within 5 minutes)
+					const tokenAge = Date.now() - (authData.loginTime || 0);
+					const tokenLifetime = parseInt(authData.expiresIn) * 1000; // Convert to ms
+					const timeUntilExpiry = tokenLifetime - tokenAge;
+
+					console.log('Token age:', Math.floor(tokenAge / 1000 / 60), 'minutes');
+					console.log('Time until expiry:', Math.floor(timeUntilExpiry / 1000 / 60), 'minutes');
+
+					// If token expires in less than 5 minutes or already expired, refresh it
+					if (timeUntilExpiry < 5 * 60 * 1000) {
+						console.log('Token expired or expiring soon, refreshing...');
+						await refreshAuthToken();
+					} else {
+						console.log('Token still valid, user auto-logged in');
+						updateUIForAuth();
+					}
+
+					return true;
+				} catch (error) {
+					console.error('Error loading auth:', error);
+					clearAuth();
+					return false;
+				}
+			}
+
+			// Refresh authentication token
+			async function refreshAuthToken() {
+				if (!window.authState.refreshToken) {
+					console.error('No refresh token available');
+					clearAuth();
+					return false;
+				}
+
+				try {
+					console.log('Refreshing auth token...');
+					const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							refreshToken: window.authState.refreshToken
+						})
+					});
+
+					const result = await response.json();
+
+					if (!response.ok || !result.success) {
+						throw new Error(result.error || 'Token refresh failed');
+					}
+
+					// Update tokens
+					window.authState.idToken = result.data.idToken;
+					window.authState.refreshToken = result.data.refreshToken;
+					window.authState.expiresIn = result.data.expiresIn;
+					window.authState.loginTime = Date.now();
+
+					// Save updated auth
+					saveAuth(window.authState);
+					updateUIForAuth();
+
+					console.log('Token refreshed successfully');
+					return true;
+
+				} catch (error) {
+					console.error('Token refresh failed:', error);
+					clearAuth();
+					return false;
+				}
+			}
+
+			// Start automatic token refresh timer
+			function startTokenRefreshTimer() {
+				// Refresh token every 50 minutes (tokens typically last 1 hour)
+				setInterval(async () => {
+					if (window.authState.isLoggedIn) {
+						console.log('Auto-refreshing token...');
+						await refreshAuthToken();
+					}
+				}, 50 * 60 * 1000); // 50 minutes
+			}
+
+			// Clear auth
+			function clearAuth() {
+				localStorage.removeItem('sublair_auth');
+				window.authState = {
+					isLoggedIn: false,
+					user: null,
+					idToken: null,
+					refreshToken: null
+				};
+				updateUIForAuth();
+			}
+
+			// Update UI based on auth state
+			function updateUIForAuth() {
+				const profileStatus = document.getElementById('profile-status');
+
+				console.log('Updating auth UI - isLoggedIn:', window.authState.isLoggedIn);
+				console.log('Auth state:', window.authState);
+
+				if (window.authState.isLoggedIn) {
+					const username = window.authState.user?.username ||
+									 window.authState.user?.displayName ||
+									 window.authState.email?.split('@')[0] ||
+									 'USER';
+					console.log('Setting username to:', username.toUpperCase());
+					profileStatus.textContent = username.toUpperCase();
+				} else {
+					console.log('Setting to GUEST');
+					profileStatus.textContent = 'GUEST';
+				}
+			}
+
+			// Logout function
+			function logout() {
+				clearAuth();
+				console.log('User logged out');
+			}
+
+			// Handle profile button clicks
+			profileBtn.addEventListener('click', () => {
+				if (window.authState.isLoggedIn) {
+					// User is logged in, show confirmation
+					if (confirm('Do you want to logout?')) {
+						logout();
+					}
+				} else {
+					// User is not logged in, show login modal
+					loginModal.classList.add('show');
+				}
+			});
+
+			// Form submit
+			loginForm.addEventListener('submit', async (e) => {
 				e.preventDefault();
 				const email = document.getElementById('login-email').value;
 				const password = document.getElementById('login-password').value;
 
-				// TODO: Add Firebase authentication here
-				console.log('Login attempt:', email);
+				loginError.classList.remove('show');
+				const submitBtn = document.getElementById('login-form').querySelector('.login-submit-btn');
+				submitBtn.textContent = 'LOGGING IN...';
+				submitBtn.disabled = true;
 
-				// For now, just show error as placeholder
-				loginError.textContent = 'Firebase authentication not yet implemented';
-				loginError.classList.add('show');
+				try {
+					const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ email, password })
+					});
+
+					const result = await response.json();
+
+					if (!response.ok || !result.success) {
+						throw new Error(result.error || 'Login failed');
+					}
+
+					// Save auth data with login timestamp
+					saveAuth({
+						isLoggedIn: true,
+						user: result.data.user,
+						email: result.data.email,
+						uid: result.data.localId,
+						idToken: result.data.idToken,
+						refreshToken: result.data.refreshToken,
+						expiresIn: result.data.expiresIn,
+						loginTime: Date.now()
+					});
+
+					console.log('Login successful:', result.data.email);
+
+					// Update UI
+					updateUIForAuth();
+
+					// Close modal
+					loginModal.classList.remove('show');
+					loginForm.reset();
+
+				} catch (error) {
+					console.error('Login error:', error);
+					loginError.textContent = error.message || 'Login failed';
+					loginError.classList.add('show');
+				} finally {
+					submitBtn.textContent = 'LOGIN';
+					submitBtn.disabled = false;
+				}
 			});
+
+			// ========================================
+			// INITIALIZE AUTHENTICATION ON PAGE LOAD
+			// ========================================
+			setTimeout(async () => {
+				console.log('Initializing authentication system...');
+				await loadAuth();
+				startTokenRefreshTimer();
+				console.log('Authentication system initialized');
+			}, 500);
 
 			// Shuffle array function
 			function shuffleArray(array) {

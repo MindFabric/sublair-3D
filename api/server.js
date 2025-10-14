@@ -520,7 +520,37 @@ v1Router.post('/auth/login', async (req, res) => {
 
     // Get user data from database
     const userResponse = await fetch(`${FIREBASE_DB_URL}/users/${data.localId}.json`);
-    const userData = await userResponse.json();
+    let userData = await userResponse.json();
+
+    console.log(`📊 User data for ${data.localId}:`, userData);
+
+    // Initialize oms field if it doesn't exist
+    if (userData) {
+      if (typeof userData.oms === 'undefined') {
+        console.log(`🎮 Initializing oms for user: ${data.localId}`);
+        userData.oms = 0;
+        // Update user in database
+        const updateResponse = await fetch(`${FIREBASE_DB_URL}/users/${data.localId}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oms: 0 })
+        });
+        const updateResult = await updateResponse.json();
+        console.log(`✅ oms initialized in Firebase:`, updateResult);
+      } else {
+        console.log(`✅ User already has oms: ${userData.oms}`);
+      }
+    } else {
+      console.log(`⚠️ No user data found for ${data.localId}, creating minimal user object`);
+      userData = { oms: 0 };
+      const createResponse = await fetch(`${FIREBASE_DB_URL}/users/${data.localId}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oms: 0 })
+      });
+      const createResult = await createResponse.json();
+      console.log(`✅ Created user with oms:`, createResult);
+    }
 
     console.log(`✅ User logged in: ${email}`);
     res.json({
@@ -770,7 +800,8 @@ v1Router.get('/auth/verify', async (req, res) => {
 // POST /api/v1/tracks/:trackId/play - Increment play count for a track
 v1Router.post('/tracks/:trackId/play', async (req, res) => {
   const { trackId } = req.params;
-  console.log(`🎵 POST /api/v1/tracks/${trackId}/play`);
+  const { uid } = req.body; // Optional: user ID to award OMs
+  console.log(`🎵 POST /api/v1/tracks/${trackId}/play${uid ? ` (user: ${uid})` : ''}`);
 
   if (!trackId) {
     return res.status(400).json({
@@ -801,12 +832,52 @@ v1Router.post('/tracks/:trackId/play', async (req, res) => {
       last_played_at: Date.now()
     });
 
+    // Award OMs to listener if uid is provided (triggered after 30 seconds of play)
+    let newOms = null;
+    if (uid) {
+      const userRef = realtimeDb.ref(`users/${uid}`);
+      const userSnapshot = await userRef.once('value');
+      const userData = userSnapshot.val();
+
+      if (userData) {
+        const currentOms = userData.oms || 0;
+        newOms = currentOms + 33; // Award 33 OMs per 30 seconds played
+
+        await userRef.update({
+          oms: newOms
+        });
+
+        console.log(`🎮 Awarded 33 OMs to listener ${uid}: ${currentOms} -> ${newOms}`);
+      }
+    }
+
+    // Award OMs to artist (track owner)
+    let artistNewOms = null;
+    if (track.user_id) {
+      const artistRef = realtimeDb.ref(`users/${track.user_id}`);
+      const artistSnapshot = await artistRef.once('value');
+      const artistData = artistSnapshot.val();
+
+      if (artistData) {
+        const artistCurrentOms = artistData.oms || 0;
+        artistNewOms = artistCurrentOms + 10; // Award 10 OMs to artist per listen
+
+        await artistRef.update({
+          oms: artistNewOms
+        });
+
+        console.log(`🎨 Awarded 10 OMs to artist ${track.user_id}: ${artistCurrentOms} -> ${artistNewOms}`);
+      }
+    }
+
     console.log(`✅ Incremented listen count for track ${trackId}: ${currentListens} -> ${newListens}`);
     res.json({
       success: true,
       data: {
         trackId: trackId,
-        listens_count: newListens
+        listens_count: newListens,
+        oms: newOms,
+        artistOms: artistNewOms
       }
     });
   } catch (error) {

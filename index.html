@@ -108,6 +108,36 @@
 			line-height: 1.6 !important;
 		}
 
+		/* Floating OM Reward Animation */
+		.om-reward {
+			position: fixed;
+			font-family: 'Share', 'Courier New', monospace;
+			font-size: 32px;
+			font-weight: bold;
+			color: #bee17b;
+			text-shadow: 0 0 10px rgba(190, 225, 123, 0.8),
+						 0 0 20px rgba(190, 225, 123, 0.5),
+						 2px 2px 4px rgba(0, 0, 0, 0.8);
+			pointer-events: none;
+			z-index: 10001;
+			animation: floatUpOm 2s ease-out forwards;
+		}
+
+		@keyframes floatUpOm {
+			0% {
+				transform: translateY(0) scale(1);
+				opacity: 1;
+			}
+			50% {
+				transform: translateY(-80px) scale(1.2);
+				opacity: 1;
+			}
+			100% {
+				transform: translateY(-150px) scale(0.8);
+				opacity: 0;
+			}
+		}
+
 		/* Custom character menu - Compact LBP Style */
 		.character-customization {
 			position: fixed;
@@ -1413,9 +1443,43 @@
 		.audio-info-controls {
 			flex: 1;
 			display: flex;
-			align-items: center;
-			gap: 16px;
+			flex-direction: column;
+			gap: 8px;
 			min-width: 0;
+			padding: 12px 16px;
+			background: #000;
+			border: 1px solid #bee17b;
+		}
+
+		.track-title-display {
+			font-size: 14px;
+			color: #bee17b;
+			font-family: 'Share', monospace;
+			font-weight: bold;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.artist-name-display {
+			font-size: 11px;
+			color: #bee17b;
+			font-family: 'Share', monospace;
+			opacity: 0.8;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.artist-name-display a {
+			color: #bee17b;
+			text-decoration: underline;
+			cursor: pointer;
+		}
+
+		.artist-name-display a:hover {
+			opacity: 1;
+			text-shadow: 0 0 10px rgba(190, 225, 123, 0.5);
 		}
 
 		.audio-status {
@@ -1447,6 +1511,26 @@
 			cursor: pointer;
 			transition: all 0.1s ease;
 			min-width: 100px;
+		}
+
+		/* OM Currency Display */
+		.om-currency {
+			background: #000;
+			color: #bee17b;
+			border: 1px solid #bee17b;
+			border-right: none;
+			padding: 6px 12px;
+			font-family: 'Share', 'Courier New', monospace;
+			font-weight: bold;
+			font-size: 12px;
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.om-currency-symbol {
+			color: #bee17b;
+			font-size: 14px;
 		}
 
 		/* Profile Button */
@@ -4614,6 +4698,10 @@
 								[CHAT]
 							</div>
 						</div>
+						<div class="om-currency">
+							<span class="om-currency-symbol">Ω</span>
+							<span id="om-count">0</span>
+						</div>
 						<button class="desktop-profile-btn" id="profile-btn">
 							<span id="profile-status">GUEST</span>
 						</button>
@@ -4648,7 +4736,8 @@
 										<div id="desktop-album-art">NO ARTWORK</div>
 									</div>
 									<div class="audio-info-controls">
-										<div id="desktop-audio-status" class="audio-status">NO TRACK LOADED</div>
+										<div id="desktop-track-title" class="track-title-display">NO TRACK LOADED</div>
+										<div id="desktop-artist-name" class="artist-name-display"></div>
 										<div id="desktop-audio-controls" class="audio-controls">
 											<button id="audio-play-pause" class="audio-btn" disabled>▶ PLAY</button>
 											<button id="audio-stop" class="audio-btn" disabled>■ STOP</button>
@@ -6206,6 +6295,20 @@
 						await refreshAuthToken();
 					} else {
 						console.log('Token still valid, user auto-logged in');
+
+						// Fetch latest user data from Firebase to get current OM count
+						try {
+							const userResponse = await fetch(`${API_BASE_URL}/api/v1/users/${authData.uid}`);
+							const userResult = await userResponse.json();
+							if (userResult.success && userResult.data) {
+								window.authState.user = userResult.data;
+								saveAuth(window.authState);
+								console.log('🎮 Fetched latest user data with OMs:', userResult.data.oms);
+							}
+						} catch (error) {
+							console.warn('Could not fetch latest user data:', error);
+						}
+
 						updateUIForAuth();
 					}
 
@@ -6287,6 +6390,7 @@
 			// Update UI based on auth state
 			function updateUIForAuth() {
 				const profileStatus = document.getElementById('profile-status');
+				const omCountElement = document.getElementById('om-count');
 
 				console.log('Updating auth UI - isLoggedIn:', window.authState.isLoggedIn);
 				console.log('Auth state:', window.authState);
@@ -6298,6 +6402,13 @@
 									 'USER';
 					console.log('Setting username to:', username.toUpperCase());
 					profileStatus.textContent = username.toUpperCase();
+
+					// Update OM count display
+					const oms = window.authState.user?.oms || 0;
+					if (omCountElement) {
+						omCountElement.textContent = oms;
+						console.log(`🎮 Displaying user OMs: ${oms}`);
+					}
 
 					// Update computer screen with user's photoURL
 					const photoURL = window.authState.user?.photoURL;
@@ -6313,6 +6424,10 @@
 				} else {
 					console.log('Setting to GUEST');
 					profileStatus.textContent = 'GUEST';
+					// Reset OM count to 0 for guest
+					if (omCountElement) {
+						omCountElement.textContent = '0';
+					}
 					// Clear computer screen when logged out
 					if (window.updateComputerScreen) {
 						window.updateComputerScreen(null);
@@ -6363,18 +6478,13 @@
 						throw new Error(result.error || 'Login failed');
 					}
 
-					// Fetch full user profile from users endpoint
-					const userProfileResponse = await fetch(`${API_BASE_URL}/api/v1/users/${result.data.localId}`);
-					const userProfileResult = await userProfileResponse.json();
-
-					if (!userProfileResponse.ok || !userProfileResult.success) {
-						console.warn('Could not fetch full user profile, using minimal data');
-					}
+					// Use user data from login response (already has oms initialized)
+					console.log('Login response user data:', result.data.user);
 
 					// Save auth data with login timestamp and full user profile
 					saveAuth({
 						isLoggedIn: true,
-						user: userProfileResult.success ? userProfileResult.data : result.data.user,
+						user: result.data.user,
 						email: result.data.email,
 						uid: result.data.localId,
 						idToken: result.data.idToken,
@@ -6500,7 +6610,7 @@
 						: (track.artistName || 'Unknown Artist');
 
 					return `
-						<div class="track-item" data-track-index="${index}" data-track-id="${track.id}" data-user-id="${track.user_id || ''}" data-title="${track.title || 'UNKNOWN'}" data-artwork="${track.artwork_url || ''}">
+						<div class="track-item" data-track-index="${index}" data-track-id="${track.id}" data-user-id="${track.user_id || ''}" data-title="${track.title || 'UNKNOWN'}" data-artwork="${track.artwork_url || ''}" data-artist-name="${track.artistName || 'Unknown Artist'}" data-artist-username="${track.artistUsername || ''}">
 							<div class="track-title">${track.title}</div>
 							<div class="track-meta">${artistDisplay} • ${track.genre || 'Unknown'}</div>
 						</div>
@@ -6515,10 +6625,12 @@
 					const trackUserId = this.getAttribute('data-user-id');
 					const trackTitle = this.getAttribute('data-title');
 					const artworkUrl = this.getAttribute('data-artwork');
+					const artistName = this.getAttribute('data-artist-name');
+					const artistUsername = this.getAttribute('data-artist-username');
 					// Use API stream proxy instead of direct URL
 					const streamUrl = `${API_BASE_URL}/api/v1/stream/${trackId}`;
 					currentTrackIndex = trackIndex;
-					playTrack(streamUrl, trackTitle, artworkUrl, trackId, trackUserId);
+					playTrack(streamUrl, trackTitle, artworkUrl, trackId, trackUserId, artistName, artistUsername);
 				});
 			});
 			}
@@ -6626,8 +6738,69 @@
 			});
 
 			// Play count tracking
-			let playCountTimer = null;
 			let currentTrackId = null;
+			let hasAwardedPlayCount = false;
+
+			// Function to show floating OM reward - simple centered toast
+			function showOmReward(amount) {
+				// Create centered toast notification
+				const toast = document.createElement('div');
+				toast.style.position = 'fixed';
+				toast.style.top = '50%';
+				toast.style.left = '50%';
+				toast.style.transform = 'translate(-50%, -50%)';
+				toast.style.background = 'rgba(0, 0, 0, 0.9)';
+				toast.style.border = '2px solid #bee17b';
+				toast.style.borderRadius = '8px';
+				toast.style.padding = '12px 24px';
+				toast.style.fontFamily = 'Share, Courier New, monospace';
+				toast.style.fontSize = '28px';
+				toast.style.fontWeight = 'bold';
+				toast.style.color = '#bee17b';
+				toast.style.textShadow = '0 0 10px rgba(190, 225, 123, 0.8)';
+				toast.style.boxShadow = '0 0 20px rgba(190, 225, 123, 0.5)';
+				toast.style.pointerEvents = 'none';
+				toast.style.zIndex = '10001';
+				toast.textContent = `+${amount} Ω`;
+
+				document.body.appendChild(toast);
+				console.log('✨ Created OM reward toast notification');
+
+				// Animate: scale in, pause, scale out and fade
+				const startTime = Date.now();
+				const duration = 2000;
+
+				function animate() {
+					const elapsed = Date.now() - startTime;
+					const progress = elapsed / duration;
+
+					if (progress < 0.2) {
+						// Scale in
+						const scale = progress / 0.2;
+						toast.style.transform = `translate(-50%, -50%) scale(${scale})`;
+						toast.style.opacity = '1';
+					} else if (progress < 0.7) {
+						// Hold
+						toast.style.transform = 'translate(-50%, -50%) scale(1)';
+						toast.style.opacity = '1';
+					} else {
+						// Scale out and fade
+						const fadeProgress = (progress - 0.7) / 0.3;
+						const scale = 1 + (fadeProgress * 0.5);
+						toast.style.transform = `translate(-50%, -50%) scale(${scale})`;
+						toast.style.opacity = (1 - fadeProgress).toString();
+					}
+
+					if (progress < 1) {
+						requestAnimationFrame(animate);
+					} else {
+						toast.remove();
+						console.log('🗑️ Removed OM reward toast');
+					}
+				}
+
+				animate();
+			}
 
 			window.incrementPlayCount = async function(trackId, trackUserId) {
 				if (!trackId) return;
@@ -6639,35 +6812,65 @@
 				}
 
 				try {
+					// Send uid to award OMs if user is logged in
+					const body = window.authState?.isLoggedIn ? { uid: window.authState.uid } : {};
+
 					const response = await fetch(`${API_BASE_URL}/api/v1/tracks/${trackId}/play`, {
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json' }
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(body)
 					});
 					const result = await response.json();
 					if (result.success) {
 						console.log(`✅ Listen count incremented for track ${trackId}: ${result.data.listens_count}`);
+
+						// Update OM display if OMs were awarded
+						if (result.data.oms !== null && result.data.oms !== undefined) {
+							console.log(`🎮 Earned 33 OMs! New total: ${result.data.oms}`);
+							console.log(`🎮 Calling showOmReward(33)...`);
+							console.log(`🎮 window.character exists:`, !!window.character);
+							console.log(`🎮 window.world exists:`, !!window.world);
+
+							// Show floating +33 animation above character
+							showOmReward(33);
+
+							const omCountElement = document.getElementById('om-count');
+							if (omCountElement) {
+								omCountElement.textContent = result.data.oms;
+							}
+							// Update authState
+							if (window.authState) {
+								window.authState.user.oms = result.data.oms;
+							}
+						}
 					}
 				} catch (error) {
 					console.error('Error incrementing listen count:', error);
 				}
 			};
 
-			function playTrack(url, title, artworkUrl, trackId, trackUserId) {
-				// Clear any existing play count timer
-				if (playCountTimer) {
-					clearTimeout(playCountTimer);
-					playCountTimer = null;
-				}
-
-				// Store current track ID and user ID
+			function playTrack(url, title, artworkUrl, trackId, trackUserId, artistName, artistUsername) {
+				// Reset playback tracking for new track
 				currentTrackId = trackId;
 				const currentTrackUserId = trackUserId;
+				hasAwardedPlayCount = false;
 
 				// Update desktop audio player
-				document.getElementById('desktop-audio-status').textContent = 'LOADING...';
+				document.getElementById('desktop-track-title').textContent = title || 'UNKNOWN TRACK';
+
+				// Update artist name with link if username available
+				const artistEl = document.getElementById('desktop-artist-name');
+				if (artistUsername) {
+					artistEl.innerHTML = `by <a href="https://www.sublair.com/u/${artistUsername}" target="_blank">${artistName || 'Unknown Artist'}</a>`;
+				} else {
+					artistEl.textContent = `by ${artistName || 'Unknown Artist'}`;
+				}
+
 				document.getElementById('audio-play-pause').disabled = false;
 				document.getElementById('audio-stop').disabled = false;
 				currentTrackTitle = title || 'UNKNOWN TRACK';
+				window.currentArtistName = artistName || 'Unknown Artist';
+				window.currentArtistUsername = artistUsername;
 
 				// Show loading indicator
 				const loadingDiv = document.getElementById('audio-loading');
@@ -6686,7 +6889,7 @@
 					positionalAudio.setLoop(false);
 					positionalAudio.setVolume(1.0);
 
-					// Connect EQ filters chain: source -> directional bass -> directional lowpass -> vehicle lowpass -> lowpass -> highpass -> low -> mid -> high -> analyser -> destination
+					// Connect EQ filters chain
 					const source = positionalAudio.getOutput();
 					source.disconnect();
 					source.connect(window.speakerDirectionalBass);
@@ -6715,28 +6918,38 @@
 					window.isPlaybackPaused = false;
 					updatePhonePlayerUI();
 
-					// Start 30-second timer for play count
-					if (currentTrackId) {
-						playCountTimer = setTimeout(() => {
+					// Use timeupdate event to track playback progress (industry standard)
+					const timeUpdateHandler = function() {
+						const currentTime = positionalAudio.context.currentTime - (positionalAudio._startedAt || 0) + (positionalAudio._progress || 0);
+
+						// Award play count when user reaches 30 seconds of playback
+						if (currentTime >= 30 && !hasAwardedPlayCount && currentTrackId) {
+							hasAwardedPlayCount = true;
 							window.incrementPlayCount(currentTrackId, currentTrackUserId);
-							playCountTimer = null;
-						}, 30000); // 30 seconds
-						console.log(`⏱️ Started 30-second play count timer for track ${currentTrackId}`);
-					}
+							console.log(`✅ Awarded play count at ${currentTime.toFixed(1)}s of playback`);
+							// Remove listener after awarding
+							positionalAudio.source.removeEventListener('ended', timeUpdateHandler);
+						}
+					};
+
+					// Check playback time periodically
+					const playbackCheckInterval = setInterval(() => {
+						if (positionalAudio.isPlaying) {
+							timeUpdateHandler();
+						}
+						if (hasAwardedPlayCount) {
+							clearInterval(playbackCheckInterval);
+						}
+					}, 1000);
 
 					// Auto-play next track when current one ends
 					positionalAudio.onEnded = function() {
-						// Clear play count timer if track ends before 30 seconds
-						if (playCountTimer) {
-							clearTimeout(playCountTimer);
-							playCountTimer = null;
-						}
+						clearInterval(playbackCheckInterval);
 						console.log('🔄 Track ended, playing next...');
 						playNextTrack();
 					};
 
-					// Update desktop audio player
-					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${currentTrackTitle}`;
+					// Update desktop audio player (already updated at start of playTrack)
 					document.getElementById('audio-play-pause').textContent = '❚❚ PAUSE';
 					document.getElementById('audio-play-pause').disabled = false;
 					document.getElementById('audio-stop').disabled = false;
@@ -6768,13 +6981,12 @@
 				(progress) => {
 					const percent = (progress.loaded / progress.total * 100).toFixed(0);
 					loadingDiv.innerHTML = `Loading audio... ${percent}%`;
-					document.getElementById('desktop-audio-status').textContent = `LOADING... ${percent}%`;
 					console.log('Loading audio:', percent + '%');
 				},
 				(error) => {
 					console.error('Error loading audio:', error);
 					loadingDiv.innerHTML = 'ERROR LOADING AUDIO';
-					document.getElementById('desktop-audio-status').textContent = 'ERROR: FAILED TO LOAD';
+					document.getElementById('desktop-track-title').textContent = 'ERROR: FAILED TO LOAD';
 					document.getElementById('audio-play-pause').disabled = true;
 					document.getElementById('audio-stop').disabled = true;
 					setTimeout(() => {
@@ -6793,7 +7005,7 @@
 
 				const track = tracksData[nextIndex];
 				const streamUrl = `${API_BASE_URL}/api/v1/stream/${track.id}`;
-				playTrack(streamUrl, track.title, track.artwork_url, track.id, track.user_id);
+				playTrack(streamUrl, track.title, track.artwork_url, track.id, track.user_id, track.artistName, track.artistUsername);
 			}
 
 			// Create interaction prompt
@@ -8159,6 +8371,14 @@
 								window.terminalOpen = terminalOpen = true;
 								osDiv.classList.add('active');
 								interactionPrompt.classList.remove('show');
+
+								// Update OM count display when opening OS
+								const omCountElement = document.getElementById('om-count');
+								if (omCountElement && window.authState?.isLoggedIn) {
+									const oms = window.authState.user?.oms || 0;
+									omCountElement.textContent = oms;
+									console.log(`🎮 Updated OM display on OS open: ${oms}`);
+								}
 
 								// Disable character controls
 								world.inputManager.inputReceiver = window.dummyInputReceiver;

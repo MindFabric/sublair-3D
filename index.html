@@ -1854,6 +1854,44 @@
 			background: #d4f098;
 		}
 
+		/* Chat Messages Scrollbar */
+		#chat-messages::-webkit-scrollbar {
+			width: 16px;
+		}
+
+		#chat-messages::-webkit-scrollbar-track {
+			background: #000;
+			border-left: 1px solid #bee17b;
+		}
+
+		#chat-messages::-webkit-scrollbar-thumb {
+			background: #bee17b;
+			border: 2px solid #000;
+		}
+
+		#chat-messages::-webkit-scrollbar-thumb:hover {
+			background: #d4f098;
+		}
+
+		/* Online Users Scrollbar */
+		#online-users::-webkit-scrollbar {
+			width: 16px;
+		}
+
+		#online-users::-webkit-scrollbar-track {
+			background: #000;
+			border-left: 1px solid #bee17b;
+		}
+
+		#online-users::-webkit-scrollbar-thumb {
+			background: #bee17b;
+			border: 2px solid #000;
+		}
+
+		#online-users::-webkit-scrollbar-thumb:hover {
+			background: #d4f098;
+		}
+
 		.track-item {
 			padding: 15px;
 			margin: 8px 0;
@@ -2202,6 +2240,14 @@
 					</div>
 					<div class="phone-app-label">SUBLAIR</div>
 				</div>
+				<div class="phone-app" onclick="openPhoneApp('messenger')">
+					<div class="phone-app-icon" style="background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); display: flex; align-items: center; justify-content: center;">
+						<svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+							<path d="M12 2C6.48 2 2 6.15 2 11.33C2 14.13 3.23 16.62 5.25 18.28V22L8.82 20.02C9.84 20.31 10.91 20.47 12 20.47C17.52 20.47 22 16.32 22 11.14C22 5.96 17.52 2 12 2ZM13 14L10.5 11.27L5.5 14L11 8L13.5 10.73L18.5 8L13 14Z" fill="white"/>
+						</svg>
+					</div>
+					<div class="phone-app-label">Messenger</div>
+				</div>
 			</div>
 
 			<div class="phone-home-indicator"></div>
@@ -2231,6 +2277,51 @@
 					<button class="car-radio-btn" onclick="radioSkipPrev()">⏮</button>
 					<button class="car-radio-btn play-pause" id="radio-play-btn" onclick="radioTogglePlay()">▶</button>
 					<button class="car-radio-btn" onclick="radioSkipNext()">⏭</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Messenger App Screen -->
+		<div id="phone-messenger-app" class="phone-music-app">
+			<!-- Conversations List View -->
+			<div id="messenger-conversations-view">
+				<div class="car-radio-header">
+					<button class="phone-back-btn" onclick="closePhoneApp()">‹</button>
+					<div class="car-radio-title">Messenger</div>
+				</div>
+				<div class="car-radio-content" style="padding: 0;">
+					<!-- Conversation Item: Global Chat -->
+					<div class="messenger-conversation-item" onclick="openMessengerChat()">
+						<div style="display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+							<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #fff; flex-shrink: 0;">
+								GC
+							</div>
+							<div style="flex: 1; min-width: 0;">
+								<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+									<div style="font-family: 'Share', monospace; font-size: 16px; font-weight: 600; color: #fff;">Global Chat</div>
+									<div style="font-family: 'Share', monospace; font-size: 12px; color: rgba(255, 255, 255, 0.5);">now</div>
+								</div>
+								<div style="font-family: 'Share', monospace; font-size: 14px; color: rgba(255, 255, 255, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Tap to join the conversation</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Chat View -->
+			<div id="messenger-chat-view" style="display: none;">
+				<div class="car-radio-header">
+					<button class="phone-back-btn" onclick="closeMessengerChat()">‹</button>
+					<div class="car-radio-title">Global Chat</div>
+				</div>
+				<div class="car-radio-content" id="phone-chat-messages" style="padding: 16px 20px 80px 20px;">
+					<!-- Chat messages will be loaded here -->
+				</div>
+				<div class="car-radio-bottom-bar" style="padding: 16px 20px 32px 20px; background: rgba(0, 0, 0, 0.95);">
+					<div style="display: flex; gap: 8px; align-items: center;">
+						<input type="text" id="phone-chat-input" placeholder="Type a message..." style="flex: 1; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; padding: 10px 16px; color: #fff; font-family: 'Share', monospace; font-size: 14px; outline: none;" />
+						<button id="phone-chat-send" style="background: #00c6ff; border: none; border-radius: 50%; width: 40px; height: 40px; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">➤</button>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -2373,6 +2464,8 @@
 			let savedCustomization = localStorage.getItem('characterCustomization');
 			if (savedCustomization) {
 				let customizationData = JSON.parse(savedCustomization);
+				window.floorGlowColor = customizationData.floorGlowColor || '#bee17b';
+				window.floorPanelColor = customizationData.floorPanelColor || '#282828';
 				window.speakerCabColor = customizationData.speakerCabColor || '#282828';
 				window.speakerTrimColor = customizationData.speakerTrimColor || '#282828';
 				window.speakerFaceColor = customizationData.speakerFaceColor || '#282828';
@@ -2393,6 +2486,8 @@
 				console.log('✅ Loaded colors from localStorage');
 			} else {
 				// Set defaults if no saved data
+				window.floorGlowColor = '#bee17b';
+				window.floorPanelColor = '#282828';
 				window.speakerCabColor = '#282828';
 				window.speakerTrimColor = '#282828';
 				window.speakerFaceColor = '#282828';
@@ -2465,8 +2560,8 @@
 				}
 			};
 
-			// Initial generation
-			window.generateGridTexture('#bee17b', '#2a2a2a');
+			// Initial generation with saved colors
+			window.generateGridTexture(window.floorGlowColor || '#bee17b', window.floorPanelColor || '#282828');
 
 			// Create texture from canvas
 			const gridTexture = new THREE.CanvasTexture(canvas);
@@ -2478,8 +2573,9 @@
 			// Add a large ground plane (visual)
 			const groundGeometry = new THREE.PlaneGeometry(200, 200, 1, 1);
 			const groundMaterial = new THREE.MeshStandardMaterial({
+				color: new THREE.Color(window.floorPanelColor || '#282828'), // Use saved panel color
 				map: gridTexture,
-				emissive: new THREE.Color(0xbee17b), // Green glow matching terminal color
+				emissive: new THREE.Color(window.floorGlowColor || '#bee17b'), // Use saved glow color
 				emissiveMap: gridTexture,
 				emissiveIntensity: 0.3, // Subtle glow
 				roughness: 0.8,
@@ -3565,6 +3661,10 @@
 						// C key to toggle customization
 						document.addEventListener('keydown', (e) => {
 							if (e.key === 'c' || e.key === 'C') {
+								// Don't toggle if user is typing in an input field
+								if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+									return;
+								}
 								if (!terminalOpen) {
 									e.preventDefault();
 									e.stopPropagation();
@@ -4390,9 +4490,6 @@
 							<div class="taskbar-app" data-app="music">
 								[MUSIC]
 							</div>
-							<div class="taskbar-app" data-app="eq">
-								[EQ]
-							</div>
 							<div class="taskbar-app" data-app="files">
 								[FILES]
 							</div>
@@ -4425,7 +4522,10 @@
 								</div>
 							</div>
 							<div class="desktop-audio-player">
-								<div class="audio-player-header">♪ MEDIA PLAYER</div>
+								<div class="audio-player-header" style="display: flex; align-items: center;">
+									<span>♪ MEDIA PLAYER</span>
+									<button class="taskbar-app" data-app="eq" style="margin-left: auto; padding: 6px 12px; background: #000; color: #bee17b; border: 1px solid #bee17b; font-family: 'Share', monospace; cursor: pointer; font-size: 12px; transition: all 0.2s;">[EQ]</button>
+								</div>
 								<div class="audio-player-body">
 									<div class="audio-album-art-container">
 										<div id="desktop-album-art">NO ARTWORK</div>
@@ -4448,6 +4548,7 @@
 							<div class="app-header">
 								<div class="app-title">MUSIC PLAYER v1.0</div>
 								<input type="text" id="search-input" placeholder="Search tracks..." />
+								<button class="taskbar-app" data-app="eq" style="margin-left: 10px; padding: 8px 16px; background: #000; color: #bee17b; border: 1px solid #bee17b; font-family: 'Share', monospace; cursor: pointer; transition: all 0.2s;">[EQ]</button>
 							</div>
 							<div class="app-content">
 								<div id="tracks-container">
@@ -5029,8 +5130,11 @@
 				}
 			}
 
-			// Sound engine will be initialized after audioListener is created
-			let soundEngine = null;
+			// Sound engines will be initialized after audioListener is created
+			window.soundEngine = null;
+			window.uiSoundEngine = null;
+			let soundEngine = window.soundEngine;
+			let uiSoundEngine = window.uiSoundEngine;
 			let lastFootstepTime = 0;
 			let lastFootstepSound = -1; // Track last played sound to avoid immediate repeats
 			const footstepSounds = ['footstep1', 'footstep2', 'footstep3', 'footstep4', 'footstep5', 'footstep6', 'footstep7'];
@@ -5205,11 +5309,20 @@
 
 				const isMyMessage = window.authState?.uid === uid;
 
+				// Make username clickable - link to their Sublair profile
+				const usernameDisplay = `<a href="https://www.sublair.com/u/${username}" target="_blank" class="artist-link" onclick="event.stopPropagation();" style="color: #bee17b; font-weight: bold; text-decoration: none; cursor: pointer; border-bottom: 1px solid transparent; transition: border-color 0.2s;" onmouseover="this.style.borderBottomColor='#bee17b'" onmouseout="this.style.borderBottomColor='transparent'">${username}</a>`;
+
+				// Linkify URLs in message
+				const urlRegex = /(https?:\/\/[^\s]+)/g;
+				const linkedMessage = message.replace(urlRegex, (url) => {
+					return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #5b9bd5; text-decoration: underline; cursor: pointer;">${url}</a>`;
+				});
+
 				messageDiv.innerHTML = `
 					<div style="flex: 1;">
 						<span style="color: #666;">[${time}]</span>
-						<span style="color: #bee17b; font-weight: bold;">${username}:</span>
-						<span style="color: #fff;">${message}</span>
+						${usernameDisplay}:
+						<span style="color: #fff;">${linkedMessage}</span>
 					</div>
 					${isMyMessage ? `<button class="delete-msg-btn" data-msg-id="${messageId}" style="padding: 4px 10px; background: #000; color: #f00; border: 1px solid #f00; cursor: pointer; font-family: 'Share', monospace; font-size: 12px; margin-left: 10px; transition: all 0.2s;">[DELETE]</button>` : ''}
 				`;
@@ -6270,7 +6383,7 @@
 						: (track.artistName || 'Unknown Artist');
 
 					return `
-						<div class="track-item" data-track-index="${index}" data-track-id="${track.id}" data-title="${track.title || 'UNKNOWN'}" data-artwork="${track.artwork_url || ''}">
+						<div class="track-item" data-track-index="${index}" data-track-id="${track.id}" data-user-id="${track.user_id || ''}" data-title="${track.title || 'UNKNOWN'}" data-artwork="${track.artwork_url || ''}">
 							<div class="track-title">${track.title}</div>
 							<div class="track-meta">${artistDisplay} • ${track.genre || 'Unknown'}</div>
 						</div>
@@ -6282,12 +6395,13 @@
 				item.addEventListener('click', function() {
 					const trackIndex = parseInt(this.getAttribute('data-track-index'));
 					const trackId = this.getAttribute('data-track-id');
+					const trackUserId = this.getAttribute('data-user-id');
 					const trackTitle = this.getAttribute('data-title');
 					const artworkUrl = this.getAttribute('data-artwork');
 					// Use API stream proxy instead of direct URL
 					const streamUrl = `${API_BASE_URL}/api/v1/stream/${trackId}`;
 					currentTrackIndex = trackIndex;
-					playTrack(streamUrl, trackTitle, artworkUrl);
+					playTrack(streamUrl, trackTitle, artworkUrl, trackId, trackUserId);
 				});
 			});
 			}
@@ -6390,7 +6504,44 @@
 				document.getElementById('filter-highpass-value').textContent = '20 Hz';
 			});
 
-			function playTrack(url, title, artworkUrl) {
+			// Play count tracking
+			let playCountTimer = null;
+			let currentTrackId = null;
+
+			window.incrementPlayCount = async function(trackId, trackUserId) {
+				if (!trackId) return;
+
+				// Don't count plays if the user is listening to their own track
+				if (window.authState?.isLoggedIn && window.authState?.uid === trackUserId) {
+					console.log(`⏭️ Skipping play count for own track ${trackId}`);
+					return;
+				}
+
+				try {
+					const response = await fetch(`${API_BASE_URL}/api/v1/tracks/${trackId}/play`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' }
+					});
+					const result = await response.json();
+					if (result.success) {
+						console.log(`✅ Listen count incremented for track ${trackId}: ${result.data.listens_count}`);
+					}
+				} catch (error) {
+					console.error('Error incrementing listen count:', error);
+				}
+			};
+
+			function playTrack(url, title, artworkUrl, trackId, trackUserId) {
+				// Clear any existing play count timer
+				if (playCountTimer) {
+					clearTimeout(playCountTimer);
+					playCountTimer = null;
+				}
+
+				// Store current track ID and user ID
+				currentTrackId = trackId;
+				const currentTrackUserId = trackUserId;
+
 				// Update desktop audio player
 				document.getElementById('desktop-audio-status').textContent = 'LOADING...';
 				document.getElementById('audio-play-pause').disabled = false;
@@ -6432,8 +6583,22 @@
 					positionalAudio.play();
 					currentTrack = url;
 
+					// Start 30-second timer for play count
+					if (currentTrackId) {
+						playCountTimer = setTimeout(() => {
+							window.incrementPlayCount(currentTrackId, currentTrackUserId);
+							playCountTimer = null;
+						}, 30000); // 30 seconds
+						console.log(`⏱️ Started 30-second play count timer for track ${currentTrackId}`);
+					}
+
 					// Auto-play next track when current one ends
 					positionalAudio.onEnded = function() {
+						// Clear play count timer if track ends before 30 seconds
+						if (playCountTimer) {
+							clearTimeout(playCountTimer);
+							playCountTimer = null;
+						}
 						console.log('🔄 Track ended, playing next...');
 						playNextTrack();
 					};
@@ -6496,7 +6661,7 @@
 
 				const track = tracksData[nextIndex];
 				const streamUrl = `${API_BASE_URL}/api/v1/stream/${track.id}`;
-				playTrack(streamUrl, track.title, track.artwork_url);
+				playTrack(streamUrl, track.title, track.artwork_url, track.id, track.user_id);
 			}
 
 			// Create interaction prompt
@@ -7218,10 +7383,13 @@
 
 			window.audioAnalyser = analyser;
 
-			// Initialize sound engine now that audioListener exists
-			soundEngine = new SoundEngine(audioListener);
+			// Initialize main sound engine for game sounds
+			window.soundEngine = soundEngine = new SoundEngine(audioListener);
 
-			// Load all sounds
+			// Initialize separate UI sound engine for interface sounds
+			window.uiSoundEngine = uiSoundEngine = new SoundEngine(audioListener);
+
+			// Load game sounds
 			soundEngine.loadSounds([
 				// Footstep sounds
 				{ name: 'footstep1', path: 'build/snds/step1.wav', options: { volume: 0.5 } },
@@ -7234,6 +7402,16 @@
 				// Ambient background music
 				{ name: 'ambience', path: 'build/snds/ambience.mp3', options: { volume: 0.15, loop: true } }
 			]).then(() => {
+				console.log('Game sounds loaded!');
+			});
+
+			// Load UI sounds separately
+			uiSoundEngine.loadSounds([
+				{ name: 'lock', path: 'build/snds/lock.wav', options: { volume: 0.4 } },
+				{ name: 'sentMessage', path: 'build/snds/SentMessage.wav', options: { volume: 0.4 } },
+				{ name: 'tock', path: 'build/snds/Tock.wav', options: { volume: 0.3 } }
+			]).then(() => {
+				console.log('UI sounds loaded!');
 				console.log('All sounds loaded!');
 
 				// Resume AudioContext on first user interaction (required by browser autoplay policy)
@@ -7802,39 +7980,66 @@
 						e.stopPropagation();
 						e.stopImmediatePropagation();
 
-						// Open OS
-						window.terminalOpen = terminalOpen = true;
-						osDiv.classList.add('active');
-						interactionPrompt.classList.remove('show');
+						// Smoothly decelerate character before opening terminal
+						character.velocitySimulator.target.set(0, 0, 0);
 
-						// Disable character controls
-						world.inputManager.inputReceiver = window.dummyInputReceiver;
+						// Check velocity every frame until character stops
+						let checkStopInterval = setInterval(() => {
+							const speed = character.velocity.length();
 
-						// Enable mouse cursor - exit pointer lock directly
-						if (document.pointerLockElement) {
-							document.exitPointerLock();
-						}
+							// If character is nearly stopped (velocity < 0.1)
+							if (speed < 0.1) {
+								clearInterval(checkStopInterval);
 
-						// Check if chat view is visible and restart polling if needed
-						const chatView = document.getElementById('chat-view');
-						if (chatView && chatView.style.display === 'block') {
-							console.log('📱 Chat view is visible, restarting polling');
-							startChatPolling();
-						}
+								// Fully stop the character
+								character.velocity.set(0, 0, 0);
+								character.velocitySimulator.position.set(0, 0, 0);
+								character.velocitySimulator.velocity.set(0, 0, 0);
+								character.velocitySimulator.target.set(0, 0, 0);
+								character.angularVelocity = 0;
+
+								// Now open OS
+								window.terminalOpen = terminalOpen = true;
+								osDiv.classList.add('active');
+								interactionPrompt.classList.remove('show');
+
+								// Disable character controls
+								world.inputManager.inputReceiver = window.dummyInputReceiver;
+
+								// Enable mouse cursor - exit pointer lock directly
+								if (document.pointerLockElement) {
+									document.exitPointerLock();
+								}
+
+								// Check if chat view is visible and restart polling if needed
+								const chatView = document.getElementById('chat-view');
+								if (chatView && chatView.style.display === 'block') {
+									console.log('📱 Chat view is visible, restarting polling');
+									startChatPolling();
+								}
+							}
+						}, 16); // Check every frame (~60fps)
 
 						return false;
 					}
 				}
 			}, true);
 
-			// Handle R key press for radio
+			// Handle R key press for radio (universal access)
 			document.addEventListener('keydown', (e) => {
 				if (e.key === 'r' || e.key === 'R') {
+					// Don't toggle if user is typing in an input field
+					if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+						return;
+					}
+
+					// Dismiss prompt if near car
 					if (nearCar && !radioPromptDismissed) {
-						// Dismiss the prompt
 						radioPromptDismissed = true;
 						interactionPrompt.classList.remove('show');
 					}
+					// Toggle phone/radio
+					window.toggleCarRadio();
 				}
 			}, true);
 
@@ -7844,6 +8049,11 @@
 		const RADIO_API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 			? 'http://localhost:3000'
 			: window.location.origin; // Use same domain as the app (Vercel)
+
+		// Radio play count tracking (global scope for radio functions)
+		let radioPlayCountTimer = null;
+		let radioCurrentTrackId = null;
+		let radioCurrentTrackUserId = null;
 
 		// Shuffle array helper
 		function radioShuffleArray(array) {
@@ -7865,24 +8075,60 @@
 		window.toggleCarRadio = function() {
 			window.radioOpen = radioOpen = !radioOpen;
 			if (radioOpen) {
-				carRadioDiv.classList.add('active');
-				// Show home screen, hide music app
-				document.getElementById('phone-home').classList.remove('hidden');
-				document.getElementById('phone-music-app').classList.remove('active');
-				// Update phone time
-				updatePhoneTime();
-				// Exit pointer lock for UI interaction
-				document.exitPointerLock();
-				// Disable character controls
-				if (window.character && window.dummyInputReceiver && window.world) {
-					window.world.inputManager.inputReceiver = window.dummyInputReceiver;
-				}
-				// Load radio tracks if not loaded
-				if (radioTracksData.length === 0) {
-					loadRadioTracks();
+				// Smoothly decelerate character before opening
+				if (window.character) {
+					character.velocitySimulator.target.set(0, 0, 0);
+
+					// Check velocity every frame until character stops
+					let checkStopInterval = setInterval(() => {
+						const speed = character.velocity.length();
+
+						// If character is nearly stopped (velocity < 0.1)
+						if (speed < 0.1) {
+							clearInterval(checkStopInterval);
+
+							// Fully stop the character
+							character.velocity.set(0, 0, 0);
+							character.velocitySimulator.position.set(0, 0, 0);
+							character.velocitySimulator.velocity.set(0, 0, 0);
+							character.velocitySimulator.target.set(0, 0, 0);
+							character.angularVelocity = 0;
+
+							// Now open the radio
+							carRadioDiv.classList.add('active');
+							document.getElementById('phone-home').classList.remove('hidden');
+							document.getElementById('phone-music-app').classList.remove('active');
+							updatePhoneTime();
+							document.exitPointerLock();
+
+							// Disable character controls
+							if (window.dummyInputReceiver && window.world) {
+								window.world.inputManager.inputReceiver = window.dummyInputReceiver;
+							}
+
+							// Load radio tracks if not loaded
+							if (radioTracksData.length === 0) {
+								loadRadioTracks();
+							}
+						}
+					}, 16); // Check every frame (~60fps)
+				} else {
+					// No character, open immediately
+					carRadioDiv.classList.add('active');
+					document.getElementById('phone-home').classList.remove('hidden');
+					document.getElementById('phone-music-app').classList.remove('active');
+					updatePhoneTime();
+					document.exitPointerLock();
+					if (radioTracksData.length === 0) {
+						loadRadioTracks();
+					}
 				}
 			} else {
 				carRadioDiv.classList.remove('active');
+				// Play lock sound when closing phone
+				if (window.uiSoundEngine) {
+					window.uiSoundEngine.play('lock');
+				}
 				// Re-enable character controls
 				if (window.character) {
 					window.character.takeControl();
@@ -7895,13 +8141,53 @@
 			if (appName === 'music') {
 				document.getElementById('phone-home').classList.add('hidden');
 				document.getElementById('phone-music-app').classList.add('active');
+				document.getElementById('phone-messenger-app').classList.remove('active');
+			} else if (appName === 'messenger') {
+				// Check if user is logged in
+				if (!window.authState?.isLoggedIn) {
+					alert('Please login on the desktop computer first to use Messenger');
+					return;
+				}
+				document.getElementById('phone-home').classList.add('hidden');
+				document.getElementById('phone-messenger-app').classList.add('active');
+				document.getElementById('phone-music-app').classList.remove('active');
+				// Show conversations list
+				document.getElementById('messenger-conversations-view').style.display = 'block';
+				document.getElementById('messenger-chat-view').style.display = 'none';
+			}
+		};
+
+		// Open messenger chat from conversations list
+		window.openMessengerChat = function() {
+			document.getElementById('messenger-conversations-view').style.display = 'none';
+			document.getElementById('messenger-chat-view').style.display = 'block';
+			// Load chat messages
+			loadPhoneChatMessages();
+			// Start polling
+			if (!window.phoneChatPolling) {
+				startPhoneChatPolling();
+			}
+		};
+
+		// Close messenger chat back to conversations list
+		window.closeMessengerChat = function() {
+			document.getElementById('messenger-chat-view').style.display = 'none';
+			document.getElementById('messenger-conversations-view').style.display = 'block';
+			// Stop chat polling when leaving chat
+			if (window.phoneChatPolling) {
+				stopPhoneChatPolling();
 			}
 		};
 
 		// Close music app back to home
 		window.closePhoneApp = function() {
 			document.getElementById('phone-music-app').classList.remove('active');
+			document.getElementById('phone-messenger-app').classList.remove('active');
 			document.getElementById('phone-home').classList.remove('hidden');
+			// Stop chat polling when closing messenger
+			if (window.phoneChatPolling) {
+				stopPhoneChatPolling();
+			}
 		};
 
 		// Update phone time
@@ -7911,6 +8197,187 @@
 			const minutes = now.getMinutes().toString().padStart(2, '0');
 			document.getElementById('phone-time').textContent = `${hours}:${minutes}`;
 		}
+
+		// Phone chat functionality
+		let phoneLastMessageTimestamp = 0;
+		let phoneDisplayedMessageIds = new Set();
+		window.phoneChatPolling = null;
+
+		async function loadPhoneChatMessages() {
+			try {
+				const response = await fetch(`${RADIO_API_BASE_URL}/api/v1/chat/messages?limit=50`);
+				const result = await response.json();
+				const phoneChatMessages = document.getElementById('phone-chat-messages');
+
+				if (result.success && result.data.length > 0) {
+					phoneChatMessages.innerHTML = '';
+					phoneDisplayedMessageIds.clear();
+
+					result.data.forEach(msg => {
+						addPhoneChatMessage(msg.username, msg.text, msg.createdAt, msg.photoURL, msg.id, msg.uid);
+						phoneLastMessageTimestamp = msg.createdAt;
+					});
+
+					// Scroll to bottom
+					phoneChatMessages.scrollTop = phoneChatMessages.scrollHeight;
+				} else {
+					phoneChatMessages.innerHTML = '<div style="color: rgba(255,255,255,0.4); text-align: center; padding: 20px; font-size: 14px;">No messages yet</div>';
+				}
+			} catch (error) {
+				console.error('Error loading phone messages:', error);
+			}
+		}
+
+		function addPhoneChatMessage(username, text, timestamp, photoURL, msgId, uid) {
+			if (phoneDisplayedMessageIds.has(msgId)) return;
+			phoneDisplayedMessageIds.add(msgId);
+
+			const phoneChatMessages = document.getElementById('phone-chat-messages');
+			const messageDiv = document.createElement('div');
+			messageDiv.style.cssText = 'display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start;';
+
+			const avatar = document.createElement('div');
+			avatar.style.cssText = `width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 14px; ${photoURL ? `background-image: url('${photoURL}'); background-size: cover; background-position: center;` : ''}`;
+			if (!photoURL) {
+				avatar.textContent = username.charAt(0).toUpperCase();
+			}
+
+			const content = document.createElement('div');
+			content.style.cssText = 'flex: 1; min-width: 0;';
+
+			const header = document.createElement('div');
+			header.style.cssText = 'display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;';
+
+			const usernameLink = document.createElement('a');
+			usernameLink.href = `https://www.sublair.com/u/${username}`;
+			usernameLink.target = '_blank';
+			usernameLink.textContent = username;
+			usernameLink.style.cssText = 'color: #00c6ff; font-weight: 600; font-size: 14px; text-decoration: none;';
+			usernameLink.onclick = (e) => e.stopPropagation();
+
+			const time = document.createElement('span');
+			const date = new Date(timestamp);
+			time.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+			time.style.cssText = 'color: rgba(255,255,255,0.4); font-size: 12px;';
+
+			header.appendChild(usernameLink);
+			header.appendChild(time);
+
+			const messageText = document.createElement('div');
+			const urlRegex = /(https?:\/\/[^\s]+)/g;
+			const linkedText = text.replace(urlRegex, (url) => {
+				return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #5b9bd5; text-decoration: underline;">${url}</a>`;
+			});
+			messageText.innerHTML = linkedText;
+			messageText.style.cssText = 'color: rgba(255,255,255,0.9); font-size: 14px; line-height: 1.5; word-wrap: break-word;';
+
+			content.appendChild(header);
+			content.appendChild(messageText);
+			messageDiv.appendChild(avatar);
+			messageDiv.appendChild(content);
+			phoneChatMessages.appendChild(messageDiv);
+		}
+
+		async function pollPhoneMessages() {
+			if (!phoneLastMessageTimestamp) return;
+
+			try {
+				const response = await fetch(`${RADIO_API_BASE_URL}/api/v1/chat/messages?limit=10`);
+				const result = await response.json();
+
+				if (result.success && result.data.length > 0) {
+					const phoneChatMessages = document.getElementById('phone-chat-messages');
+					result.data.forEach(msg => {
+						if (msg.createdAt > phoneLastMessageTimestamp) {
+							addPhoneChatMessage(msg.username, msg.text, msg.createdAt, msg.photoURL, msg.id, msg.uid);
+							phoneLastMessageTimestamp = msg.createdAt;
+						}
+					});
+					// Scroll to bottom
+					phoneChatMessages.scrollTop = phoneChatMessages.scrollHeight;
+				}
+			} catch (error) {
+				console.error('Error polling phone messages:', error);
+			}
+		}
+
+		function startPhoneChatPolling() {
+			if (window.phoneChatPolling) return;
+			window.phoneChatPolling = setInterval(pollPhoneMessages, 2000);
+			console.log('📱 Started phone chat polling');
+		}
+
+		function stopPhoneChatPolling() {
+			if (window.phoneChatPolling) {
+				clearInterval(window.phoneChatPolling);
+				window.phoneChatPolling = null;
+				console.log('📱 Stopped phone chat polling');
+			}
+		}
+
+		// Phone chat send message
+		document.getElementById('phone-chat-send').addEventListener('click', async () => {
+			const input = document.getElementById('phone-chat-input');
+			const message = input.value.trim();
+			if (!message) return;
+
+			if (message.length > 500) {
+				alert('Message too long (max 500 characters)');
+				return;
+			}
+
+			try {
+				const sendBtn = document.getElementById('phone-chat-send');
+				sendBtn.disabled = true;
+				sendBtn.style.opacity = '0.5';
+
+				const response = await fetch(`${RADIO_API_BASE_URL}/api/v1/chat/messages`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						text: message,
+						idToken: window.authState.idToken
+					})
+				});
+
+				const result = await response.json();
+
+				if (!result.success) {
+					throw new Error(result.error || 'Failed to send message');
+				}
+
+				// Play sent message sound
+				if (window.uiSoundEngine) {
+					window.uiSoundEngine.play('sentMessage');
+				}
+
+				input.value = '';
+				// Reload messages to show new message
+				await loadPhoneChatMessages();
+
+			} catch (error) {
+				console.error('Error sending phone message:', error);
+				alert('Failed to send message: ' + error.message);
+			} finally {
+				const sendBtn = document.getElementById('phone-chat-send');
+				sendBtn.disabled = false;
+				sendBtn.style.opacity = '1';
+			}
+		});
+
+		// Phone chat send on Enter key and tock sound on typing
+		document.getElementById('phone-chat-input').addEventListener('keypress', (e) => {
+			if (e.key === 'Enter') {
+				document.getElementById('phone-chat-send').click();
+			} else {
+				// Play tock sound on keypress with varied pitch like iOS
+				if (window.uiSoundEngine) {
+					// Random pitch between 0.95 and 1.05 for natural variation
+					const pitch = 0.95 + Math.random() * 0.1;
+					window.uiSoundEngine.play('tock', { pitch: pitch, allowOverlap: true });
+				}
+			}
+		});
 
 		// Click outside to close car radio
 		document.addEventListener('click', (e) => {
@@ -8014,8 +8481,18 @@
 				return;
 			}
 
+			// Clear any existing radio play count timer
+			if (radioPlayCountTimer) {
+				clearTimeout(radioPlayCountTimer);
+				radioPlayCountTimer = null;
+			}
+
 			radioCurrentIndex = index;
 			const track = radioTracksData[index];
+
+			// Store current track ID and user ID for play counting
+			radioCurrentTrackId = track.id;
+			radioCurrentTrackUserId = track.user_id;
 
 			// Update now playing display
 			document.getElementById('radio-current-title').textContent = track.title || 'Unknown';
@@ -8079,8 +8556,22 @@
 				window.carPositionalAudio.play();
 				window.carAudioSource = window.carPositionalAudio; // Store reference for controls
 
+				// Start 30-second timer for play count
+				if (radioCurrentTrackId) {
+					radioPlayCountTimer = setTimeout(() => {
+						window.incrementPlayCount(radioCurrentTrackId, radioCurrentTrackUserId);
+						radioPlayCountTimer = null;
+					}, 30000); // 30 seconds
+					console.log(`⏱️ Started 30-second play count timer for radio track ${radioCurrentTrackId}`);
+				}
+
 				// Auto-play next track when current one ends
 				window.carPositionalAudio.onEnded = function() {
+					// Clear play count timer if track ends before 30 seconds
+					if (radioPlayCountTimer) {
+						clearTimeout(radioPlayCountTimer);
+						radioPlayCountTimer = null;
+					}
 					console.log('🔄 Track ended, playing next...');
 					window.radioSkipNext();
 				};
@@ -8111,12 +8602,22 @@
 
 		window.radioSkipNext = function() {
 			if (radioTracksData.length === 0) return;
+			// Clear play count timer when skipping
+			if (radioPlayCountTimer) {
+				clearTimeout(radioPlayCountTimer);
+				radioPlayCountTimer = null;
+			}
 			const nextIndex = (radioCurrentIndex + 1) % radioTracksData.length;
 			playRadioTrack(nextIndex);
 		};
 
 		window.radioSkipPrev = function() {
 			if (radioTracksData.length === 0) return;
+			// Clear play count timer when skipping
+			if (radioPlayCountTimer) {
+				clearTimeout(radioPlayCountTimer);
+				radioPlayCountTimer = null;
+			}
 			const prevIndex = radioCurrentIndex - 1 < 0 ? radioTracksData.length - 1 : radioCurrentIndex - 1;
 			playRadioTrack(prevIndex);
 		};

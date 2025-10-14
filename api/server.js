@@ -767,6 +767,57 @@ v1Router.get('/auth/verify', async (req, res) => {
   }
 });
 
+// POST /api/v1/tracks/:trackId/play - Increment play count for a track
+v1Router.post('/tracks/:trackId/play', async (req, res) => {
+  const { trackId } = req.params;
+  console.log(`🎵 POST /api/v1/tracks/${trackId}/play`);
+
+  if (!trackId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Track ID is required'
+    });
+  }
+
+  try {
+    // Get current track data
+    const trackRef = realtimeDb.ref(`tracks/${trackId}`);
+    const snapshot = await trackRef.once('value');
+    const track = snapshot.val();
+
+    if (!track) {
+      return res.status(404).json({
+        success: false,
+        error: 'Track not found'
+      });
+    }
+
+    // Increment listens_count
+    const currentListens = track.listens_count || 0;
+    const newListens = currentListens + 1;
+
+    await trackRef.update({
+      listens_count: newListens,
+      last_played_at: Date.now()
+    });
+
+    console.log(`✅ Incremented listen count for track ${trackId}: ${currentListens} -> ${newListens}`);
+    res.json({
+      success: true,
+      data: {
+        trackId: trackId,
+        listens_count: newListens
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error incrementing play count:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to increment play count'
+    });
+  }
+});
+
 // Mount v1 router
 app.use('/api/v1', v1Router);
 

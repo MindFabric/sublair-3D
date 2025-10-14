@@ -829,7 +829,10 @@
 		.car-radio-content {
 			flex: 1;
 			overflow-y: auto;
+			overflow-x: hidden;
 			padding: 12px 20px 140px 20px;
+			-webkit-overflow-scrolling: touch;
+			overscroll-behavior: contain;
 		}
 
 		.car-radio-bottom-bar {
@@ -2251,6 +2254,26 @@
 					</div>
 					<div class="phone-app-label">Messenger</div>
 				</div>
+				<div class="phone-app" onclick="openPhoneApp('flappy')">
+					<div class="phone-app-icon" style="background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); display: flex; align-items: center; justify-content: center;">
+						<svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+							<circle cx="12" cy="12" r="8" fill="white"/>
+							<circle cx="10" cy="10" r="1.5" fill="#000"/>
+							<path d="M14 14 Q12 16 10 14" stroke="#ff8c00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+							<path d="M8 6 L6 4 L7 8 Z" fill="#ff8c00"/>
+						</svg>
+					</div>
+					<div class="phone-app-label">Floaty</div>
+				</div>
+				<div class="phone-app" onclick="openPhoneApp('settings')">
+					<div class="phone-app-icon" style="background: linear-gradient(135deg, #8e8e93 0%, #636366 100%); display: flex; align-items: center; justify-content: center;">
+						<svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+							<path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="white" stroke-width="2"/>
+							<path d="M19.4 15C19.2669 15.3016 19.2272 15.6362 19.286 15.9606C19.3448 16.285 19.4995 16.5843 19.73 16.82L19.79 16.88C19.976 17.0657 20.1235 17.2863 20.2241 17.5291C20.3248 17.7719 20.3766 18.0322 20.3766 18.295C20.3766 18.5578 20.3248 18.8181 20.2241 19.0609C20.1235 19.3037 19.976 19.5243 19.79 19.71C19.6043 19.896 19.3837 20.0435 19.1409 20.1441C18.8981 20.2448 18.6378 20.2966 18.375 20.2966C18.1122 20.2966 17.8519 20.2448 17.6091 20.1441C17.3663 20.0435 17.1457 19.896 16.96 19.71L16.9 19.65C16.6643 19.4195 16.365 19.2648 16.0406 19.206C15.7162 19.1472 15.3816 19.1869 15.08 19.32C14.7842 19.4468 14.532 19.6572 14.3543 19.9255C14.1766 20.1938 14.0813 20.5082 14.08 20.83V21C14.08 21.5304 13.8693 22.0391 13.4942 22.4142C13.1191 22.7893 12.6104 23 12.08 23C11.5496 23 11.0409 22.7893 10.6658 22.4142C10.2907 22.0391 10.08 21.5304 10.08 21V20.91C10.0723 20.579 9.96512 20.258 9.77251 19.9887C9.5799 19.7194 9.31074 19.5143 9 19.4C8.69838 19.2669 8.36381 19.2272 8.03941 19.286C7.71502 19.3448 7.41568 19.4995 7.18 19.73L7.12 19.79C6.93425 19.976 6.71368 20.1235 6.47088 20.2241C6.22808 20.3248 5.96783 20.3766 5.705 20.3766C5.44217 20.3766 5.18192 20.3248 4.93912 20.2241C4.69632 20.1235 4.47575 19.976 4.29 19.79C4.10405 19.6043 3.95653 19.3837 3.85588 19.1409C3.75523 18.8981 3.70343 18.6378 3.70343 18.375C3.70343 18.1122 3.75523 17.8519 3.85588 17.6091C3.95653 17.3663 4.10405 17.1457 4.29 16.96L4.35 16.9C4.58054 16.6643 4.73519 16.365 4.794 16.0406C4.85282 15.7162 4.81312 15.3816 4.68 15.08C4.55324 14.7842 4.34276 14.532 4.07447 14.3543C3.80618 14.1766 3.49179 14.0813 3.17 14.08H3C2.46957 14.08 1.96086 13.8693 1.58579 13.4942C1.21071 13.1191 1 12.6104 1 12.08C1 11.5496 1.21071 11.0409 1.58579 10.6658C1.96086 10.2907 2.46957 10.08 3 10.08H3.09C3.42099 10.0723 3.742 9.96512 4.0113 9.77251C4.28059 9.5799 4.48572 9.31074 4.6 9C4.73312 8.69838 4.77282 8.36381 4.714 8.03941C4.65519 7.71502 4.50054 7.41568 4.27 7.18L4.21 7.12C4.02405 6.93425 3.87653 6.71368 3.77588 6.47088C3.67523 6.22808 3.62343 5.96783 3.62343 5.705C3.62343 5.44217 3.67523 5.18192 3.77588 4.93912C3.87653 4.69632 4.02405 4.47575 4.21 4.29C4.39575 4.10405 4.61632 3.95653 4.85912 3.85588C5.10192 3.75523 5.36217 3.70343 5.625 3.70343C5.88783 3.70343 6.14808 3.75523 6.39088 3.85588C6.63368 3.95653 6.85425 4.10405 7.04 4.29L7.1 4.35C7.33568 4.58054 7.63502 4.73519 7.95941 4.794C8.28381 4.85282 8.61838 4.81312 8.92 4.68H9C9.29577 4.55324 9.54802 4.34276 9.72569 4.07447C9.90337 3.80618 9.99872 3.49179 10 3.17V3C10 2.46957 10.2107 1.96086 10.5858 1.58579C10.9609 1.21071 11.4696 1 12 1C12.5304 1 13.0391 1.21071 13.4142 1.58579C13.7893 1.96086 14 2.46957 14 3V3.09C14.0013 3.41179 14.0966 3.72618 14.2743 3.99447C14.452 4.26276 14.7042 4.47324 15 4.6C15.3016 4.73312 15.6362 4.77282 15.9606 4.714C16.285 4.65519 16.5843 4.50054 16.82 4.27L16.88 4.21C17.0657 4.02405 17.2863 3.87653 17.5291 3.77588C17.7719 3.67523 18.0322 3.62343 18.295 3.62343C18.5578 3.62343 18.8181 3.67523 19.0609 3.77588C19.3037 3.87653 19.5243 4.02405 19.71 4.21C19.896 4.39575 20.0435 4.61632 20.1441 4.85912C20.2448 5.10192 20.2966 5.36217 20.2966 5.625C20.2966 5.88783 20.2448 6.14808 20.1441 6.39088C20.0435 6.63368 19.896 6.85425 19.71 7.04L19.65 7.1C19.4195 7.33568 19.2648 7.63502 19.206 7.95941C19.1472 8.28381 19.1869 8.61838 19.32 8.92V9C19.4468 9.29577 19.6572 9.54802 19.9255 9.72569C20.1938 9.90337 20.5082 9.99872 20.83 10H21C21.5304 10 22.0391 10.2107 22.4142 10.5858C22.7893 10.9609 23 11.4696 23 12C23 12.5304 22.7893 13.0391 22.4142 13.4142C22.0391 13.7893 21.5304 14 21 14H20.91C20.5882 14.0013 20.2738 14.0966 20.0055 14.2743C19.7372 14.452 19.5268 14.7042 19.4 15Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+					</div>
+					<div class="phone-app-label">Settings</div>
+				</div>
 			</div>
 
 			<div class="phone-home-indicator"></div>
@@ -2312,12 +2335,12 @@
 			</div>
 
 			<!-- Chat View -->
-			<div id="messenger-chat-view" style="display: none;">
+			<div id="messenger-chat-view" style="display: none; height: 100%; width: 100%; position: absolute; top: 0; left: 0; flex-direction: column;">
 				<div class="car-radio-header">
 					<button class="phone-back-btn" onclick="closeMessengerChat()">‹</button>
 					<div class="car-radio-title">Global Chat</div>
 				</div>
-				<div class="car-radio-content" id="phone-chat-messages" style="padding: 16px 20px 80px 20px;">
+				<div class="car-radio-content" id="phone-chat-messages" style="padding: 16px 20px 80px 20px; flex: 1;">
 					<!-- Chat messages will be loaded here -->
 				</div>
 				<div class="car-radio-bottom-bar" style="padding: 16px 20px 32px 20px; background: rgba(0, 0, 0, 0.95);">
@@ -2326,6 +2349,97 @@
 						<button id="phone-chat-send" style="background: #00c6ff; border: none; border-radius: 50%; width: 40px; height: 40px; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">➤</button>
 					</div>
 				</div>
+			</div>
+		</div>
+
+		<!-- Settings App Screen -->
+		<div id="phone-settings-app" class="phone-music-app">
+			<div class="car-radio-header">
+				<button class="phone-back-btn" onclick="closePhoneApp()">‹</button>
+				<div class="car-radio-title">Settings</div>
+			</div>
+			<div class="car-radio-content" style="padding: 20px;">
+				<!-- Bluetooth Section -->
+				<div style="margin-bottom: 24px;">
+					<div style="font-family: 'Share', monospace; font-size: 18px; font-weight: bold; color: #fff; margin-bottom: 12px;">Bluetooth</div>
+					<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 8px; margin-bottom: 8px;">
+						<div style="font-family: 'Share', monospace; color: #fff; font-size: 14px;">Bluetooth</div>
+						<div id="bluetooth-toggle" onclick="toggleBluetooth()" style="width: 50px; height: 30px; background: rgba(255, 255, 255, 0.3); border-radius: 15px; position: relative; cursor: pointer; transition: background 0.3s;">
+							<div style="width: 26px; height: 26px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: all 0.3s;"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Audio Output Section -->
+				<div id="audio-output-section" style="margin-bottom: 24px; opacity: 0.5; pointer-events: none; position: relative;">
+					<div style="font-family: 'Share', monospace; font-size: 18px; font-weight: bold; color: #fff; margin-bottom: 12px;">Audio Output</div>
+
+					<!-- The Stack -->
+					<div onclick="selectAudioOutput('stack')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+						<div>
+							<div style="font-family: 'Share', monospace; color: #fff; font-size: 16px;">The Stack</div>
+							<div style="font-family: 'Share', monospace; color: rgba(255, 255, 255, 0.6); font-size: 12px;">Desktop speakers</div>
+						</div>
+						<div id="stack-check" style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid #0a84ff; display: flex; align-items: center; justify-content: center;">
+							<div style="width: 12px; height: 12px; border-radius: 50%; background: #0a84ff;"></div>
+						</div>
+					</div>
+
+					<!-- The Car -->
+					<div onclick="selectAudioOutput('car')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+						<div>
+							<div style="font-family: 'Share', monospace; color: #fff; font-size: 16px;">The Car</div>
+							<div style="font-family: 'Share', monospace; color: rgba(255, 255, 255, 0.6); font-size: 12px;">Car audio system</div>
+						</div>
+						<div id="car-check" style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.3);"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Flappy Bird Game Screen -->
+		<div id="phone-flappy-app" class="phone-music-app">
+			<div class="car-radio-header">
+				<button class="phone-back-btn" onclick="closePhoneApp()">‹</button>
+				<div class="car-radio-title">Floaty</div>
+			</div>
+			<div class="car-radio-content" style="padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(180deg, #4ec0ca 0%, #87ceeb 100%); position: relative;">
+				<canvas id="flappy-canvas" width="320" height="480" style="max-width: 100%; max-height: 100%; border: none; cursor: pointer;"></canvas>
+				<div id="flappy-score" style="position: absolute; top: 80px; left: 50%; transform: translateX(-50%); font-family: 'Share', monospace; font-size: 48px; font-weight: bold; color: #fff; text-shadow: 3px 3px 0 #000; pointer-events: none;">0</div>
+
+				<!-- Start Screen -->
+				<div id="flappy-start" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #fff; font-family: 'Share', monospace; pointer-events: none;">
+					<div style="font-size: 32px; font-weight: bold; margin-bottom: 16px; text-shadow: 2px 2px 0 #000;">FLOATY</div>
+					<div style="font-size: 18px; text-shadow: 2px 2px 0 #000;">TAP TO START</div>
+					<button onclick="showFloatyHighScores(event)" style="margin-top: 20px; padding: 8px 16px; background: rgba(255, 255, 255, 0.2); border: 2px solid #fff; border-radius: 8px; color: #fff; font-family: 'Share', monospace; font-size: 14px; cursor: pointer; pointer-events: all; text-shadow: 2px 2px 0 #000;">HIGH SCORES</button>
+				</div>
+
+				<!-- Game Over Screen -->
+				<div id="flappy-gameover" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #fff; font-family: 'Share', monospace; pointer-events: none;">
+					<div style="font-size: 32px; font-weight: bold; margin-bottom: 16px; text-shadow: 2px 2px 0 #000;">GAME OVER</div>
+					<div id="flappy-final-score" style="font-size: 24px; margin-bottom: 8px; text-shadow: 2px 2px 0 #000;">Score: 0</div>
+					<div id="flappy-high-score-msg" style="font-size: 16px; margin-bottom: 16px; text-shadow: 2px 2px 0 #000; color: #ffd700;"></div>
+					<div style="font-size: 18px; text-shadow: 2px 2px 0 #000;">TAP TO RESTART</div>
+					<button onclick="showFloatyHighScores(event)" style="margin-top: 20px; padding: 8px 16px; background: rgba(255, 255, 255, 0.2); border: 2px solid #fff; border-radius: 8px; color: #fff; font-family: 'Share', monospace; font-size: 14px; cursor: pointer; pointer-events: all; text-shadow: 2px 2px 0 #000;">HIGH SCORES</button>
+				</div>
+
+				<!-- High Scores Screen -->
+				<div id="flappy-highscores" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.9); padding: 20px; overflow-y: auto; pointer-events: all;">
+					<div style="text-align: center; color: #fff; font-family: 'Share', monospace;">
+						<div style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">HIGH SCORES</div>
+						<div id="flappy-highscores-list" style="margin-bottom: 20px;"></div>
+						<button onclick="closeFloatyHighScores()" style="padding: 10px 20px; background: #ffd700; border: none; border-radius: 8px; color: #000; font-family: 'Share', monospace; font-size: 16px; cursor: pointer; font-weight: bold;">BACK</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Custom Phone Alert Overlay -->
+		<div id="phone-alert-overlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px); z-index: 1000; align-items: center; justify-content: center;">
+			<div style="background: rgba(30, 30, 30, 0.95); border-radius: 16px; padding: 24px; width: 280px; text-align: center; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);">
+				<div id="phone-alert-title" style="font-family: 'Share', monospace; font-size: 18px; font-weight: bold; color: #fff; margin-bottom: 12px;"></div>
+				<div id="phone-alert-message" style="font-family: 'Share', monospace; font-size: 14px; color: rgba(255, 255, 255, 0.8); margin-bottom: 24px; line-height: 1.5;"></div>
+				<button onclick="closePhoneAlert()" style="width: 100%; padding: 12px; background: #0a84ff; border: none; border-radius: 8px; color: #fff; font-family: 'Share', monospace; font-size: 16px; cursor: pointer; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='#0066cc'" onmouseout="this.style.background='#0a84ff'">OK</button>
 			</div>
 		</div>
 	</div>
@@ -6421,14 +6535,18 @@
 					// Pause
 					positionalAudio.pause();
 					isAudioPaused = true;
+					window.isPlaybackPaused = true;
 					document.getElementById('audio-play-pause').textContent = '▶ PLAY';
 					document.getElementById('desktop-audio-status').textContent = 'PAUSED';
+					updatePhonePlayerUI();
 				} else {
 					// Play/Resume
 					positionalAudio.play();
 					isAudioPaused = false;
+					window.isPlaybackPaused = false;
 					document.getElementById('audio-play-pause').textContent = '❚❚ PAUSE';
 					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${currentTrackTitle}`;
+					updatePhonePlayerUI();
 				}
 			});
 
@@ -6585,6 +6703,17 @@
 
 					positionalAudio.play();
 					currentTrack = url;
+
+					// Set global playback state for desktop
+					window.currentPlaybackSource = 'desktop';
+					window.currentPlaybackTrack = {
+						title: title,
+						artworkUrl: artworkUrl,
+						trackId: trackId,
+						url: url
+					};
+					window.isPlaybackPaused = false;
+					updatePhonePlayerUI();
 
 					// Start 30-second timer for play count
 					if (currentTrackId) {
@@ -7412,7 +7541,12 @@
 			uiSoundEngine.loadSounds([
 				{ name: 'lock', path: 'build/snds/lock.wav', options: { volume: 0.4 } },
 				{ name: 'sentMessage', path: 'build/snds/SentMessage.wav', options: { volume: 0.4 } },
-				{ name: 'tock', path: 'build/snds/Tock.wav', options: { volume: 0.3 } }
+				{ name: 'tock', path: 'build/snds/Tock.wav', options: { volume: 0.3 } },
+				// Flappy Bird sounds
+				{ name: 'fb_wing', path: 'build/snds/fb_wing.wav', options: { volume: 0.5 } },
+				{ name: 'fb_point', path: 'build/snds/fb_point.wav', options: { volume: 0.5 } },
+				{ name: 'fb_hit', path: 'build/snds/fb_hit.wav', options: { volume: 0.5 } },
+				{ name: 'fb_die', path: 'build/snds/fb_die.wav', options: { volume: 0.5 } }
 			]).then(() => {
 				console.log('UI sounds loaded!');
 				console.log('All sounds loaded!');
@@ -7740,12 +7874,32 @@
 					nearCar = true;
 					interactionPrompt.innerHTML = 'Press <kbd>R</kbd> for phone';
 					interactionPrompt.classList.add('show');
+
+					// Auto-connect to car audio when entering vehicle (only if bluetooth is on)
+					if (window.bluetoothEnabled && window.currentAudioOutput !== 'car') {
+						window.currentAudioOutput = 'car';
+						console.log('🚗 Auto-connected to car audio system');
+						// Update UI if settings app is open
+						if (document.getElementById('phone-settings-app').classList.contains('active')) {
+							window.selectAudioOutput('car');
+						}
+					}
 				} else if (!inVehicle && nearCar) {
 					nearCar = false;
 					// Reset the dismissed flag when exiting vehicle
 					radioPromptDismissed = false;
 					if (!nearComputer) {
 						interactionPrompt.classList.remove('show');
+					}
+
+					// Auto-switch back to stack when exiting vehicle (only if bluetooth is on)
+					if (window.bluetoothEnabled && window.currentAudioOutput === 'car') {
+						window.currentAudioOutput = 'stack';
+						console.log('🏠 Auto-connected to stack audio system');
+						// Update UI if settings app is open
+						if (document.getElementById('phone-settings-app').classList.contains('active')) {
+							window.selectAudioOutput('stack');
+						}
 					}
 				}
 			}
@@ -8031,10 +8185,24 @@
 			// Handle R key press for radio (universal access)
 			document.addEventListener('keydown', (e) => {
 				if (e.key === 'r' || e.key === 'R') {
+					// Don't toggle if Ctrl+R or Cmd+R (page refresh)
+					if (e.ctrlKey || e.metaKey) {
+						return;
+					}
+
 					// Don't toggle if user is typing in an input field
 					if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
 						return;
 					}
+
+					// Don't toggle if customization menu or terminal is open
+					if (window.customizationOpen || window.terminalOpen) {
+						return;
+					}
+
+					// Prevent the event from propagating to avoid double-firing
+					e.preventDefault();
+					e.stopPropagation();
 
 					// Dismiss prompt if near car
 					if (nearCar && !radioPromptDismissed) {
@@ -8074,10 +8242,58 @@
 		let radioCurrentIndex = -1;
 		const carRadioDiv = document.getElementById('car-radio');
 
+		// Global playback state for syncing desktop and phone
+		window.currentPlaybackSource = null; // 'desktop' or 'phone'
+		window.currentPlaybackTrack = null; // track info
+		window.isPlaybackPaused = false;
+
+		// Update phone player UI to match current playback state
+		function updatePhonePlayerUI() {
+			if (!window.currentPlaybackTrack) return;
+
+			const btn = document.getElementById('radio-play-btn');
+			const titleEl = document.getElementById('radio-current-title');
+			const artistEl = document.getElementById('radio-current-artist');
+			const artEl = document.querySelector('.car-radio-mini-art');
+
+			// Update play/pause button
+			if (btn) {
+				btn.textContent = window.isPlaybackPaused ? '▶' : '⏸';
+			}
+
+			// Update now playing info
+			if (titleEl) {
+				titleEl.textContent = window.currentPlaybackTrack.title || 'Unknown';
+			}
+			if (artistEl) {
+				artistEl.textContent = window.currentPlaybackTrack.artist || (window.currentPlaybackSource === 'desktop' ? 'Desktop Playback' : 'Unknown Artist');
+			}
+
+			// Update artwork
+			if (artEl) {
+				if (window.currentPlaybackTrack.artworkUrl) {
+					artEl.style.backgroundImage = `url('${window.currentPlaybackTrack.artworkUrl}')`;
+				} else {
+					artEl.style.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+				}
+			}
+		}
+		window.updatePhonePlayerUI = updatePhonePlayerUI;
+
 		// Toggle car radio
+		window.isOpeningPhone = false; // Flag to prevent double-toggling during opening animation
 		window.toggleCarRadio = function() {
+			// Prevent toggling while phone is in process of opening
+			if (window.isOpeningPhone) {
+				console.log('⏳ Phone is opening, please wait...');
+				return;
+			}
+
+			const previousState = window.radioOpen;
 			window.radioOpen = radioOpen = !radioOpen;
+			console.log(`🔄 Toggling phone: was ${previousState}, now ${radioOpen}`);
 			if (radioOpen) {
+				window.isOpeningPhone = true; // Set flag to prevent re-toggling
 				// Smoothly decelerate character before opening
 				if (window.character) {
 					character.velocitySimulator.target.set(0, 0, 0);
@@ -8089,6 +8305,7 @@
 						// If character is nearly stopped (velocity < 0.1)
 						if (speed < 0.1) {
 							clearInterval(checkStopInterval);
+							window.isOpeningPhone = false; // Clear flag
 
 							// Fully stop the character
 							character.velocity.set(0, 0, 0);
@@ -8104,8 +8321,9 @@
 							updatePhoneTime();
 							document.exitPointerLock();
 
-							// Disable character controls
-							if (window.dummyInputReceiver && window.world) {
+							// Only disable controls if NOT in a vehicle
+							const inVehicle = window.character.controlledObject && window.character.controlledObject.rayCastVehicle;
+							if (!inVehicle && window.dummyInputReceiver && window.world) {
 								window.world.inputManager.inputReceiver = window.dummyInputReceiver;
 							}
 
@@ -8113,10 +8331,14 @@
 							if (radioTracksData.length === 0) {
 								loadRadioTracks();
 							}
+
+							// Sync phone player UI with current playback
+							updatePhonePlayerUI();
 						}
 					}, 16); // Check every frame (~60fps)
 				} else {
 					// No character, open immediately
+					window.isOpeningPhone = false; // Clear flag immediately for instant open
 					carRadioDiv.classList.add('active');
 					document.getElementById('phone-home').classList.remove('hidden');
 					document.getElementById('phone-music-app').classList.remove('active');
@@ -8125,45 +8347,145 @@
 					if (radioTracksData.length === 0) {
 						loadRadioTracks();
 					}
+
+					// Sync phone player UI with current playback
+					updatePhonePlayerUI();
 				}
 			} else {
+				window.isOpeningPhone = false; // Clear flag when closing
 				carRadioDiv.classList.remove('active');
+				console.log('📱 Closing phone...');
+
+				// Use PhoneAppManager to properly close everything
+				if (window.PhoneAppManager) {
+					PhoneAppManager.closeApp();
+				} else {
+					console.error('❌ PhoneAppManager not available!');
+				}
+
 				// Play lock sound when closing phone
 				if (window.uiSoundEngine) {
 					window.uiSoundEngine.play('lock');
 				}
-				// Re-enable character controls
+
+				// Re-enable character controls (character handles both on-foot and vehicle control)
 				if (window.character) {
 					window.character.takeControl();
 				}
 			}
 		};
 
-		// Open phone app
-		window.openPhoneApp = function(appName) {
-			if (appName === 'music') {
-				document.getElementById('phone-home').classList.add('hidden');
-				document.getElementById('phone-music-app').classList.add('active');
-				document.getElementById('phone-messenger-app').classList.remove('active');
-			} else if (appName === 'messenger') {
-				// Check if user is logged in
-				if (!window.authState?.isLoggedIn) {
-					alert('Please login on the desktop computer first to use Messenger');
+		// Centralized Phone App Management System
+		const PhoneAppManager = {
+			apps: ['music', 'messenger', 'flappy', 'settings'],
+			currentApp: null,
+
+			// Clean up ALL apps before switching
+			cleanupAllApps: function() {
+				// Close all overlays
+				closePhoneAlert();
+				const highscores = document.getElementById('flappy-highscores');
+				if (highscores) highscores.style.display = 'none';
+
+				// Stop Floaty game
+				if (window.flappyGame && window.flappyGame.animationFrame) {
+					cancelAnimationFrame(window.flappyGame.animationFrame);
+					window.flappyGame.animationFrame = null;
+					window.flappyGame.gameStarted = false;
+					window.flappyGame.gameOver = false;
+				}
+
+				// Stop chat polling
+				if (window.phoneChatPolling) {
+					stopPhoneChatPolling();
+				}
+
+				// Reset messenger to conversations view
+				document.getElementById('messenger-chat-view').style.display = 'none';
+				document.getElementById('messenger-conversations-view').style.display = 'block';
+
+				// Clear all input focus
+				const phoneInputs = document.querySelectorAll('#car-radio input, #car-radio textarea');
+				phoneInputs.forEach(input => input.blur());
+			},
+
+			// Deactivate ALL apps
+			deactivateAllApps: function() {
+				this.apps.forEach(app => {
+					const appEl = document.getElementById(`phone-${app}-app`);
+					appEl.classList.remove('active');
+					// NUCLEAR FIX: Use display none to completely remove from layout
+					appEl.style.display = 'none';
+				});
+			},
+
+			// Open a specific app
+			openApp: function(appName) {
+				// Validation check for messenger
+				if (appName === 'messenger' && !window.authState?.isLoggedIn) {
+					showPhoneAlert('Login Required', 'Please login on the desktop computer first to use Messenger');
 					return;
 				}
+
+				// Clean up previous app state
+				this.cleanupAllApps();
+
+				// Deactivate all apps
+				this.deactivateAllApps();
+
+				// Hide home screen
 				document.getElementById('phone-home').classList.add('hidden');
-				document.getElementById('phone-messenger-app').classList.add('active');
-				document.getElementById('phone-music-app').classList.remove('active');
-				// Show conversations list
-				document.getElementById('messenger-conversations-view').style.display = 'block';
-				document.getElementById('messenger-chat-view').style.display = 'none';
+
+				// Activate the requested app
+				const activeApp = document.getElementById(`phone-${appName}-app`);
+				activeApp.classList.add('active');
+				// Show the app with display flex
+				activeApp.style.display = 'flex';
+
+				// App-specific initialization
+				if (appName === 'messenger') {
+					document.getElementById('messenger-conversations-view').style.display = 'block';
+					document.getElementById('messenger-chat-view').style.display = 'none';
+				} else if (appName === 'flappy') {
+					if (window.initFlappyBird) window.initFlappyBird();
+				}
+
+				this.currentApp = appName;
+				console.log('📱 Opened app:', appName);
+			},
+
+			// Close current app and return to home
+			closeApp: function() {
+				// Clean up current app
+				this.cleanupAllApps();
+
+				// Deactivate all apps
+				this.deactivateAllApps();
+
+				// Show home screen
+				document.getElementById('phone-home').classList.remove('hidden');
+
+				this.currentApp = null;
+				console.log('📱 Closed app, returned to home');
 			}
+		};
+
+		// Expose PhoneAppManager and functions globally
+		window.PhoneAppManager = PhoneAppManager;
+
+		window.openPhoneApp = function(appName) {
+			PhoneAppManager.openApp(appName);
+		};
+
+		window.closePhoneApp = function() {
+			PhoneAppManager.closeApp();
 		};
 
 		// Open messenger chat from conversations list
 		window.openMessengerChat = function() {
 			document.getElementById('messenger-conversations-view').style.display = 'none';
-			document.getElementById('messenger-chat-view').style.display = 'block';
+			const chatView = document.getElementById('messenger-chat-view');
+			chatView.style.display = 'flex';
 			// Load chat messages
 			loadPhoneChatMessages();
 			// Start polling
@@ -8184,13 +8506,15 @@
 
 		// Close music app back to home
 		window.closePhoneApp = function() {
+			// Use centralized cleanup system
+			cleanupPhoneMenus();
+
+			// Reset to home screen
 			document.getElementById('phone-music-app').classList.remove('active');
 			document.getElementById('phone-messenger-app').classList.remove('active');
+			document.getElementById('phone-flappy-app').classList.remove('active');
+			document.getElementById('phone-settings-app').classList.remove('active');
 			document.getElementById('phone-home').classList.remove('hidden');
-			// Stop chat polling when closing messenger
-			if (window.phoneChatPolling) {
-				stopPhoneChatPolling();
-			}
 		};
 
 		// Update phone time
@@ -8384,13 +8708,409 @@
 
 		// Click outside to close car radio
 		document.addEventListener('click', (e) => {
-			if (radioOpen && !customizationOpen) {
+			if (window.radioOpen && !customizationOpen) {
+				// Don't trigger if clicking close button or back buttons
+				if (e.target.classList.contains('car-radio-close') ||
+				    e.target.classList.contains('phone-back-btn')) {
+					return;
+				}
 				// Check if click is outside the car radio menu
 				if (!carRadioDiv.contains(e.target)) {
 					window.toggleCarRadio();
 				}
 			}
 		}, true);
+
+		// Flappy Bird Game Logic
+		let flappyGame = {
+			canvas: null,
+			ctx: null,
+			bird: { x: 50, y: 240, velocity: 0, radius: 12 },
+			pipes: [],
+			score: 0,
+			gameStarted: false,
+			gameOver: false,
+			gravity: 0.15,
+			jumpStrength: -4.5,
+			pipeGap: 170,
+			pipeWidth: 50,
+			pipeSpeed: 1.0,
+			frameCount: 0,
+			animationFrame: null
+		};
+
+		window.initFlappyBird = function() {
+			flappyGame.canvas = document.getElementById('flappy-canvas');
+			flappyGame.ctx = flappyGame.canvas.getContext('2d');
+
+			// Reset game state
+			flappyGame.bird = { x: 50, y: 240, velocity: 0, radius: 12 };
+			flappyGame.pipes = [];
+			flappyGame.score = 0;
+			flappyGame.gameStarted = false;
+			flappyGame.gameOver = false;
+			flappyGame.frameCount = 0;
+
+			document.getElementById('flappy-score').textContent = '0';
+			document.getElementById('flappy-start').style.display = 'block';
+			document.getElementById('flappy-gameover').style.display = 'none';
+
+			// Add click listener to canvas
+			flappyGame.canvas.onclick = function() {
+				if (!flappyGame.gameStarted) {
+					flappyGame.gameStarted = true;
+					document.getElementById('flappy-start').style.display = 'none';
+					flappyGame.gameLoop();
+				} else if (flappyGame.gameOver) {
+					window.initFlappyBird();
+				} else {
+					flappyGame.bird.velocity = flappyGame.jumpStrength;
+					// Play wing sound for jump
+					if (window.uiSoundEngine) {
+						window.uiSoundEngine.play('fb_wing', { allowOverlap: true });
+					}
+				}
+			};
+
+			// Draw initial state
+			flappyGame.draw();
+		};
+
+		flappyGame.gameLoop = function() {
+			if (!flappyGame.gameStarted || flappyGame.gameOver) return;
+
+			flappyGame.update();
+			flappyGame.draw();
+			flappyGame.animationFrame = requestAnimationFrame(flappyGame.gameLoop);
+		};
+
+		flappyGame.update = function() {
+			// Update bird physics
+			flappyGame.bird.velocity += flappyGame.gravity;
+			flappyGame.bird.y += flappyGame.bird.velocity;
+
+			// Generate pipes
+			flappyGame.frameCount++;
+			if (flappyGame.frameCount % 150 === 0) {
+				const gapY = Math.random() * (flappyGame.canvas.height - flappyGame.pipeGap - 120) + 60;
+				flappyGame.pipes.push({
+					x: flappyGame.canvas.width,
+					gapY: gapY,
+					scored: false
+				});
+			}
+
+			// Update pipes
+			for (let i = flappyGame.pipes.length - 1; i >= 0; i--) {
+				const pipe = flappyGame.pipes[i];
+				pipe.x -= flappyGame.pipeSpeed;
+
+				// Remove off-screen pipes
+				if (pipe.x + flappyGame.pipeWidth < 0) {
+					flappyGame.pipes.splice(i, 1);
+					continue;
+				}
+
+				// Score point
+				if (!pipe.scored && pipe.x + flappyGame.pipeWidth < flappyGame.bird.x) {
+					pipe.scored = true;
+					flappyGame.score++;
+					document.getElementById('flappy-score').textContent = flappyGame.score;
+					// Play point sound
+					if (window.uiSoundEngine) {
+						window.uiSoundEngine.play('fb_point', { allowOverlap: true });
+					}
+				}
+
+				// Collision detection
+				const birdLeft = flappyGame.bird.x - flappyGame.bird.radius;
+				const birdRight = flappyGame.bird.x + flappyGame.bird.radius;
+				const birdTop = flappyGame.bird.y - flappyGame.bird.radius;
+				const birdBottom = flappyGame.bird.y + flappyGame.bird.radius;
+
+				if (birdRight > pipe.x && birdLeft < pipe.x + flappyGame.pipeWidth) {
+					if (birdTop < pipe.gapY || birdBottom > pipe.gapY + flappyGame.pipeGap) {
+						// Play hit sound
+						if (window.uiSoundEngine) {
+							window.uiSoundEngine.play('fb_hit');
+						}
+						flappyGame.endGame();
+					}
+				}
+			}
+
+			// Check boundaries
+			if (flappyGame.bird.y - flappyGame.bird.radius < 0 || flappyGame.bird.y + flappyGame.bird.radius > flappyGame.canvas.height) {
+				// Play hit sound for boundary collision
+				if (window.uiSoundEngine) {
+					window.uiSoundEngine.play('fb_hit');
+				}
+				flappyGame.endGame();
+			}
+		};
+
+		flappyGame.draw = function() {
+			const ctx = flappyGame.ctx;
+			const canvas = flappyGame.canvas;
+
+			// Clear canvas
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+			// Draw pipes
+			ctx.fillStyle = '#5cb85c';
+			for (const pipe of flappyGame.pipes) {
+				// Top pipe
+				ctx.fillRect(pipe.x, 0, flappyGame.pipeWidth, pipe.gapY);
+				// Bottom pipe
+				ctx.fillRect(pipe.x, pipe.gapY + flappyGame.pipeGap, flappyGame.pipeWidth, canvas.height - pipe.gapY - flappyGame.pipeGap);
+
+				// Pipe border
+				ctx.strokeStyle = '#4a9d4a';
+				ctx.lineWidth = 2;
+				ctx.strokeRect(pipe.x, 0, flappyGame.pipeWidth, pipe.gapY);
+				ctx.strokeRect(pipe.x, pipe.gapY + flappyGame.pipeGap, flappyGame.pipeWidth, canvas.height - pipe.gapY - flappyGame.pipeGap);
+			}
+
+			// Draw bird
+			ctx.fillStyle = '#ffd700';
+			ctx.beginPath();
+			ctx.arc(flappyGame.bird.x, flappyGame.bird.y, flappyGame.bird.radius, 0, Math.PI * 2);
+			ctx.fill();
+
+			// Bird outline
+			ctx.strokeStyle = '#ff8c00';
+			ctx.lineWidth = 2;
+			ctx.stroke();
+		};
+
+		flappyGame.endGame = function() {
+			flappyGame.gameOver = true;
+			flappyGame.gameStarted = false;
+			document.getElementById('flappy-final-score').textContent = `Score: ${flappyGame.score}`;
+			document.getElementById('flappy-gameover').style.display = 'block';
+			if (flappyGame.animationFrame) {
+				cancelAnimationFrame(flappyGame.animationFrame);
+			}
+			// Play die sound for game over
+			if (window.uiSoundEngine) {
+				window.uiSoundEngine.play('fb_die');
+			}
+
+			// Submit high score if user is logged in
+			if (window.authState?.isLoggedIn && flappyGame.score > 0) {
+				submitFloatyHighScore(flappyGame.score);
+			}
+		};
+
+		// High score functions
+		async function submitFloatyHighScore(score) {
+			try {
+				const response = await fetch(`${RADIO_API_BASE_URL}/api/v1/floaty/highscores`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						score: score,
+						idToken: window.authState.idToken
+					})
+				});
+
+				const result = await response.json();
+				if (result.success && result.data.isNewHighScore) {
+					document.getElementById('flappy-high-score-msg').textContent = '🏆 NEW HIGH SCORE!';
+				} else {
+					document.getElementById('flappy-high-score-msg').textContent = '';
+				}
+			} catch (error) {
+				console.error('Error submitting high score:', error);
+			}
+		}
+
+		window.showFloatyHighScores = async function(event) {
+			if (event) {
+				event.stopPropagation();
+			}
+
+			try {
+				const response = await fetch(`${RADIO_API_BASE_URL}/api/v1/floaty/highscores?limit=10`);
+				const result = await response.json();
+
+				const listDiv = document.getElementById('flappy-highscores-list');
+
+				if (result.success && result.data.length > 0) {
+					listDiv.innerHTML = result.data.map((entry, index) => `
+						<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 8px;">
+							<div style="display: flex; align-items: center; gap: 10px;">
+								<div style="font-size: 18px; font-weight: bold; color: ${index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#fff'};">${index + 1}</div>
+								<div style="font-size: 16px;">${entry.username}</div>
+							</div>
+							<div style="font-size: 18px; font-weight: bold;">${entry.score}</div>
+						</div>
+					`).join('');
+				} else {
+					listDiv.innerHTML = '<div style="color: rgba(255, 255, 255, 0.6); padding: 20px;">No high scores yet!</div>';
+				}
+
+				document.getElementById('flappy-highscores').style.display = 'block';
+			} catch (error) {
+				console.error('Error loading high scores:', error);
+			}
+		};
+
+		window.closeFloatyHighScores = function() {
+			document.getElementById('flappy-highscores').style.display = 'none';
+		};
+
+		// Settings App - Bluetooth and Audio Output
+		window.bluetoothEnabled = false;
+		window.currentAudioOutput = 'stack'; // 'stack' or 'car'
+
+		// Function to check if audio can play
+		window.canPlayAudio = function() {
+			// Audio can only play if bluetooth is enabled
+			return window.bluetoothEnabled;
+		};
+
+		window.toggleBluetooth = function() {
+			window.bluetoothEnabled = !window.bluetoothEnabled;
+			const toggle = document.getElementById('bluetooth-toggle');
+			const circle = toggle.querySelector('div');
+			const audioSection = document.getElementById('audio-output-section');
+
+			if (window.bluetoothEnabled) {
+				toggle.style.background = '#34c759';
+				circle.style.right = '2px';
+				circle.style.left = 'auto';
+				audioSection.style.opacity = '1';
+				audioSection.style.pointerEvents = 'all';
+				console.log('📱 Bluetooth enabled - audio routing enabled');
+			} else {
+				toggle.style.background = 'rgba(255, 255, 255, 0.3)';
+				circle.style.left = '2px';
+				circle.style.right = 'auto';
+				audioSection.style.opacity = '0.5';
+				audioSection.style.pointerEvents = 'none';
+
+				// Stop all audio when bluetooth disabled
+				if (window.radioAudioElement) {
+					window.radioAudioElement.pause();
+				}
+				if (window.audioElement) {
+					window.audioElement.pause();
+				}
+				// Stop positional audio sources (stack and car)
+				if (window.positionalAudio && window.positionalAudio.isPlaying) {
+					window.positionalAudio.stop();
+				}
+				if (window.carPositionalAudio && window.carPositionalAudio.isPlaying) {
+					window.carPositionalAudio.stop();
+				}
+				// Update phone player UI
+				const radioBtn = document.getElementById('radio-play-btn');
+				if (radioBtn) radioBtn.textContent = '▶';
+				// Update desktop player UI
+				const desktopBtn = document.getElementById('audio-play-pause');
+				if (desktopBtn) {
+					desktopBtn.textContent = '▶ PLAY';
+					document.getElementById('desktop-audio-status').textContent = 'STOPPED';
+				}
+				console.log('📱 Bluetooth disabled - all audio stopped');
+			}
+
+			// Play tock sound
+			if (window.uiSoundEngine) {
+				window.uiSoundEngine.play('tock', { pitch: 1.0, allowOverlap: true });
+			}
+		};
+
+		// Custom phone alert system
+		window.showPhoneAlert = function(title, message) {
+			document.getElementById('phone-alert-title').textContent = title;
+			document.getElementById('phone-alert-message').textContent = message;
+			document.getElementById('phone-alert-overlay').style.display = 'flex';
+		};
+
+		window.closePhoneAlert = function() {
+			document.getElementById('phone-alert-overlay').style.display = 'none';
+		};
+
+		// Centralized phone menu cleanup system
+		window.cleanupPhoneMenus = function() {
+			// Close all overlays
+			closePhoneAlert();
+
+			// Close high scores overlay
+			const highscores = document.getElementById('flappy-highscores');
+			if (highscores) {
+				highscores.style.display = 'none';
+			}
+
+			// Reset messenger to conversations view
+			const messengerChat = document.getElementById('messenger-chat-view');
+			const messengerConvos = document.getElementById('messenger-conversations-view');
+			if (messengerChat) messengerChat.style.display = 'none';
+			if (messengerConvos) messengerConvos.style.display = 'block';
+
+			// Stop flappy game
+			if (window.flappyGame && window.flappyGame.animationFrame) {
+				cancelAnimationFrame(window.flappyGame.animationFrame);
+				window.flappyGame.animationFrame = null;
+				window.flappyGame.gameStarted = false;
+				window.flappyGame.gameOver = false;
+			}
+
+			// Stop chat polling
+			if (window.phoneChatPolling) {
+				stopPhoneChatPolling();
+			}
+
+			// Clear any input focus
+			const phoneInputs = document.querySelectorAll('#car-radio input, #car-radio textarea');
+			phoneInputs.forEach(input => input.blur());
+		};
+
+		window.selectAudioOutput = function(output) {
+			if (!window.bluetoothEnabled) return;
+
+			// Stop audio on the OTHER source when switching (realistic bluetooth behavior)
+		if (output === 'stack' && window.carPositionalAudio && window.carPositionalAudio.isPlaying) {
+			window.carPositionalAudio.stop();
+			console.log('🔇 Stopped car audio when switching to stack');
+		} else if (output === 'car' && window.positionalAudio && window.positionalAudio.isPlaying) {
+			window.positionalAudio.stop();
+			console.log('🔇 Stopped stack audio when switching to car');
+		}
+
+		window.currentAudioOutput = output;
+			const stackCheck = document.getElementById('stack-check');
+			const carCheck = document.getElementById('car-check');
+
+			if (output === 'stack') {
+				// Stack selected - show filled
+				stackCheck.style.border = '2px solid #0a84ff';
+				stackCheck.innerHTML = '<div style="width: 12px; height: 12px; border-radius: 50%; background: #0a84ff;"></div>';
+				// Car unselected - show empty
+				carCheck.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+				carCheck.innerHTML = '';
+			} else if (output === 'car') {
+				// Car selected - show filled
+				carCheck.style.border = '2px solid #0a84ff';
+				carCheck.innerHTML = '<div style="width: 12px; height: 12px; border-radius: 50%; background: #0a84ff;"></div>';
+				// Stack unselected - show empty
+				stackCheck.style.border = '2px solid rgba(255, 255, 255, 0.3)';
+				stackCheck.innerHTML = '';
+			}
+
+			// Update phone player UI to show stopped state
+			const radioBtn = document.getElementById('radio-play-btn');
+			if (radioBtn) radioBtn.textContent = '▶';
+
+			// Play tock sound
+			if (window.uiSoundEngine) {
+				window.uiSoundEngine.play('tock', { pitch: 1.2, allowOverlap: true });
+			}
+
+			console.log(`📱 Audio output set to: ${output}`);
+		};
 
 		// Load tracks for radio
 		function loadRadioTracks() {
@@ -8478,9 +9198,19 @@
 
 		// Play track from radio
 		window.playRadioTrack = function(index) {
+			// Check if bluetooth is enabled
+			if (!window.canPlayAudio()) {
+				showPhoneAlert('Bluetooth Disabled', 'Please enable Bluetooth in Settings to play audio');
+				return;
+			}
+
 			if (index < 0 || index >= radioTracksData.length) return;
-			if (!window.carPositionalAudio) {
-				console.error('Car audio system not ready');
+
+			// Select audio output based on bluetooth setting
+			const audioOutput = window.currentAudioOutput === 'car' ? window.carPositionalAudio : window.positionalAudio;
+			console.log('🎵 Phone audio routing - Output:', window.currentAudioOutput, 'Audio object exists:', !!audioOutput, 'carPositionalAudio:', !!window.carPositionalAudio, 'positionalAudio:', !!window.positionalAudio);
+			if (!audioOutput) {
+				console.error('Audio system not ready');
 				return;
 			}
 
@@ -8522,42 +9252,73 @@
 			// Update track list highlighting
 			displayRadioTracks();
 
-			// Stop current track if playing
-			if (window.carPositionalAudio.isPlaying) {
+			// Stop current track if playing on both outputs
+			if (window.carPositionalAudio && window.carPositionalAudio.isPlaying) {
 				window.carPositionalAudio.stop();
+			}
+			if (window.positionalAudio && window.positionalAudio.isPlaying) {
+				window.positionalAudio.stop();
 			}
 
 			// Build stream URL
 			const streamUrl = `${RADIO_API_BASE_URL}/api/v1/stream/${track.id}`;
-			console.log('🎵 Loading track from car radio:', track.title);
+			const outputName = window.currentAudioOutput === 'car' ? 'car' : 'stack';
+			console.log(`🎵 Loading track from phone to ${outputName}:`, track.title);
 
-			// Load and play track through car's spatial audio
+			// Load and play track through selected audio output
 			const audioLoader = new THREE.AudioLoader();
 			audioLoader.load(streamUrl, (buffer) => {
-				window.carPositionalAudio.setBuffer(buffer);
-				window.carPositionalAudio.setLoop(false);
+				audioOutput.setBuffer(buffer);
+				audioOutput.setLoop(false);
 
-				// Set volume based on current vehicle state
-				// If outside car, start at 30%, if inside, start at 100%
-				const inVehicle = window.character && window.character.controlledObject && window.character.controlledObject.rayCastVehicle;
-				const initialVolume = inVehicle ? 1.0 : 0.3;
-				window.carPositionalAudio.setVolume(initialVolume);
+				// Set volume based on output type
+				if (window.currentAudioOutput === 'car') {
+					// Car: adjust volume based on whether inside vehicle
+					const inVehicle = window.character && window.character.controlledObject && window.character.controlledObject.rayCastVehicle;
+					const initialVolume = inVehicle ? 1.0 : 0.3;
+					audioOutput.setVolume(initialVolume);
 
-				// Connect to car-specific EQ chain (sounds like actual car speakers)
-				const source = window.carPositionalAudio.getOutput();
-				source.disconnect();
+					// Connect to car-specific EQ chain
+					const source = audioOutput.getOutput();
+					source.disconnect();
+					source.connect(window.carEQ.bass);
+					window.carEQ.bass.connect(window.carEQ.lowMid);
+					window.carEQ.lowMid.connect(window.carEQ.highMid);
+					window.carEQ.highMid.connect(window.carEQ.treble);
+					window.carEQ.treble.connect(window.carEQ.outsideLowpass);
+					window.carEQ.outsideLowpass.connect(window.audioAnalyser);
+					window.audioAnalyser.connect(audioOutput.context.destination);
+				} else {
+					// Stack: use full desktop speaker EQ chain with spatial filters
+					audioOutput.setVolume(1.0);
+					const source = audioOutput.getOutput();
+					source.disconnect();
+					source.connect(window.speakerDirectionalBass);
+					window.speakerDirectionalBass.connect(window.speakerDirectionalLowpass);
+					window.speakerDirectionalLowpass.connect(window.eqFilters.vehicleLowpass);
+					window.eqFilters.vehicleLowpass.connect(window.eqFilters.lowpass);
+					window.eqFilters.lowpass.connect(window.eqFilters.highpass);
+					window.eqFilters.highpass.connect(window.eqFilters.low);
+					window.eqFilters.low.connect(window.eqFilters.mid);
+					window.eqFilters.mid.connect(window.eqFilters.high);
+					window.eqFilters.high.connect(window.eqFilters.masterGain);
+					window.eqFilters.masterGain.connect(window.audioAnalyser);
+					window.audioAnalyser.connect(audioOutput.context.destination);
+				}
 
-				// Car EQ chain: source → bass boost → low-mid cut → high-mid cut → treble rolloff → outside lowpass → analyser → destination
-				source.connect(window.carEQ.bass);
-				window.carEQ.bass.connect(window.carEQ.lowMid);
-				window.carEQ.lowMid.connect(window.carEQ.highMid);
-				window.carEQ.highMid.connect(window.carEQ.treble);
-				window.carEQ.treble.connect(window.carEQ.outsideLowpass);
-				window.carEQ.outsideLowpass.connect(window.audioAnalyser);
-				window.audioAnalyser.connect(window.carPositionalAudio.context.destination);
+				audioOutput.play();
+				window.carAudioSource = audioOutput; // Store reference for controls
 
-				window.carPositionalAudio.play();
-				window.carAudioSource = window.carPositionalAudio; // Store reference for controls
+				// Set global playback state for phone
+				window.currentPlaybackSource = 'phone';
+				window.currentPlaybackTrack = {
+					title: track.title,
+					artworkUrl: track.artwork_url,
+					trackId: track.id,
+					url: streamUrl,
+					artist: track.artistName
+				};
+				window.isPlaybackPaused = false;
 
 				// Start 30-second timer for play count
 				if (radioCurrentTrackId) {
@@ -8569,7 +9330,7 @@
 				}
 
 				// Auto-play next track when current one ends
-				window.carPositionalAudio.onEnded = function() {
+				audioOutput.onEnded = function() {
 					// Clear play count timer if track ends before 30 seconds
 					if (radioPlayCountTimer) {
 						clearTimeout(radioPlayCountTimer);
@@ -8579,24 +9340,46 @@
 					window.radioSkipNext();
 				};
 
-				console.log('🚗 Playing from car:', track.title);
+				console.log(`📱 Playing from phone to ${outputName}:`, track.title);
 			}, undefined, (error) => {
-				console.error('Error loading car radio track:', error);
+				console.error('Error loading phone track:', error);
 			});
 		};
 
 		// Radio controls
 		window.radioTogglePlay = function() {
-			if (radioCurrentIndex === -1 && radioTracksData.length > 0) {
+			// Check if we have a track from desktop that we should control
+			if (window.currentPlaybackSource === 'desktop' && window.positionalAudio && window.positionalAudio.buffer) {
+				// Control desktop playback
+				const btn = document.getElementById('radio-play-btn');
+				if (window.positionalAudio.isPlaying) {
+					window.positionalAudio.pause();
+					window.isPlaybackPaused = true;
+					btn.textContent = '▶';
+					document.getElementById('audio-play-pause').textContent = '▶ PLAY';
+					document.getElementById('desktop-audio-status').textContent = 'PAUSED';
+				} else {
+					window.positionalAudio.play();
+					window.isPlaybackPaused = false;
+					btn.textContent = '⏸';
+					document.getElementById('audio-play-pause').textContent = '❚❚ PAUSE';
+					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${window.currentPlaybackTrack?.title || 'Unknown Track'}`;
+				}
+			} else if (radioCurrentIndex === -1 && radioTracksData.length > 0) {
+				// No track loaded, play first phone track
 				playRadioTrack(0);
 			} else {
+				// Control phone playback
 				const btn = document.getElementById('radio-play-btn');
-				if (window.carPositionalAudio) {
+				const audioOutput = window.currentAudioOutput === 'car' ? window.carPositionalAudio : window.positionalAudio;
+				if (audioOutput) {
 					if (btn.textContent === '▶') {
-						window.carPositionalAudio.play();
+						audioOutput.play();
+						window.isPlaybackPaused = false;
 						btn.textContent = '⏸';
 					} else {
-						window.carPositionalAudio.pause();
+						audioOutput.pause();
+						window.isPlaybackPaused = true;
 						btn.textContent = '▶';
 					}
 				}

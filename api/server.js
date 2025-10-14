@@ -827,6 +827,103 @@ app.get('/health', (req, res) => {
 });
 
 // 404 handler
+// ==========================================
+// FLOATY GAME HIGH SCORES
+// ==========================================
+
+// Get high scores
+app.get('/api/v1/floaty/highscores', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+
+    const highscoresRef = realtimeDb.ref('3d/floaty/highscores');
+    const snapshot = await highscoresRef.orderByChild('score').limitToLast(limit).once('value');
+
+    const highscores = [];
+    snapshot.forEach((child) => {
+      highscores.push({
+        id: child.key,
+        ...child.val()
+      });
+    });
+
+    // Sort descending by score
+    highscores.sort((a, b) => b.score - a.score);
+
+    res.json({
+      success: true,
+      data: highscores
+    });
+  } catch (error) {
+    console.error('Error fetching high scores:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch high scores'
+    });
+  }
+});
+
+// Submit high score
+app.post('/api/v1/floaty/highscores', async (req, res) => {
+  try {
+    const { score, idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    if (typeof score !== 'number' || score < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid score required'
+      });
+    }
+
+    // Verify the user
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+    // Get user data from Realtime Database
+    const userSnapshot = await realtimeDb.ref(`users/${uid}`).once('value');
+    const userData = userSnapshot.val();
+    const username = userData?.username || userData?.displayName || 'Anonymous';
+    const photoURL = userData?.photoURL || '';
+
+    // Check if user already has a high score
+    const userHighscoreRef = realtimeDb.ref(`3d/floaty/highscores/${uid}`);
+    const existingSnapshot = await userHighscoreRef.once('value');
+    const existingScore = existingSnapshot.val();
+
+    const isNewHighScore = !existingScore || score > existingScore.score;
+
+    // Always update with new score (to update timestamp)
+    await userHighscoreRef.set({
+      username: username,
+      photoURL: photoURL,
+      score: isNewHighScore ? score : existingScore.score, // Keep highest score
+      timestamp: Date.now(),
+      uid: uid
+    });
+
+    res.json({
+      success: true,
+      data: {
+        score: isNewHighScore ? score : existingScore.score,
+        isNewHighScore: isNewHighScore
+      }
+    });
+  } catch (error) {
+    console.error('Error submitting high score:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to submit high score'
+    });
+  }
+});
+
 app.use((req, res) => {
   res.status(404).json({
     success: false,

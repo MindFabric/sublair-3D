@@ -2134,6 +2134,7 @@
 			pointer-events: none;
 			z-index: 9998;
 			opacity: 0.15;
+			display: none; /* Hidden by default, only shown for spectators */
 			background:
 				repeating-linear-gradient(
 					0deg,
@@ -2389,6 +2390,35 @@
 		</div>
 	</div>
 
+	<!-- Multiplayer Player Viewer (Press Y) -->
+	<div id="player-viewer" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 600px; z-index: 2000; background: rgba(0, 0, 0, 0.95); border: 2px solid #bee17b; font-family: 'Share Tech Mono', monospace;">
+		<!-- Header -->
+		<div style="background: #bee17b; color: #000; padding: 15px; text-align: center; font-size: 16px; letter-spacing: 2px; font-weight: bold;">
+			[MULTIPLAYER SESSION]
+		</div>
+
+		<!-- Player List Table -->
+		<div style="padding: 20px;">
+			<table style="width: 100%; border-collapse: collapse; color: #bee17b;">
+				<thead>
+					<tr style="border-bottom: 2px solid #bee17b;">
+						<th style="text-align: left; padding: 10px; font-size: 12px; letter-spacing: 1px;">PLAYER</th>
+						<th style="text-align: center; padding: 10px; font-size: 12px; letter-spacing: 1px;">ROLE</th>
+						<th style="text-align: center; padding: 10px; font-size: 12px; letter-spacing: 1px;">LATENCY</th>
+					</tr>
+				</thead>
+				<tbody id="player-list-body" style="font-size: 13px;">
+					<!-- Players will be added here -->
+				</tbody>
+			</table>
+		</div>
+
+		<!-- Footer -->
+		<div style="padding: 15px; text-align: center; border-top: 1px solid #bee17b; color: #888; font-size: 11px;">
+			Press Y to close • Session Code: <span id="viewer-session-code">------</span>
+		</div>
+	</div>
+
 	<!-- Car Radio Interface (Phone) -->
 	<div id="car-radio" class="car-radio">
 		<button class="car-radio-close" onclick="window.toggleCarRadio()">˅</button>
@@ -2405,7 +2435,7 @@
 			</div>
 
 			<div class="phone-app-grid">
-				<div class="phone-app" onclick="openPhoneApp('music')">
+				<div id="phone-music-icon" class="phone-app" onclick="openPhoneApp('music')">
 					<div class="phone-app-icon">
 						<img src="public/CIRCLE.png" alt="SUBLAIR" style="width: 100%; height: 100%; object-fit: cover; border-radius: 18px;">
 					</div>
@@ -2671,6 +2701,15 @@
 		const spectatorSessionCode = urlParams.get('session');
 		const isSpectatorMode = spectatorSessionCode && spectatorSessionCode.length === 6;
 
+		// Hide music app icon for spectators
+		if (isSpectatorMode) {
+			const musicIcon = document.getElementById('phone-music-icon');
+			if (musicIcon) {
+				musicIcon.style.display = 'none';
+				console.log('🎵 Music app hidden for spectator');
+			}
+		}
+
 		// If spectator mode, immediately position camera in front of portal
 		if (isSpectatorMode && world.camera) {
 			world.camera.position.set(45, 15, 5); // 5 units in front of portal
@@ -2679,9 +2718,9 @@
 		}
 
 		// Add CRT barrel distortion effect using ShaderPass
-		// Apply as soon as world.composer is ready
+		// Apply ONLY in spectator mode
 		const applyCRTEffect = () => {
-			if (world.composer && crtShaderReady && ShaderPass) {
+			if (world.composer && crtShaderReady && ShaderPass && isSpectatorMode) {
 
 					// CRT Shader
 					const CRTShader = {
@@ -2907,9 +2946,12 @@
 				Sketchbook.UIManager.setUserInterfaceVisible(false);
 				Sketchbook.UIManager.setLoadingScreenVisible(false);
 
-				// Show CRT UI once game is loaded
-				document.getElementById('crt-ui').classList.add('visible');
-				document.getElementById('crt-engine-credit').classList.add('visible');
+				// Show CRT UI and scanlines only for spectators
+				if (isSpectatorMode) {
+					document.getElementById('crt-ui').classList.add('visible');
+					document.getElementById('crt-engine-credit').classList.add('visible');
+					document.getElementById('crt-overlay').style.display = 'block';
+				}
 
 				// Check if spectator mode (set by URL param check)
 				if (isSpectatorMode) {
@@ -5863,10 +5905,15 @@
 
 						case 'player_joined':
 							console.log(`👻 Spectator joined (${data.playerCount} total)`);
+							window.spectatorCount = data.playerCount;
+							if (playerViewerOpen) {
+								updatePlayerList();
+							}
 							break;
 
 						case 'player_left':
 							console.log(`👻 Spectator left (${data.playerCount} remaining) - ID: ${data.spectatorId}`);
+							window.spectatorCount = data.playerCount;
 
 							// Remove the specific ghost from the scene
 							if (data.spectatorId && window.spectatorGhosts && window.spectatorGhosts[data.spectatorId]) {
@@ -5874,6 +5921,10 @@
 								world.graphicsWorld.remove(window.spectatorGhosts[data.spectatorId]);
 								delete window.spectatorGhosts[data.spectatorId];
 								delete window.spectatorGhostTargets[data.spectatorId];
+							}
+
+							if (playerViewerOpen) {
+								updatePlayerList();
 							}
 							break;
 
@@ -6345,6 +6396,200 @@
 								addMpChatMessage(data.username, data.message);
 							}
 							break;
+
+						case 'audio_ready':
+							// Host receives ready signal from spectator
+							if (isHosting && window.spectatorReadyHandler && data.spectatorId) {
+								window.spectatorReadyHandler(data.spectatorId);
+							}
+							break;
+
+						case 'pong':
+							// Handle pong response for latency calculation
+							if (data.timestamp) {
+								const latency = Date.now() - data.timestamp;
+								const playerId = data.playerId || 'host';
+								playerLatencies.set(playerId, latency);
+								if (playerViewerOpen) {
+									updatePlayerList();
+								}
+							}
+							break;
+
+						case 'audio_preload':
+							// Spectator receives preload instruction - load but don't play yet
+							if (isSpectatorMode && data.track) {
+								console.log('🎵 Spectator preloading track:', data.track.title);
+								addMpChatMessage('', `Loading: ${data.track.title}...`, true);
+
+								// Stop any currently playing audio
+								if (positionalAudio && positionalAudio.isPlaying) {
+									positionalAudio.stop();
+								}
+
+								// Load the track
+								const audioLoader = new THREE.AudioLoader();
+								audioLoader.load(data.track.url, (buffer) => {
+									positionalAudio.setBuffer(buffer);
+									positionalAudio.setLoop(false);
+									positionalAudio.setVolume(1.0);
+
+									// Connect to audio analyser for visual effects
+									const source = positionalAudio.getOutput();
+									source.disconnect();
+
+									if (window.audioAnalyser) {
+										source.connect(window.audioAnalyser);
+										window.audioAnalyser.connect(positionalAudio.context.destination);
+									} else {
+										source.connect(positionalAudio.context.destination);
+									}
+
+									// Store track info globally
+									window.currentPlaybackTrack = data.track;
+									window.currentSongTitle = data.track.title;
+									window.currentArtworkUrl = data.track.artworkUrl;
+									window.currentArtistName = data.track.artistName;
+
+									console.log('🎵 Spectator buffer loaded, sending ready signal');
+									addMpChatMessage('', 'Ready!', true);
+
+									// Tell host we're ready
+									multiplayerWs.send(JSON.stringify({
+										type: 'audio_ready',
+										spectatorId: window.mySpectatorId
+									}));
+								},
+								(xhr) => {
+									// Progress callback
+									const percent = Math.round((xhr.loaded / xhr.total) * 100);
+									if (percent % 20 === 0) { // Log every 20%
+										console.log(`Loading audio: ${percent}%`);
+									}
+								},
+								(error) => {
+									console.error('❌ Failed to load audio for spectator:', error);
+									addMpChatMessage('', 'Failed to load track', true);
+								});
+							}
+							break;
+
+						case 'audio_play_sync':
+							// Spectator receives synchronized play command
+							if (isSpectatorMode && positionalAudio && positionalAudio.buffer) {
+								console.log('🎵 Spectator starting synchronized playback');
+								addMpChatMessage('', 'Playing!', true);
+								positionalAudio.play();
+								window.isPlaybackPaused = false;
+							}
+							break;
+
+						case 'audio_play':
+							// Legacy handler for backward compatibility (non-synchronized playback)
+							if (isSpectatorMode && data.track) {
+								console.log('🎵 Spectator receiving track from host (legacy):', data.track.title);
+
+								// Calculate time offset for sync
+								const receiveTime = Date.now();
+								const offset = (receiveTime - data.startTime) / 1000; // Convert to seconds
+
+								// Stop any currently playing audio
+								if (positionalAudio && positionalAudio.isPlaying) {
+									positionalAudio.stop();
+								}
+
+								// Load and play the host's track
+								const audioLoader = new THREE.AudioLoader();
+								audioLoader.load(data.track.url, (buffer) => {
+									positionalAudio.setBuffer(buffer);
+									positionalAudio.setLoop(false);
+									positionalAudio.setVolume(1.0);
+
+									// Connect to audio analyser for visual effects
+									const source = positionalAudio.getOutput();
+									source.disconnect();
+
+									if (window.audioAnalyser) {
+										source.connect(window.audioAnalyser);
+										window.audioAnalyser.connect(positionalAudio.context.destination);
+									} else {
+										source.connect(positionalAudio.context.destination);
+									}
+
+									// Start playing at the correct offset to sync with host
+									if (offset > 0 && offset < buffer.duration) {
+										positionalAudio.offset = offset;
+										console.log(`🎵 Starting playback at ${offset.toFixed(2)}s offset for sync`);
+									}
+
+									positionalAudio.play();
+
+									// Store track info globally
+									window.currentPlaybackTrack = data.track;
+									window.currentSongTitle = data.track.title;
+									window.currentArtworkUrl = data.track.artworkUrl;
+									window.currentArtistName = data.track.artistName;
+
+									console.log('🎵 Spectator now playing:', data.track.title);
+								},
+								(xhr) => {
+									// Progress callback
+									const percent = Math.round((xhr.loaded / xhr.total) * 100);
+									if (percent % 20 === 0) { // Log every 20%
+										console.log(`Loading audio: ${percent}%`);
+									}
+								},
+								(error) => {
+									console.error('❌ Failed to load audio for spectator:', error);
+								});
+							}
+							break;
+
+						case 'audio_pause':
+							// Spectator receives pause command from host
+							console.log('🎵 Spectator received audio_pause message');
+							if (isSpectatorMode && positionalAudio) {
+								console.log('🎵 Spectator conditions met, isPlaying:', positionalAudio.isPlaying);
+								if (positionalAudio.isPlaying) {
+									positionalAudio.pause();
+									window.isPlaybackPaused = true;
+									console.log('🎵 Spectator paused playback');
+								} else {
+									console.log('🎵 Audio not playing, skipping pause');
+								}
+							} else {
+								console.log('🎵 Spectator conditions not met:', { isSpectatorMode, hasAudio: !!positionalAudio });
+							}
+							break;
+
+						case 'audio_resume':
+							// Spectator receives resume command from host
+							console.log('🎵 Spectator received audio_resume message');
+							if (isSpectatorMode && positionalAudio) {
+								console.log('🎵 Spectator conditions met, isPlaying:', positionalAudio.isPlaying);
+								if (!positionalAudio.isPlaying) {
+									positionalAudio.play();
+									window.isPlaybackPaused = false;
+									console.log('🎵 Spectator resumed playback');
+								} else {
+									console.log('🎵 Audio already playing, skipping resume');
+								}
+							} else {
+								console.log('🎵 Spectator conditions not met:', { isSpectatorMode, hasAudio: !!positionalAudio });
+							}
+							break;
+
+						case 'audio_stop':
+							// Spectator receives stop command from host
+							console.log('🎵 Spectator received audio_stop message');
+							if (isSpectatorMode && positionalAudio) {
+								positionalAudio.stop();
+								window.isPlaybackPaused = false;
+								console.log('🎵 Spectator stopped playback');
+							} else {
+								console.log('🎵 Spectator conditions not met:', { isSpectatorMode, hasAudio: !!positionalAudio });
+							}
+							break;
 					}
 				};
 
@@ -6394,6 +6639,18 @@
 				messageCount = 0;
 				messageHistory = [];
 				isSpamBlocked = false;
+
+				// Close player viewer
+				if (playerViewerOpen) {
+					playerViewerOpen = false;
+					playerViewer.style.display = 'none';
+				}
+				if (pingInterval) {
+					clearInterval(pingInterval);
+					pingInterval = null;
+				}
+				playerLatencies.clear();
+				window.spectatorCount = 0;
 
 				console.log('💬 Multiplayer chat cleared');
 			}
@@ -6598,6 +6855,112 @@
 				if (e.key === 't' || e.key === 'T') {
 					e.preventDefault();
 					openMpChatInput();
+				}
+			});
+
+			// ========================================
+			// MULTIPLAYER PLAYER VIEWER
+			// ========================================
+			const playerViewer = document.getElementById('player-viewer');
+			const playerListBody = document.getElementById('player-list-body');
+			const viewerSessionCode = document.getElementById('viewer-session-code');
+			let playerViewerOpen = false;
+			let playerLatencies = new Map(); // Store latency for each player
+			let pingInterval = null;
+
+			function togglePlayerViewer() {
+				if (!isHosting && !isSpectatorMode) return;
+
+				playerViewerOpen = !playerViewerOpen;
+				playerViewer.style.display = playerViewerOpen ? 'block' : 'none';
+
+				if (playerViewerOpen) {
+					updatePlayerList();
+					// Start ping monitoring
+					if (!pingInterval) {
+						pingInterval = setInterval(() => {
+							sendPing();
+						}, 2000); // Ping every 2 seconds
+					}
+				} else {
+					// Stop ping monitoring
+					if (pingInterval) {
+						clearInterval(pingInterval);
+						pingInterval = null;
+					}
+				}
+			}
+
+			function sendPing() {
+				if (multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					const pingTime = Date.now();
+					multiplayerWs.send(JSON.stringify({
+						type: 'ping',
+						timestamp: pingTime
+					}));
+				}
+			}
+
+			function updatePlayerList() {
+				if (!currentSessionCode) return;
+
+				viewerSessionCode.textContent = currentSessionCode;
+
+				// Get current username
+				const myUsername = window.authState?.user?.username ||
+								   window.authState?.user?.displayName ||
+								   window.authState?.email?.split('@')[0] ||
+								   (isHosting ? 'Host' : 'Spectator');
+
+				let html = '';
+
+				// Add host (yourself if hosting)
+				const hostLatency = playerLatencies.get('host') || 0;
+				html += `
+					<tr style="border-bottom: 1px solid rgba(190, 225, 123, 0.3);">
+						<td style="padding: 12px 10px;">
+							<span style="color: #bee17b;">⬤</span> ${myUsername} ${isHosting ? '(You)' : ''}
+						</td>
+						<td style="padding: 12px 10px; text-align: center;">
+							<span style="background: #bee17b; color: #000; padding: 2px 8px; font-size: 11px; letter-spacing: 1px;">HOST</span>
+						</td>
+						<td style="padding: 12px 10px; text-align: center; color: ${hostLatency < 50 ? '#0f0' : hostLatency < 100 ? '#ff0' : '#f00'};">
+							${hostLatency}ms
+						</td>
+					</tr>
+				`;
+
+				// Add spectators (from server tracking)
+				const spectatorCount = window.spectatorCount || 0;
+				for (let i = 0; i < spectatorCount; i++) {
+					const spectatorId = `spectator_${i}`;
+					const spectatorLatency = playerLatencies.get(spectatorId) || 0;
+					html += `
+						<tr style="border-bottom: 1px solid rgba(190, 225, 123, 0.3);">
+							<td style="padding: 12px 10px;">
+								<span style="color: #bee17b;">⬤</span> Spectator ${i + 1} ${!isHosting && i === 0 ? '(You)' : ''}
+							</td>
+							<td style="padding: 12px 10px; text-align: center;">
+								<span style="background: rgba(190, 225, 123, 0.3); color: #bee17b; padding: 2px 8px; font-size: 11px; letter-spacing: 1px;">SPEC</span>
+							</td>
+							<td style="padding: 12px 10px; text-align: center; color: ${spectatorLatency < 50 ? '#0f0' : spectatorLatency < 100 ? '#ff0' : '#f00'};">
+								${spectatorLatency}ms
+							</td>
+						</tr>
+					`;
+				}
+
+				playerListBody.innerHTML = html;
+			}
+
+			// Y key to toggle player viewer
+			document.addEventListener('keydown', (e) => {
+				if (mpChatOpen || window.terminalOpen || window.customizationOpen) return;
+				if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+				if (e.key === 'y' || e.key === 'Y') {
+					e.preventDefault();
+					togglePlayerViewer();
 				}
 			});
 
@@ -7864,17 +8227,37 @@
 					positionalAudio.pause();
 					isAudioPaused = true;
 					window.isPlaybackPaused = true;
-					document.getElementById('audio-play-pause').textContent = '▶ PLAY';
-					document.getElementById('desktop-audio-status').textContent = 'PAUSED';
+					const playPauseBtn = document.getElementById('audio-play-pause');
+					if (playPauseBtn) playPauseBtn.textContent = '▶ PLAY';
+					const statusEl = document.getElementById('desktop-audio-status');
+					if (statusEl) statusEl.textContent = 'PAUSED';
 					updatePhonePlayerUI();
+
+					// Broadcast pause to spectators
+					if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+						multiplayerWs.send(JSON.stringify({
+							type: 'audio_pause'
+						}));
+						console.log('🎵 Broadcasting pause to spectators');
+					}
 				} else {
 					// Play/Resume
 					positionalAudio.play();
 					isAudioPaused = false;
 					window.isPlaybackPaused = false;
-					document.getElementById('audio-play-pause').textContent = '❚❚ PAUSE';
-					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${currentTrackTitle}`;
+					const playPauseBtn = document.getElementById('audio-play-pause');
+					if (playPauseBtn) playPauseBtn.textContent = '❚❚ PAUSE';
+					const statusEl = document.getElementById('desktop-audio-status');
+					if (statusEl) statusEl.textContent = `NOW PLAYING:\n${currentTrackTitle}`;
 					updatePhonePlayerUI();
+
+					// Broadcast resume to spectators
+					if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+						multiplayerWs.send(JSON.stringify({
+							type: 'audio_resume'
+						}));
+						console.log('🎵 Broadcasting resume to spectators');
+					}
 				}
 			});
 
@@ -7883,10 +8266,23 @@
 				if (positionalAudio.buffer) {
 					positionalAudio.stop();
 					isAudioPaused = false;
-					document.getElementById('desktop-audio-status').textContent = 'STOPPED';
-					document.getElementById('audio-play-pause').textContent = '▶ PLAY';
-					document.getElementById('audio-play-pause').disabled = true;
-					document.getElementById('audio-stop').disabled = true;
+					const statusEl = document.getElementById('desktop-audio-status');
+					if (statusEl) statusEl.textContent = 'STOPPED';
+					const playPauseBtn = document.getElementById('audio-play-pause');
+					if (playPauseBtn) {
+						playPauseBtn.textContent = '▶ PLAY';
+						playPauseBtn.disabled = true;
+					}
+					const stopBtn = document.getElementById('audio-stop');
+					if (stopBtn) stopBtn.disabled = true;
+
+					// Broadcast stop to spectators
+					if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+						multiplayerWs.send(JSON.stringify({
+							type: 'audio_stop'
+						}));
+						console.log('🎵 Broadcasting stop to spectators');
+					}
 				}
 			});
 
@@ -8120,7 +8516,76 @@
 					window.eqFilters.masterGain.connect(window.audioAnalyser);
 					window.audioAnalyser.connect(positionalAudio.context.destination);
 
-					positionalAudio.play();
+					// In multiplayer, wait for spectators to load before playing
+					if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN && window.spectatorCount > 0) {
+						console.log('🎵 Waiting for spectators to load track...');
+						loadingDiv.innerHTML = 'Waiting for spectators...';
+
+						// Broadcast preload to spectators
+						multiplayerWs.send(JSON.stringify({
+							type: 'audio_preload',
+							track: {
+								title: title,
+								artworkUrl: artworkUrl,
+								trackId: trackId,
+								url: url,
+								artistName: artistName,
+								artistUsername: artistUsername
+							}
+						}));
+
+						// Wait for all spectators to be ready (with 10 second timeout)
+						const waitForSpectators = new Promise((resolve) => {
+							const readySpectators = new Set();
+							const expectedCount = window.spectatorCount;
+							const timeout = setTimeout(() => {
+								console.log('⏱️ Timeout waiting for spectators, playing anyway');
+								resolve();
+							}, 10000); // 10 second timeout
+
+							window.spectatorReadyHandler = (spectatorId) => {
+								readySpectators.add(spectatorId);
+								console.log(`✅ Spectator ${spectatorId} ready (${readySpectators.size}/${expectedCount})`);
+								loadingDiv.innerHTML = `Waiting... ${readySpectators.size}/${expectedCount} ready`;
+
+								if (readySpectators.size >= expectedCount) {
+									clearTimeout(timeout);
+									resolve();
+								}
+							};
+						});
+
+						waitForSpectators.then(() => {
+							// All spectators ready, do countdown
+							let countdown = 3;
+							loadingDiv.innerHTML = `Starting in ${countdown}...`;
+							const countdownInterval = setInterval(() => {
+								countdown--;
+								if (countdown > 0) {
+									loadingDiv.innerHTML = `Starting in ${countdown}...`;
+								} else {
+									clearInterval(countdownInterval);
+									loadingDiv.classList.remove('show');
+
+									// Broadcast play command
+									window.trackStartTime = Date.now();
+									multiplayerWs.send(JSON.stringify({
+										type: 'audio_play_sync',
+										startTime: window.trackStartTime
+									}));
+
+									// Play for host
+									positionalAudio.play();
+									console.log('🎵 Synchronized playback started!');
+								}
+							}, 1000);
+						});
+					} else {
+						// No multiplayer or no spectators, play immediately
+						positionalAudio.play();
+						loadingDiv.classList.remove('show');
+					}
+
 					currentTrack = url;
 
 					// Set global playback state for desktop
@@ -10247,6 +10712,12 @@
 
 			// Open a specific app
 			openApp: function(appName) {
+				// Block music app for spectators
+				if (appName === 'music' && isSpectatorMode) {
+					showPhoneAlert('Access Denied', 'Music controls are disabled for spectators. The host controls the music.');
+					return;
+				}
+
 				// Validation check for messenger
 				if (appName === 'messenger' && !window.authState?.isLoggedIn) {
 					showPhoneAlert('Login Required', 'Please login on the desktop computer first to use Messenger');
@@ -11202,14 +11673,34 @@
 					window.positionalAudio.pause();
 					window.isPlaybackPaused = true;
 					btn.textContent = '▶';
-					document.getElementById('audio-play-pause').textContent = '▶ PLAY';
-					document.getElementById('desktop-audio-status').textContent = 'PAUSED';
+					const playPauseBtn = document.getElementById('audio-play-pause');
+					if (playPauseBtn) playPauseBtn.textContent = '▶ PLAY';
+					const statusEl = document.getElementById('desktop-audio-status');
+					if (statusEl) statusEl.textContent = 'PAUSED';
+
+					// Broadcast pause to spectators
+					if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+						multiplayerWs.send(JSON.stringify({
+							type: 'audio_pause'
+						}));
+						console.log('🎵 Broadcasting pause to spectators (from OS)');
+					}
 				} else {
 					window.positionalAudio.play();
 					window.isPlaybackPaused = false;
 					btn.textContent = '⏸';
-					document.getElementById('audio-play-pause').textContent = '❚❚ PAUSE';
-					document.getElementById('desktop-audio-status').textContent = `NOW PLAYING:\n${window.currentPlaybackTrack?.title || 'Unknown Track'}`;
+					const playPauseBtn = document.getElementById('audio-play-pause');
+					if (playPauseBtn) playPauseBtn.textContent = '❚❚ PAUSE';
+					const statusEl = document.getElementById('desktop-audio-status');
+					if (statusEl) statusEl.textContent = `NOW PLAYING:\n${window.currentPlaybackTrack?.title || 'Unknown Track'}`;
+
+					// Broadcast resume to spectators
+					if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+						multiplayerWs.send(JSON.stringify({
+							type: 'audio_resume'
+						}));
+						console.log('🎵 Broadcasting resume to spectators (from OS)');
+					}
 				}
 			} else if (radioCurrentIndex === -1 && radioTracksData.length > 0) {
 				// No track loaded, play first phone track

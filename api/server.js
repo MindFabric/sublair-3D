@@ -1292,6 +1292,155 @@ wss.on('connection', (ws, req) => {
           }
           break;
 
+        case 'audio_play':
+          // Broadcast audio track from host to all spectators
+          if (ws.isHost && ws.sessionCode && data.track) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const audioPlayData = JSON.stringify({
+                type: 'audio_play',
+                track: data.track,
+                startTime: data.startTime // Pass through start time for sync
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(audioPlayData);
+                }
+              });
+
+              console.log(`🎵 Broadcasting track "${data.track.title}" to ${session.players.length} spectators`);
+            }
+          }
+          break;
+
+        case 'audio_pause':
+          // Broadcast audio pause from host to all spectators
+          if (ws.isHost && ws.sessionCode) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const audioPauseData = JSON.stringify({
+                type: 'audio_pause'
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(audioPauseData);
+                }
+              });
+
+              console.log(`🎵 Broadcasting pause to ${session.players.length} spectators`);
+            }
+          }
+          break;
+
+        case 'audio_resume':
+          // Broadcast audio resume from host to all spectators
+          if (ws.isHost && ws.sessionCode) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const audioResumeData = JSON.stringify({
+                type: 'audio_resume'
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(audioResumeData);
+                }
+              });
+
+              console.log(`🎵 Broadcasting resume to ${session.players.length} spectators`);
+            }
+          }
+          break;
+
+        case 'audio_stop':
+          // Broadcast audio stop from host to all spectators
+          if (ws.isHost && ws.sessionCode) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const audioStopData = JSON.stringify({
+                type: 'audio_stop'
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(audioStopData);
+                }
+              });
+
+              console.log(`🎵 Broadcasting stop to ${session.players.length} spectators`);
+            }
+          }
+          break;
+
+        case 'audio_preload':
+          // Broadcast preload from host to all spectators
+          if (ws.isHost && ws.sessionCode && data.track) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const preloadData = JSON.stringify({
+                type: 'audio_preload',
+                track: data.track
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(preloadData);
+                }
+              });
+
+              console.log(`🎵 Broadcasting preload to ${session.players.length} spectators`);
+            }
+          }
+          break;
+
+        case 'audio_ready':
+          // Relay ready signal from spectator to host
+          if (!ws.isHost && ws.sessionCode && data.spectatorId) {
+            const session = sessions.get(ws.sessionCode);
+            if (session && session.host.readyState === WebSocket.OPEN) {
+              session.host.send(JSON.stringify({
+                type: 'audio_ready',
+                spectatorId: data.spectatorId
+              }));
+              console.log(`✅ Spectator ${data.spectatorId} ready, notifying host`);
+            }
+          }
+          break;
+
+        case 'audio_play_sync':
+          // Broadcast synchronized play command to all spectators
+          if (ws.isHost && ws.sessionCode) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const playSyncData = JSON.stringify({
+                type: 'audio_play_sync',
+                startTime: data.startTime
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(playSyncData);
+                }
+              });
+
+              console.log(`🎵 Broadcasting synchronized play to ${session.players.length} spectators`);
+            }
+          }
+          break;
+
+        case 'ping':
+          // Respond to ping with pong for latency measurement
+          if (data.timestamp) {
+            ws.send(JSON.stringify({
+              type: 'pong',
+              timestamp: data.timestamp,
+              playerId: ws.isHost ? 'host' : ws.spectatorId
+            }));
+          }
+          break;
+
         case 'disconnect':
           handleDisconnect(ws);
           break;

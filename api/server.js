@@ -35,7 +35,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Security Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP to allow inline scripts
+}));
 app.use(cors({
   origin: '*' // Allow all origins for now (can restrict later)
 }));
@@ -1329,8 +1331,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 API Server running on port ${PORT}`);
   console.log(`🌐 WebSocket Server running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`🎵 Tracks endpoint: http://localhost:${PORT}/api/v1/tracks`);
+  console.log(`🔗 Server is listening on 0.0.0.0:${PORT}`);
+  console.log(`✅ WebSocket ready for connections`);
 }).on('error', (err) => {
   console.error('❌ Server failed to start:', err);
   process.exit(1);

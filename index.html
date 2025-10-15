@@ -2649,11 +2649,11 @@
 		const spectatorSessionCode = urlParams.get('session');
 		const isSpectatorMode = spectatorSessionCode && spectatorSessionCode.length === 6;
 
-		// If spectator mode, immediately position camera at portal to prevent spawning under car
+		// If spectator mode, immediately position camera in front of portal
 		if (isSpectatorMode && world.camera) {
-			world.camera.position.set(50, 15, 5);
-			world.camera.lookAt(-5, 0.75, 5); // Look toward the computer/system
-			console.log('👻 Initial spectator camera position set at portal');
+			world.camera.position.set(45, 15, 5); // 5 units in front of portal
+			// Camera will be oriented by cameraOperator initialization
+			console.log('👻 Initial spectator camera position set in front of portal');
 		}
 
 		// Add CRT barrel distortion effect using ShaderPass
@@ -3132,25 +3132,8 @@
 				// Flag to indicate spectator is ready to broadcast position
 				window.spectatorReady = false;
 
-				// Set up spectator camera control after a short delay to ensure world is ready
-				setTimeout(() => {
-					if (world && world.cameraOperator && world.inputManager) {
-						// Set camera operator target to portal position (spectator center point)
-						world.cameraOperator.target.set(50, 15, 5);
-
-						// Set radius to 0 for true first-person view
-						world.cameraOperator.setRadius(0, true);
-
-						// Give spectator control of the camera for mouse look
-						world.inputManager.inputReceiver = world.cameraOperator;
-
-						// Position camera at portal
-						world.camera.position.set(50, 15, 5);
-						world.camera.lookAt(-5, 0.75, 5); // Look toward the computer/system
-
-						console.log('👻 Spectator first-person camera initialized at portal');
-					}
-				}, 100);
+				// Spectator camera will be initialized when joining session (see 'joined' case below)
+				console.log('👻 Spectator mode - waiting for session join to initialize camera');
 			} else {
 				// Normal player - load character
 				loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
@@ -5763,9 +5746,31 @@
 
 										loadingStatus.textContent = 'Spawning at portal...';
 
-										// Spawn camera at portal position
-										world.camera.position.set(50, 15, 5); // Portal position
-										world.camera.lookAt(-5, 0.75, 5); // Look toward the computer/system
+										// Initialize spectator camera and controls
+										if (world.cameraOperator && world.inputManager) {
+											// Position spectator in front of portal (facing toward the scene)
+											const spawnX = 45; // Move 5 units in -X direction from portal
+											const spawnY = 15;
+											const spawnZ = 5;
+
+											// Set camera operator target
+											world.cameraOperator.target.set(spawnX, spawnY, spawnZ);
+
+											// Set radius to 0 for true first-person view
+											world.cameraOperator.setRadius(0, true);
+
+											// Position camera
+											world.camera.position.set(spawnX, spawnY, spawnZ);
+
+											// Set camera rotation - theta is in DEGREES, not radians!
+											world.cameraOperator.theta = 90; // 90 degrees = face positive X direction (toward scene)
+											world.cameraOperator.phi = 0; // Level view
+
+											// Give spectator control of the camera for mouse look
+											world.inputManager.inputReceiver = world.cameraOperator;
+
+											console.log('👻 Spectator spawned at (' + spawnX + ',' + spawnY + ',' + spawnZ + ') facing scene');
+										}
 
 										// Disable character physics and controls for spectator
 										if (character) {
@@ -5773,10 +5778,9 @@
 											character.charState = null;
 										}
 
-										console.log('👻 Spectator spawned at portal');
-
 										// Mark spectator as ready to broadcast position
 										window.spectatorReady = true;
+										console.log('👻 Spectator spawned at portal facing +X');
 
 										// Wait a moment, then hide loading screen
 										setTimeout(() => {
@@ -6350,6 +6354,12 @@
 				document.getElementById('join-session-btn').disabled = false;
 				document.getElementById('join-session-btn').style.opacity = '1';
 				document.getElementById('session-code').style.opacity = '1';
+
+				// Hide portal when disconnecting
+				if (window.portal) {
+					window.portal.visible = false;
+					console.log('🌀 Portal hidden - multiplayer session ended');
+				}
 			}
 
 			// Return home button handler (for spectators when host disconnects)

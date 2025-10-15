@@ -34,6 +34,9 @@ const realtimeDb = admin.database();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy (required for Railway)
+app.set('trust proxy', 1);
+
 // Security Middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP to allow inline scripts
@@ -1046,8 +1049,10 @@ function generateSessionCode() {
   return code;
 }
 
-wss.on('connection', (ws) => {
-  console.log('🌐 New WebSocket connection');
+wss.on('connection', (ws, req) => {
+  const clientIp = req.socket.remoteAddress;
+  console.log('🌐 New WebSocket connection from:', clientIp);
+  console.log('🔗 Connection URL:', req.url);
 
   ws.sessionCode = null;
   ws.isHost = false;

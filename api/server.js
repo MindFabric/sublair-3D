@@ -5,6 +5,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const fetch = require('node-fetch');
 const admin = require('firebase-admin');
+const http = require('http');
+const WebSocket = require('ws');
 
 // Initialize Firebase Admin
 admin.initializeApp({
@@ -1012,9 +1014,305 @@ app.use((err, req, res, next) => {
 });
 
 // Start server (only in development, not on Vercel)
+// Create HTTP server
+const server = http.createServer(app);
+
+// WebSocket server for multiplayer
+const wss = new WebSocket.Server({ server });
+
+// Store active sessions: { sessionCode: { host: ws, players: [ws], hostData: {} } }
+const sessions = new Map();
+
+// Generate random 6-character session code
+function generateSessionCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+wss.on('connection', (ws) => {
+  console.log('🌐 New WebSocket connection');
+
+  ws.sessionCode = null;
+  ws.isHost = false;
+  ws.playerData = null;
+
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message);
+      // Only log non-frequent messages (exclude position updates)
+      if (data.type !== 'position_update' && data.type !== 'spectator_position') {
+        console.log('📨 Received message:', data.type);
+      }
+
+      switch (data.type) {
+        case 'host':
+          // Generate unique session code
+          let sessionCode;
+          do {
+            sessionCode = generateSessionCode();
+          } while (sessions.has(sessionCode));
+
+          ws.sessionCode = sessionCode;
+          ws.isHost = true;
+          ws.playerData = data.playerData || {};
+          ws.customization = data.customization || {}; // Store host customization
+
+          sessions.set(sessionCode, {
+            host: ws,
+            players: [],
+            hostData: ws.playerData,
+            customization: ws.customization // Include in session data
+          });
+
+          console.log(`🎮 Session created: ${sessionCode}`);
+          ws.send(JSON.stringify({
+            type: 'session_created',
+            sessionCode: sessionCode
+          }));
+          break;
+
+        case 'join':
+          const joinCode = data.sessionCode;
+          if (!sessions.has(joinCode)) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: 'Session not found'
+            }));
+            console.log(`❌ Failed join attempt: ${joinCode} not found`);
+            break;
+          }
+
+          const session = sessions.get(joinCode);
+          ws.sessionCode = joinCode;
+          ws.isHost = false;
+          ws.playerData = data.playerData || {};
+
+          // Generate unique spectator ID (using socket internal ID or timestamp-based)
+          ws.spectatorId = `spectator_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+          session.players.push(ws);
+
+          console.log(`👻 Player joined session: ${joinCode} (${session.players.length} spectators) - ID: ${ws.spectatorId}`);
+
+          ws.send(JSON.stringify({
+            type: 'joined',
+            sessionCode: joinCode,
+            spectatorId: ws.spectatorId,
+            hostData: session.hostData,
+            customization: session.customization // Send host's customization to spectator
+          }));
+
+          // Notify host of new spectator
+          if (session.host.readyState === WebSocket.OPEN) {
+            session.host.send(JSON.stringify({
+              type: 'player_joined',
+              playerData: ws.playerData,
+              spectatorId: ws.spectatorId,
+              playerCount: session.players.length
+            }));
+          }
+          break;
+
+        case 'position_update':
+          // Broadcast position updates from host to all spectators
+          if (ws.isHost && ws.sessionCode) {
+            const hostSession = sessions.get(ws.sessionCode);
+            if (hostSession) {
+              // Forward ALL data from host to spectators (including car data)
+              const hostPositionData = JSON.stringify({
+                type: 'host_position',
+                timestamp: data.timestamp,
+                position: data.position,
+                rotation: data.rotation,
+                animationState: data.animationState,  // ✅ Include animation state
+                velocity: data.velocity,               // ✅ Include velocity for extrapolation
+                car: data.car                          // ✅ Include car position/rotation
+              });
+
+              hostSession.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(hostPositionData);
+                }
+              });
+            }
+          }
+          break;
+
+        case 'spectator_position':
+          // Broadcast spectator position to host AND all other spectators
+          if (!ws.isHost && ws.sessionCode) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const positionData = JSON.stringify({
+                type: 'spectator_position',
+                position: data.position,
+                rotation: data.rotation,
+                lookDirection: data.lookDirection,
+                cameraOperator: data.cameraOperator,
+                playerId: ws.spectatorId || ws.playerData?.username || 'Spectator',
+                username: ws.playerData?.username || 'Spectator'
+              });
+
+              // Send to host
+              if (session.host.readyState === WebSocket.OPEN) {
+                session.host.send(positionData);
+              }
+
+              // Send to all other spectators (not yourself)
+              session.players.forEach(player => {
+                if (player !== ws && player.readyState === WebSocket.OPEN) {
+                  player.send(positionData);
+                }
+              });
+            }
+          }
+          break;
+
+        case 'customization_update':
+          // Broadcast customization changes from host to all spectators
+          if (ws.isHost && ws.sessionCode && data.customization) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              // Update session's stored customization
+              session.customization = data.customization;
+
+              const customizationData = JSON.stringify({
+                type: 'customization_update',
+                customization: data.customization
+              });
+
+              // Broadcast to all spectators
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(customizationData);
+                }
+              });
+
+              console.log(`🎨 Broadcasting customization update to ${session.players.length} spectators`);
+            }
+          }
+          break;
+
+        case 'audio_sync':
+          // Broadcast audio sync from host to all spectators
+          if (ws.isHost && ws.sessionCode) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const audioSyncData = JSON.stringify({
+                type: 'audio_sync',
+                action: data.action,
+                trackData: data.trackData,
+                trackIndex: data.trackIndex,
+                audioOutput: data.audioOutput,
+                currentTime: data.currentTime,
+                timestamp: data.timestamp
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(audioSyncData);
+                }
+              });
+
+              console.log(`🎵 Broadcasting audio ${data.action} to ${session.players.length} spectators`);
+            }
+          }
+          break;
+
+        case 'chat_message':
+          // Broadcast chat message to all players in session
+          if (ws.sessionCode && data.message) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const username = ws.playerData?.username || (ws.isHost ? 'Host' : 'Spectator');
+              const chatData = {
+                type: 'chat_message',
+                username: username,
+                message: data.message
+              };
+
+              // Send to host
+              if (session.host.readyState === WebSocket.OPEN) {
+                session.host.send(JSON.stringify(chatData));
+              }
+
+              // Send to all spectators
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(JSON.stringify(chatData));
+                }
+              });
+
+              console.log(`💬 Chat message from ${username}: ${data.message}`);
+            }
+          }
+          break;
+
+        case 'disconnect':
+          handleDisconnect(ws);
+          break;
+      }
+    } catch (error) {
+      console.error('❌ WebSocket message error:', error);
+    }
+  });
+
+  ws.on('close', () => {
+    console.log('🔌 WebSocket disconnected');
+    handleDisconnect(ws);
+  });
+
+  ws.on('error', (error) => {
+    console.error('❌ WebSocket error:', error);
+  });
+});
+
+function handleDisconnect(ws) {
+  if (!ws.sessionCode) return;
+
+  const session = sessions.get(ws.sessionCode);
+  if (!session) return;
+
+  if (ws.isHost) {
+    // Host disconnected, notify all players and close session
+    console.log(`🛑 Host disconnected, closing session: ${ws.sessionCode}`);
+    session.players.forEach(player => {
+      if (player.readyState === WebSocket.OPEN) {
+        player.send(JSON.stringify({
+          type: 'session_closed',
+          message: 'Host disconnected'
+        }));
+        player.close();
+      }
+    });
+    sessions.delete(ws.sessionCode);
+  } else {
+    // Player disconnected
+    const index = session.players.indexOf(ws);
+    if (index > -1) {
+      session.players.splice(index, 1);
+      console.log(`👻 Spectator left session: ${ws.sessionCode} (${session.players.length} remaining) - ID: ${ws.spectatorId}`);
+
+      // Notify host to remove specific ghost
+      if (session.host.readyState === WebSocket.OPEN) {
+        session.host.send(JSON.stringify({
+          type: 'player_left',
+          spectatorId: ws.spectatorId,
+          playerCount: session.players.length
+        }));
+      }
+    }
+  }
+}
+
 if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`🚀 API Server running on port ${PORT}`);
+    console.log(`🌐 WebSocket Server running on port ${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔗 Health check: http://localhost:${PORT}/health`);
     console.log(`🎵 Tracks endpoint: http://localhost:${PORT}/api/v1/tracks`);

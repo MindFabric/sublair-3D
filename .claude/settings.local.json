@@ -16,7 +16,8 @@
       "Bash(file:*)",
       "Bash(npm start)",
       "Bash(lsof:*)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []

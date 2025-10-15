@@ -2172,16 +2172,17 @@
 		/* CRT Engine Credit */
 		#crt-engine-credit {
 			position: fixed;
-			bottom: 20px;
-			left: 20px;
+			top: 20px;
+			right: 20px;
 			font-family: 'Share', 'Courier New', monospace;
 			color: #bee17b;
-			font-size: 16px;
+			font-size: 11px;
 			z-index: 99999;
 			pointer-events: auto;
 			background: rgba(0, 0, 0, 0.7);
-			padding: 8px 12px;
-			border: 2px solid #bee17b;
+			padding: 4px 8px;
+			border: 1px solid #bee17b;
+			opacity: 0.7;
 		}
 
 		#crt-engine-credit a {
@@ -2296,6 +2297,49 @@
 		</div>
 	</div>
 
+	<!-- Spectator Loading Overlay (only shown when joining via URL) -->
+	<div id="spectator-loading" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 10000; display: none; align-items: center; justify-content: center; flex-direction: column;">
+		<div style="font-family: 'Share', monospace; color: #bee17b; text-align: center;">
+			<div style="font-size: 24px; margin-bottom: 20px; letter-spacing: 2px;">
+				[CONNECTING TO SESSION]
+			</div>
+			<div style="font-size: 48px; margin-bottom: 20px; animation: spin 1s linear infinite;">
+				⟳
+			</div>
+			<div id="spectator-loading-status" style="font-size: 14px; opacity: 0.8; color: #bee17b;">
+				Establishing connection...
+			</div>
+		</div>
+	</div>
+
+	<!-- Host Disconnected Modal -->
+	<div id="host-disconnected-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; display: none; align-items: center; justify-content: center; flex-direction: column;">
+		<div style="font-family: 'Share', monospace; color: #bee17b; text-align: center; border: 2px solid #bee17b; padding: 40px; background: #000; max-width: 500px;">
+			<div style="font-size: 32px; margin-bottom: 20px; letter-spacing: 2px; color: #ff4444;">
+				[SESSION ENDED]
+			</div>
+			<div style="font-size: 16px; margin-bottom: 30px; line-height: 1.6;">
+				The host has disconnected.<br>
+				The session has been closed.
+			</div>
+			<button id="return-home-btn" style="background: #bee17b; color: #000; border: none; padding: 12px 30px; font-family: 'Share', monospace; font-size: 14px; cursor: pointer; letter-spacing: 1px; transition: all 0.2s;">
+				[RETURN TO HOME]
+			</button>
+		</div>
+	</div>
+
+	<style>
+		@keyframes spin {
+			from { transform: rotate(0deg); }
+			to { transform: rotate(360deg); }
+		}
+
+		#return-home-btn:hover {
+			background: #fff;
+			transform: scale(1.05);
+		}
+	</style>
+
 	<!-- CRT Scanline Overlay -->
 	<div id="crt-overlay"></div>
 
@@ -2304,6 +2348,24 @@
 
 	<!-- Crosshair (hidden by default) -->
 	<div class="crosshair" id="crosshair" style="display: none;"></div>
+
+	<!-- Multiplayer Chat (bottom left, only shown in multiplayer sessions) -->
+	<div id="multiplayer-chat" style="display: none; position: fixed; bottom: 20px; left: 20px; width: 400px; max-height: 300px; z-index: 1000;">
+		<!-- Chat messages container -->
+		<div id="chat-messages" style="background: rgba(0, 0, 0, 0.85); border: 2px solid #bee17b; padding: 15px; font-family: 'Share', monospace; color: #bee17b; font-size: 13px; max-height: 200px; overflow-y: auto; margin-bottom: 10px; display: none;">
+			<!-- Messages will be added here -->
+		</div>
+
+		<!-- Chat input (shown when T is pressed) -->
+		<div id="chat-input-container" style="display: none; background: rgba(0, 0, 0, 0.85); border: 2px solid #bee17b; padding: 10px;">
+			<div style="display: flex; gap: 10px; align-items: center;">
+				<input type="text" id="chat-input" placeholder="Type message..." maxlength="200" style="flex: 1; background: #000; border: 1px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 13px; padding: 8px; outline: none;" />
+				<button id="chat-send-btn" style="background: #bee17b; color: #000; border: none; padding: 8px 16px; font-family: 'Share', monospace; font-size: 12px; cursor: pointer; letter-spacing: 1px;">
+					[SEND]
+				</button>
+			</div>
+		</div>
+	</div>
 
 	<!-- Car Radio Interface (Phone) -->
 	<div id="car-radio" class="car-radio">
@@ -2582,6 +2644,18 @@
 		window.world = new Sketchbook.World();
 		const world = window.world; // Keep local reference for compatibility
 
+		// Check for spectator mode globally (used throughout the app)
+		const urlParams = new URLSearchParams(window.location.search);
+		const spectatorSessionCode = urlParams.get('session');
+		const isSpectatorMode = spectatorSessionCode && spectatorSessionCode.length === 6;
+
+		// If spectator mode, immediately position camera at portal to prevent spawning under car
+		if (isSpectatorMode && world.camera) {
+			world.camera.position.set(50, 15, 5);
+			world.camera.lookAt(-5, 0.75, 5); // Look toward the computer/system
+			console.log('👻 Initial spectator camera position set at portal');
+		}
+
 		// Add CRT barrel distortion effect using ShaderPass
 		// Apply as soon as world.composer is ready
 		const applyCRTEffect = () => {
@@ -2815,13 +2889,19 @@
 				document.getElementById('crt-ui').classList.add('visible');
 				document.getElementById('crt-engine-credit').classList.add('visible');
 
-				// Ensure welcome screen stays visible above everything
-				const welcomeOverlay = document.getElementById('welcome-overlay');
-				if (welcomeOverlay && welcomeOverlay.classList.contains('active')) {
-					// Keep it visible and above everything
-					welcomeOverlay.style.zIndex = '999999';
-					welcomeOverlay.style.opacity = '1';
-					welcomeOverlay.style.pointerEvents = 'auto';
+				// Check if spectator mode (set by URL param check)
+				if (isSpectatorMode) {
+					// Skip welcome screen for spectators
+					console.log('👻 Spectator mode detected, skipping welcome screen');
+				} else {
+					// Ensure welcome screen stays visible above everything for normal players
+					const welcomeOverlay = document.getElementById('welcome-overlay');
+					if (welcomeOverlay && welcomeOverlay.classList.contains('active')) {
+						// Keep it visible and above everything
+						welcomeOverlay.style.zIndex = '999999';
+						welcomeOverlay.style.opacity = '1';
+						welcomeOverlay.style.pointerEvents = 'auto';
+					}
 				}
 			};
 
@@ -3043,42 +3123,72 @@
 				inputReceiverUpdate: () => {}
 			};
 
-			loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
-				// Apply saved customization colors IMMEDIATELY to the model before creating Character
-				let savedCustomization = localStorage.getItem('characterCustomization');
-				if (savedCustomization) {
-					let customizationData = JSON.parse(savedCustomization);
-					let skinColor = customizationData.skinColor || '#bee17b';
-					let shirtColor = customizationData.shirtColor || '#282828';
-					let pantsColor = customizationData.pantsColor || '#282828';
-					let hatColor = customizationData.hatColor || '#282828';
+			// Check if spectator mode before loading character
+			if (isSpectatorMode) {
+				console.log('👻 Spectator mode - skipping character load');
+				// Create a placeholder so character checks don't break
+				window.character = null;
 
-					console.log('🎨 Applying saved colors to character BEFORE first render...');
-					charModel.scene.traverse((child) => {
-						if (child.isMesh && child.material) {
-							const materialName = child.material.name.toLowerCase();
-							if (materialName.includes('skin')) {
-								child.material.color.set(skinColor);
-								console.log('  ✓ Skin:', skinColor);
-							} else if (materialName.includes('shirt')) {
-								child.material.color.set(shirtColor);
-								console.log('  ✓ Shirt:', shirtColor);
-							} else if (materialName.includes('pants')) {
-								child.material.color.set(pantsColor);
-								console.log('  ✓ Pants:', pantsColor);
-							} else if (materialName.includes('hat')) {
-								child.material.color.set(hatColor);
-								console.log('  ✓ Hat:', hatColor);
+				// Flag to indicate spectator is ready to broadcast position
+				window.spectatorReady = false;
+
+				// Set up spectator camera control after a short delay to ensure world is ready
+				setTimeout(() => {
+					if (world && world.cameraOperator && world.inputManager) {
+						// Set camera operator target to portal position (spectator center point)
+						world.cameraOperator.target.set(50, 15, 5);
+
+						// Set radius to 0 for true first-person view
+						world.cameraOperator.setRadius(0, true);
+
+						// Give spectator control of the camera for mouse look
+						world.inputManager.inputReceiver = world.cameraOperator;
+
+						// Position camera at portal
+						world.camera.position.set(50, 15, 5);
+						world.camera.lookAt(-5, 0.75, 5); // Look toward the computer/system
+
+						console.log('👻 Spectator first-person camera initialized at portal');
+					}
+				}, 100);
+			} else {
+				// Normal player - load character
+				loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
+					// Apply saved customization colors IMMEDIATELY to the model before creating Character
+					let savedCustomization = localStorage.getItem('characterCustomization');
+					if (savedCustomization) {
+						let customizationData = JSON.parse(savedCustomization);
+						let skinColor = customizationData.skinColor || '#bee17b';
+						let shirtColor = customizationData.shirtColor || '#282828';
+						let pantsColor = customizationData.pantsColor || '#282828';
+						let hatColor = customizationData.hatColor || '#282828';
+
+						console.log('🎨 Applying saved colors to character BEFORE first render...');
+						charModel.scene.traverse((child) => {
+							if (child.isMesh && child.material) {
+								const materialName = child.material.name.toLowerCase();
+								if (materialName.includes('skin')) {
+									child.material.color.set(skinColor);
+									console.log('  ✓ Skin:', skinColor);
+								} else if (materialName.includes('shirt')) {
+									child.material.color.set(shirtColor);
+									console.log('  ✓ Shirt:', shirtColor);
+								} else if (materialName.includes('pants')) {
+									child.material.color.set(pantsColor);
+									console.log('  ✓ Pants:', pantsColor);
+								} else if (materialName.includes('hat')) {
+									child.material.color.set(hatColor);
+									console.log('  ✓ Hat:', hatColor);
+								}
+								child.material.needsUpdate = true;
 							}
-							child.material.needsUpdate = true;
-						}
-					});
-				}
+						});
+					}
 
-				window.character = character = new Sketchbook.Character(charModel);
-				character.setPosition(5, 2, 0);
-				world.add(character);
-				character.takeControl();
+					window.character = character = new Sketchbook.Character(charModel);
+					character.setPosition(5, 2, 0);
+					world.add(character);
+					character.takeControl();
 
 				// Add audio listener to the camera for spatial audio
 				world.camera.add(audioListener);
@@ -3736,6 +3846,15 @@
 					};
 					localStorage.setItem('characterCustomization', JSON.stringify(data));
 					console.log('💾 Customization saved:', data);
+
+					// Broadcast customization changes LIVE to all spectators
+					if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+						multiplayerWs.send(JSON.stringify({
+							type: 'customization_update',
+							customization: data
+						}));
+						console.log('📡 Broadcasting customization to spectators');
+					}
 				}
 
 				function updateCharacter() {
@@ -4674,7 +4793,8 @@
 						}
 					});
 				}, 1000);
-			});
+				}); // End of loadingManager.loadGLTF for character
+			} // End of if-else for spectator check
 
 			// Create OS system
 			const osDiv = document.createElement('div');
@@ -4696,6 +4816,9 @@
 							</div>
 							<div class="taskbar-app" data-app="chat">
 								[CHAT]
+							</div>
+							<div class="taskbar-app" data-app="multiplayer">
+								[MULTIPLAYER]
 							</div>
 						</div>
 						<div class="om-currency">
@@ -4724,6 +4847,10 @@
 								<div class="desktop-icon" data-app="chat">
 									<div class="icon">[C]</div>
 									<div class="label">CHAT.EXE</div>
+								</div>
+								<div class="desktop-icon" data-app="multiplayer">
+									<div class="icon">[M]</div>
+									<div class="label">MULTIPLAYER.EXE</div>
 								</div>
 							</div>
 							<div class="desktop-audio-player">
@@ -4929,6 +5056,44 @@
 										<div id="file-details-content" style="padding: 15px; font-family: 'Share', monospace; font-size: 12px; color: #bee17b;">
 											<!-- Details will be populated here -->
 										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Multiplayer View -->
+					<div class="os-view" id="multiplayer-view" style="display: none;">
+						<div class="app-window">
+							<div class="app-header">
+								<div class="app-title">MULTIPLAYER.EXE v1.0</div>
+							</div>
+							<div class="app-content" style="padding: 30px; display: flex; gap: 20px; height: 100%;">
+								<!-- Host Section -->
+								<div style="flex: 1; background: #000; border: 2px solid #bee17b; padding: 30px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+									<div style="font-size: 18px; font-weight: bold; color: #bee17b; margin-bottom: 30px; text-align: center;">[HOST SESSION]</div>
+									<button id="host-session-btn" class="audio-btn" style="width: 100%; max-width: 300px; padding: 20px; font-size: 16px;">[START HOSTING]</button>
+									<div id="session-code-display" style="display: none; margin-top: 30px; text-align: center; width: 100%;">
+										<div style="color: #bee17b; font-size: 13px; margin-bottom: 10px;">SESSION CODE:</div>
+										<div id="generated-code" style="color: #bee17b; font-size: 32px; font-weight: bold; letter-spacing: 4px; padding: 20px; background: #111; border: 2px solid #bee17b; border-radius: 4px; cursor: pointer; margin: 0 auto; max-width: 300px;" title="Click to copy">------</div>
+										<div style="color: #bee17b; font-size: 11px; margin-top: 10px; opacity: 0.7;">CLICK CODE TO COPY</div>
+										<div style="margin-top: 15px; max-width: 400px; margin-left: auto; margin-right: auto;">
+											<div style="color: #bee17b; font-size: 13px; margin-bottom: 8px;">SHARE URL:</div>
+											<div style="display: flex; gap: 8px; align-items: stretch;">
+												<input type="text" id="share-url" readonly style="flex: 1; padding: 12px; background: #111; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 12px; cursor: pointer;" title="Click to copy" />
+												<button id="copy-url-btn" class="audio-btn" style="padding: 12px 20px; font-size: 13px; white-space: nowrap;">[COPY]</button>
+											</div>
+										</div>
+										<button id="disconnect-btn" class="audio-btn" style="width: 100%; max-width: 300px; padding: 12px; font-size: 14px; margin-top: 20px; background: #200; border-color: #f44;">[DISCONNECT]</button>
+									</div>
+								</div>
+
+								<!-- Join Section -->
+								<div style="flex: 1; background: #000; border: 2px solid #bee17b; padding: 30px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+									<div style="font-size: 18px; font-weight: bold; color: #bee17b; margin-bottom: 30px; text-align: center;">[JOIN SESSION]</div>
+									<div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+										<input type="text" id="session-code" placeholder="ENTER CODE" style="width: 100%; max-width: 300px; padding: 20px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 24px; text-align: center; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 20px; box-sizing: border-box;" maxlength="6" />
+										<button id="join-session-btn" class="audio-btn" style="width: 100%; max-width: 300px; padding: 20px; font-size: 16px;">[JOIN SESSION]</button>
 									</div>
 								</div>
 							</div>
@@ -5270,7 +5435,7 @@
 					// Debug: Log footstep plays
 					const isFootstep = name.startsWith('footstep');
 					if (isFootstep) {
-						console.log(`🔊 Playing ${name}: volume=${options.volume}, isPlaying=${sound.audio.isPlaying}, contextState=${this.listener.context.state}`);
+						// Playing sound (logging disabled)
 					}
 
 					// If already playing and not allowing overlaps, stop first
@@ -5307,7 +5472,7 @@
 					try {
 						sound.audio.play();
 						if (isFootstep) {
-							console.log(`✅ ${name} play() called successfully`);
+							// Sound play() called (logging disabled)
 						}
 					} catch (err) {
 						console.error(`❌ Error playing ${name}:`, err);
@@ -5486,6 +5651,947 @@
 				document.getElementById('text-content').textContent = content;
 				switchToApp('text');
 			}
+
+			// ========================================
+			// MULTIPLAYER WEBSOCKET SYSTEM
+			// ========================================
+			let multiplayerWs = null;
+			let isHosting = false;
+			let currentSessionCode = null;
+
+			const WS_URL = 'ws://localhost:3000';
+
+			// Check URL for session code on load
+			if (isSpectatorMode) {
+				console.log(`🔗 Auto-joining session from URL: ${spectatorSessionCode}`);
+
+				// Skip welcome screen and firebase auth for spectators
+				const welcomeOverlay = document.getElementById('welcome-overlay');
+				if (welcomeOverlay) {
+					welcomeOverlay.classList.remove('active');
+					welcomeOverlay.style.display = 'none';
+				}
+
+				// Show spectator loading screen
+				const spectatorLoading = document.getElementById('spectator-loading');
+				const loadingStatus = document.getElementById('spectator-loading-status');
+				spectatorLoading.style.display = 'flex';
+
+				// Update status messages
+				loadingStatus.textContent = 'Establishing connection...';
+
+				setTimeout(() => {
+					loadingStatus.textContent = 'Verifying session code...';
+				}, 500);
+
+				setTimeout(() => {
+					loadingStatus.textContent = 'Joining session...';
+					document.getElementById('session-code').value = spectatorSessionCode.toUpperCase();
+					document.getElementById('join-session-btn').click();
+				}, 1500);
+			}
+
+			function connectMultiplayer() {
+				if (multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					console.log('⚠️ Already connected to multiplayer');
+					return;
+				}
+
+				multiplayerWs = new WebSocket(WS_URL);
+
+				multiplayerWs.onopen = () => {
+					console.log('🌐 Connected to multiplayer server');
+				};
+
+				multiplayerWs.onmessage = (event) => {
+					const data = JSON.parse(event.data);
+
+					switch (data.type) {
+						case 'session_created':
+							currentSessionCode = data.sessionCode;
+							isHosting = true;
+							document.getElementById('generated-code').textContent = data.sessionCode;
+
+							// Generate share URL
+							const shareUrl = `${window.location.origin}${window.location.pathname}?session=${data.sessionCode}`;
+							document.getElementById('share-url').value = shareUrl;
+
+							document.getElementById('session-code-display').style.display = 'block';
+							document.getElementById('host-session-btn').style.display = 'none';
+							console.log(`✅ Session created: ${data.sessionCode}`);
+							console.log(`🔗 Share URL: ${shareUrl}`);
+
+							// Show portal when hosting
+							if (window.portal) {
+								window.portal.visible = true;
+								console.log('🌀 Portal activated for multiplayer session');
+							}
+
+							// Show multiplayer chat
+							showMpChat();
+							break;
+
+						case 'joined':
+							currentSessionCode = data.sessionCode;
+							isHosting = false;
+							window.mySpectatorId = data.spectatorId;
+							window.hostCustomization = data.customization || {}; // Store host's customization
+							console.log(`✅ Joined session: ${data.sessionCode} - My ID: ${data.spectatorId}`);
+							console.log(`🎨 Received host customization:`, window.hostCustomization);
+
+							// Show portal for spectators
+							if (window.portal) {
+								window.portal.visible = true;
+								console.log('🌀 Portal visible for spectator');
+							}
+
+							if (isSpectatorMode) {
+								// Update loading screen
+								const loadingStatus = document.getElementById('spectator-loading-status');
+								loadingStatus.textContent = 'Connected! Loading world...';
+
+								// Launch spectator into 3D space as ghost observer
+								console.log('👻 Entering spectator mode...');
+
+								// Wait for world to be ready, then position camera
+								const checkWorldReady = setInterval(() => {
+									if (world && world.camera) {
+										clearInterval(checkWorldReady);
+
+										loadingStatus.textContent = 'Spawning at portal...';
+
+										// Spawn camera at portal position
+										world.camera.position.set(50, 15, 5); // Portal position
+										world.camera.lookAt(-5, 0.75, 5); // Look toward the computer/system
+
+										// Disable character physics and controls for spectator
+										if (character) {
+											character.controlledObject = null;
+											character.charState = null;
+										}
+
+										console.log('👻 Spectator spawned at portal');
+
+										// Mark spectator as ready to broadcast position
+										window.spectatorReady = true;
+
+										// Wait a moment, then hide loading screen
+										setTimeout(() => {
+											const spectatorLoading = document.getElementById('spectator-loading');
+											spectatorLoading.style.display = 'none';
+											console.log('👻 Spectator fully loaded and ready');
+
+											// Show multiplayer chat for spectators
+											showMpChat();
+										}, 1000);
+									}
+								}, 100);
+							} else {
+								// Manual join (not via URL) - redirect to spectator URL
+								console.log('🔄 Redirecting to spectator URL...');
+								const spectatorUrl = `${window.location.origin}${window.location.pathname}?session=${data.sessionCode}`;
+								window.location.href = spectatorUrl;
+							}
+							break;
+
+						case 'error':
+							console.error('❌ Multiplayer error:', data.message);
+
+							if (isSpectatorMode) {
+								// Show error on loading screen
+								const loadingStatus = document.getElementById('spectator-loading-status');
+								loadingStatus.textContent = `Error: ${data.message}`;
+								loadingStatus.style.color = '#ff4444';
+
+								// Show retry message after a moment
+								setTimeout(() => {
+									loadingStatus.innerHTML = `${data.message}<br><br>Please check the session code and try again.`;
+								}, 1500);
+							} else {
+								alert(`Error: ${data.message}`);
+							}
+							break;
+
+						case 'session_closed':
+							console.log('🛑 Session closed:', data.message);
+
+							if (isSpectatorMode) {
+								// Show smooth disconnect modal for spectators
+								const modal = document.getElementById('host-disconnected-modal');
+								modal.style.display = 'flex';
+
+								// Pause the world/game
+								if (world) {
+									world.updatesEnabled = false;
+								}
+							} else {
+								// For non-spectator modes, use alert
+								alert(`Session closed: ${data.message}`);
+							}
+
+							disconnectMultiplayer();
+							break;
+
+						case 'player_joined':
+							console.log(`👻 Spectator joined (${data.playerCount} total)`);
+							break;
+
+						case 'player_left':
+							console.log(`👻 Spectator left (${data.playerCount} remaining) - ID: ${data.spectatorId}`);
+
+							// Remove the specific ghost from the scene
+							if (data.spectatorId && window.spectatorGhosts && window.spectatorGhosts[data.spectatorId]) {
+								console.log('🗑️ Removing ghost for spectator:', data.spectatorId);
+								world.graphicsWorld.remove(window.spectatorGhosts[data.spectatorId]);
+								delete window.spectatorGhosts[data.spectatorId];
+								delete window.spectatorGhostTargets[data.spectatorId];
+							}
+							break;
+
+						case 'host_position':
+							// Handle host position updates when spectating
+							if (isSpectatorMode && data.position) {
+								// Load host character model if not loaded yet
+								if (!window.hostCharacterModel && !window.hostCharacterLoading) {
+									window.hostCharacterLoading = true;
+									console.log('👤 Loading host character model for spectator...');
+
+									loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
+										// Apply host's customization BEFORE adding to scene
+										if (window.hostCustomization) {
+											console.log('🎨 Applying host customization to character model...');
+											const skinColor = window.hostCustomization.skinColor || '#bee17b';
+											const shirtColor = window.hostCustomization.shirtColor || '#282828';
+											const pantsColor = window.hostCustomization.pantsColor || '#282828';
+											const hatColor = window.hostCustomization.hatColor || '#282828';
+
+											charModel.scene.traverse((child) => {
+												if (child.isMesh && child.material) {
+													const materialName = child.material.name.toLowerCase();
+													if (materialName.includes('skin')) {
+														child.material.color.set(skinColor);
+													} else if (materialName.includes('shirt')) {
+														child.material.color.set(shirtColor);
+													} else if (materialName.includes('pants')) {
+														child.material.color.set(pantsColor);
+													} else if (materialName.includes('hat')) {
+														child.material.color.set(hatColor);
+													}
+													child.material.needsUpdate = true;
+												}
+											});
+											console.log('✅ Host customization applied!');
+										}
+
+										// Create container hierarchy to match Character class structure
+										window.hostCharacterContainer = new THREE.Group(); // Main container at physics position
+										window.hostCharacterTilt = new THREE.Group();      // Tilt container
+										window.hostCharacterModel = new THREE.Group();     // Model container with offset
+
+										// Apply the same -0.57 offset as Character.ts line 101
+										window.hostCharacterModel.position.y = -0.57;
+
+										// Build hierarchy: container → tilt → model → scene
+										window.hostCharacterContainer.add(window.hostCharacterTilt);
+										window.hostCharacterTilt.add(window.hostCharacterModel);
+										window.hostCharacterModel.add(charModel.scene);
+
+										// Store reference to the actual character scene for customization updates
+										window.hostCharacterScene = charModel.scene;
+
+										// Set scale on the actual model
+										charModel.scene.scale.set(1, 1, 1);
+
+										// Initialize position of the main container (physics position)
+										window.hostCharacterContainer.position.set(
+											data.position.x,
+											data.position.y,
+											data.position.z
+										);
+
+										// Use quaternion if available, fallback to euler
+										if (data.rotation && data.rotation.w !== undefined) {
+											window.hostCharacterContainer.quaternion.set(
+												data.rotation.x,
+												data.rotation.y,
+												data.rotation.z,
+												data.rotation.w
+											);
+										}
+
+										world.graphicsWorld.add(window.hostCharacterContainer);
+
+										// Set up animation mixer (on the actual character scene, not containers)
+										if (charModel.animations && charModel.animations.length > 0) {
+											window.hostAnimationMixer = new THREE.AnimationMixer(charModel.scene);
+											window.hostAnimations = {};
+
+											charModel.animations.forEach((clip) => {
+												const action = window.hostAnimationMixer.clipAction(clip);
+												action.setLoop(THREE.LoopRepeat); // Set animations to loop
+												action.clampWhenFinished = false;
+												window.hostAnimations[clip.name] = action;
+											});
+
+											console.log('✅ Host character loaded with', Object.keys(window.hostAnimations).length, 'animations');
+
+											// Play idle animation by default
+											if (window.hostAnimations['idle']) {
+												window.hostAnimations['idle'].play();
+											} else if (Object.keys(window.hostAnimations).length > 0) {
+												// If no 'idle', play first available animation
+												const firstAnim = Object.keys(window.hostAnimations)[0];
+												window.hostAnimations[firstAnim].play();
+											}
+										} else {
+											console.log('⚠️ No animations found in character model');
+										}
+
+										window.hostCharacterLoading = false;
+									});
+								}
+
+								// Store update in interpolation buffer
+								const newUpdate = {
+									x: data.position.x,
+									y: data.position.y,
+									z: data.position.z,
+									quaternion: data.rotation && data.rotation.w !== undefined ? new THREE.Quaternion(
+										data.rotation.x,
+										data.rotation.y,
+										data.rotation.z,
+										data.rotation.w
+									) : null,
+									animationState: data.animationState || 'Idle',
+									velocity: data.velocity ? new THREE.Vector3(
+										data.velocity.x,
+										data.velocity.y,
+										data.velocity.z
+									) : new THREE.Vector3(),
+									timestamp: data.timestamp || performance.now(),
+									receivedAt: performance.now()
+								};
+
+								// Initialize buffer if doesn't exist
+								if (!window.hostUpdateBuffer) {
+									window.hostUpdateBuffer = [];
+								}
+
+								// Add to buffer
+								window.hostUpdateBuffer.push(newUpdate);
+
+								// Keep buffer size manageable (max 10 updates = ~333ms of history at 30Hz)
+								if (window.hostUpdateBuffer.length > 10) {
+									window.hostUpdateBuffer.shift();
+								}
+
+								// Set target to latest for immediate use
+								window.hostCharacterTarget = newUpdate;
+
+								// Apply car position/rotation if available
+								if (data.car && window.car && window.car.collision) {
+									const carPos = data.car.position;
+									const carRot = data.car.rotation;
+
+									// Apply position directly to physics body
+									window.car.collision.position.set(carPos.x, carPos.y, carPos.z);
+
+									// Apply rotation directly to physics body
+									window.car.collision.quaternion.set(carRot.x, carRot.y, carRot.z, carRot.w);
+
+									// Sync visual representation with physics
+									window.car.position.copy(window.car.collision.position);
+									window.car.quaternion.copy(window.car.collision.quaternion);
+
+									// Hide/show host character based on whether they're in the vehicle
+									if (window.hostCharacterContainer) {
+										window.hostCharacterContainer.visible = !data.car.characterInVehicle;
+									}
+								}
+							}
+							break;
+
+						case 'spectator_position':
+							// Receive spectator positions - show ghost (works for host AND spectators)
+							if (data.position) {
+								const playerId = data.playerId || 'Spectator';
+
+								// Don't show ghost for yourself if you're a spectator
+								if (isSpectatorMode && playerId === window.mySpectatorId) {
+									break;
+								}
+
+								// Create ghost models map if it doesn't exist
+								if (!window.spectatorGhosts) {
+									window.spectatorGhosts = {};
+								}
+
+								// Create target positions map for smooth interpolation
+								if (!window.spectatorGhostTargets) {
+									window.spectatorGhostTargets = {};
+								}
+
+								// Load ghost model for this spectator if it doesn't exist
+								if (!window.spectatorGhosts[playerId] && !window.spectatorGhosts[playerId + '_loading']) {
+									window.spectatorGhosts[playerId + '_loading'] = true;
+									console.log('👻 Loading ghost model for spectator:', playerId, isHosting ? '(host view)' : '(spectator view)');
+
+									loadingManager.loadGLTF('build/assets/ghost.glb', (ghostModel) => {
+										window.spectatorGhosts[playerId] = ghostModel.scene;
+										window.spectatorGhosts[playerId].scale.set(0.01, 0.01, 0.01);
+										// Initialize position at target
+										window.spectatorGhosts[playerId].position.set(
+											data.position.x,
+											data.position.y,
+											data.position.z
+										);
+
+										world.graphicsWorld.add(window.spectatorGhosts[playerId]);
+										console.log('✅ Ghost model loaded for spectator:', playerId, 'with pointer to speakers');
+										delete window.spectatorGhosts[playerId + '_loading'];
+									});
+								}
+
+								// Store target position and rotation for smooth interpolation with timestamp
+								window.spectatorGhostTargets[playerId] = {
+									x: data.position.x,
+									y: data.position.y,
+									z: data.position.z,
+									lookDirection: data.lookDirection ? new THREE.Vector3(
+										data.lookDirection.x,
+										data.lookDirection.y,
+										data.lookDirection.z
+									).normalize() : null,
+									timestamp: data.timestamp || performance.now(),
+									receivedAt: performance.now()
+								};
+							}
+							break;
+
+						case 'customization_update':
+							// Receive live customization changes from host
+							if (data.customization) {
+								console.log('🎨 Received live customization update:', data.customization);
+								window.hostCustomization = data.customization;
+								const c = data.customization;
+
+								// Update global color variables (so they're available when objects load)
+								window.floorGlowColor = c.floorGlowColor;
+								window.floorPanelColor = c.floorPanelColor;
+								window.speakerCabColor = c.speakerCabColor;
+								window.speakerTrimColor = c.speakerTrimColor;
+								window.speakerFaceColor = c.speakerFaceColor;
+								window.speakerFrameColor = c.speakerFrameColor;
+								window.computerChassisColor = c.computerChassisColor;
+								window.computerKeyboardColor = c.computerKeyboardColor;
+								window.computerFeaturesColor = c.computerFeaturesColor;
+								window.carDoorColor = c.carDoorColor;
+								window.carFrameColor = c.carFrameColor;
+								window.carHeadlightsColor = c.carHeadlightsColor;
+								window.carHoodColor = c.carHoodColor;
+								window.carInteriorColor = c.carInteriorColor;
+								window.carRimColor = c.carRimColor;
+								window.carSteeringColor = c.carSteeringColor;
+								window.carTaillightsColor = c.carTaillightsColor;
+								window.carTireColor = c.carTireColor;
+								window.carTrimColor = c.carTrimColor;
+
+								console.log('🔍 Checking object availability:');
+								console.log('   window.car:', !!window.car);
+								console.log('   window.speakers:', !!window.speakers);
+								console.log('   window.computer:', !!window.computer);
+								console.log('   window.groundMesh:', !!window.groundMesh);
+								console.log('   window.hostCharacterScene:', !!window.hostCharacterScene);
+
+								// Apply to host character (if loaded)
+								if (window.hostCharacterScene) {
+									window.hostCharacterScene.traverse((child) => {
+										if (child.isMesh && child.material) {
+											const materialName = child.material.name.toLowerCase();
+											if (materialName.includes('skin')) {
+												child.material.color.set(c.skinColor || '#bee17b');
+											} else if (materialName.includes('shirt')) {
+												child.material.color.set(c.shirtColor || '#282828');
+											} else if (materialName.includes('pants')) {
+												child.material.color.set(c.pantsColor || '#282828');
+											} else if (materialName.includes('hat')) {
+												child.material.color.set(c.hatColor || '#282828');
+											}
+											child.material.needsUpdate = true;
+										}
+									});
+								}
+
+								// Apply to floor (if exists)
+								if (window.groundMesh && window.generateGridTexture) {
+									window.generateGridTexture(c.floorGlowColor, c.floorPanelColor);
+									window.groundMesh.material.emissive.set(c.floorGlowColor);
+									window.groundMesh.material.color.set(c.floorPanelColor);
+									window.groundMesh.material.needsUpdate = true;
+								}
+
+								// Apply to speakers (if exists)
+								if (window.speakers) {
+									window.speakers.traverse((child) => {
+										if (child.isMesh && child.material) {
+											const matName = child.material.name;
+											if (matName === 'CAB' || matName.toLowerCase().includes('cab')) {
+												child.material.color.set(c.speakerCabColor);
+											} else if (matName === 'TRIM' || matName === 'SPEAKER_TRIM' || (matName.toLowerCase().includes('trim') && matName.toLowerCase().includes('speaker'))) {
+												child.material.color.set(c.speakerTrimColor);
+											} else if (matName === 'FACE' || matName.toLowerCase().includes('face')) {
+												child.material.color.set(c.speakerFaceColor);
+											} else if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+												child.material.color.set(c.speakerFrameColor);
+											}
+											child.material.needsUpdate = true;
+										}
+									});
+								}
+
+								// Apply to computer (if exists)
+								if (window.computer) {
+									window.computer.traverse((child) => {
+										if (child.isMesh && child.material) {
+											const matName = child.material.name;
+											if (matName === 'CHASSIS' || matName.toLowerCase().includes('chassis')) {
+												child.material.color.set(c.computerChassisColor);
+											} else if (matName === 'KEYBOARD' || matName.toLowerCase().includes('keyboard')) {
+												child.material.color.set(c.computerKeyboardColor);
+											} else if (matName === 'FEATURES' || matName.toLowerCase().includes('features')) {
+												child.material.color.set(c.computerFeaturesColor);
+											}
+											child.material.needsUpdate = true;
+										}
+									});
+								}
+
+								// Apply to car (if exists)
+								if (window.car) {
+									window.car.traverse((child) => {
+										if (child.isMesh && child.material) {
+											const matName = child.material.name;
+											if (matName === 'DOOR' || matName.toLowerCase().includes('door')) {
+												child.material.color.set(c.carDoorColor);
+											} else if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+												child.material.color.set(c.carFrameColor);
+											} else if (matName === 'HEADLIGHTS' || matName.toLowerCase().includes('headlight')) {
+												child.material.color.set(c.carHeadlightsColor);
+											} else if (matName === 'HOOD' || matName.toLowerCase().includes('hood')) {
+												child.material.color.set(c.carHoodColor);
+											} else if (matName === 'INTERIOR' || matName.toLowerCase().includes('interior')) {
+												child.material.color.set(c.carInteriorColor);
+											} else if (matName === 'RIM' || matName.toLowerCase().includes('rim')) {
+												child.material.color.set(c.carRimColor);
+											} else if (matName === 'STEERING' || matName.toLowerCase().includes('steering')) {
+												child.material.color.set(c.carSteeringColor);
+											} else if (matName === 'TAILLIGHTS' || matName.toLowerCase().includes('taillight')) {
+												child.material.color.set(c.carTaillightsColor);
+											} else if (matName === 'TIRE' || matName.toLowerCase().includes('tire')) {
+												child.material.color.set(c.carTireColor);
+											} else if (matName === 'TRIM' || (matName.toLowerCase().includes('trim') && !matName.toLowerCase().includes('speaker'))) {
+												child.material.color.set(c.carTrimColor);
+											}
+											child.material.needsUpdate = true;
+										}
+									});
+								}
+
+								console.log('✅ Applied live customization update to ALL objects');
+							}
+							break;
+
+						case 'audio_sync':
+							// Receive audio sync from host
+							if (isSpectatorMode && data.action) {
+								console.log('🎵 Received audio sync:', data.action, data.trackData);
+
+								if (data.action === 'play') {
+									// Load and play the same track as host
+									const track = data.trackData;
+									const audioOutput = data.audioOutput === 'car' ? window.carPositionalAudio : window.positionalAudio;
+
+									if (!audioOutput) {
+										console.warn('⚠️ Audio output not ready yet');
+										return;
+									}
+
+									// Stop any currently playing audio
+									if (window.carPositionalAudio && window.carPositionalAudio.isPlaying) {
+										window.carPositionalAudio.stop();
+									}
+									if (window.positionalAudio && window.positionalAudio.isPlaying) {
+										window.positionalAudio.stop();
+									}
+
+									// Build stream URL (same as host)
+									const streamUrl = `${RADIO_API_BASE_URL}/api/v1/stream/${track.id}`;
+									console.log(`🎵 Spectator loading track: ${track.title} via ${data.audioOutput}`);
+
+									// Load and play the track
+									const audioLoader = new THREE.AudioLoader();
+									audioLoader.load(streamUrl, (buffer) => {
+										audioOutput.setBuffer(buffer);
+										audioOutput.setLoop(false);
+
+										// Configure based on output type (matching host setup)
+										if (data.audioOutput === 'car') {
+											audioOutput.setVolume(0.3); // Spectators likely outside car
+
+											// Connect car EQ chain if available
+											if (window.carEQ && window.audioAnalyser) {
+												try {
+													const source = audioOutput.getOutput();
+													source.disconnect();
+													source.connect(window.carEQ.bass);
+													window.carEQ.bass.connect(window.carEQ.lowMid);
+													window.carEQ.lowMid.connect(window.carEQ.highMid);
+													window.carEQ.highMid.connect(window.carEQ.treble);
+													window.carEQ.treble.connect(window.carEQ.outsideLowpass);
+													window.carEQ.outsideLowpass.connect(window.audioAnalyser);
+													window.audioAnalyser.connect(audioOutput.context.destination);
+													console.log('✅ Car EQ chain connected');
+												} catch (e) {
+													console.warn('⚠️ Car EQ chain failed, using direct output:', e);
+												}
+											}
+										} else {
+											audioOutput.setVolume(1.0);
+
+											// Connect speaker EQ chain if available
+											if (window.speakerDirectionalBass && window.eqFilters && window.audioAnalyser) {
+												try {
+													const source = audioOutput.getOutput();
+													source.disconnect();
+													source.connect(window.speakerDirectionalBass);
+													window.speakerDirectionalBass.connect(window.speakerDirectionalLowpass);
+													window.speakerDirectionalLowpass.connect(window.eqFilters.vehicleLowpass);
+													window.eqFilters.vehicleLowpass.connect(window.eqFilters.lowpass);
+													window.eqFilters.lowpass.connect(window.eqFilters.highpass);
+													window.eqFilters.highpass.connect(window.eqFilters.low);
+													window.eqFilters.low.connect(window.eqFilters.mid);
+													window.eqFilters.mid.connect(window.eqFilters.high);
+													window.eqFilters.high.connect(window.eqFilters.masterGain);
+													window.eqFilters.masterGain.connect(window.audioAnalyser);
+													window.audioAnalyser.connect(audioOutput.context.destination);
+													console.log('✅ Speaker EQ chain connected');
+												} catch (e) {
+													console.warn('⚠️ Speaker EQ chain failed, using direct output:', e);
+												}
+											}
+										}
+
+										audioOutput.play();
+										window.spectatorAudioSource = audioOutput; // Store for pause/resume
+										console.log('✅ Spectator audio playing:', track.title);
+									}, undefined, (error) => {
+										console.error('❌ Spectator failed to load audio:', error);
+									});
+
+								} else if (data.action === 'pause') {
+									// Pause spectator audio
+									if (window.spectatorAudioSource && window.spectatorAudioSource.isPlaying) {
+										window.spectatorAudioSource.pause();
+										console.log('⏸️ Spectator audio paused');
+									}
+
+								} else if (data.action === 'resume') {
+									// Resume spectator audio
+									if (window.spectatorAudioSource && !window.spectatorAudioSource.isPlaying) {
+										window.spectatorAudioSource.play();
+										console.log('▶️ Spectator audio resumed');
+									}
+								}
+							}
+							break;
+
+						case 'chat_message':
+							// Receive chat message from server
+							if (data.username && data.message) {
+								addMpChatMessage(data.username, data.message);
+							}
+							break;
+					}
+				};
+
+				multiplayerWs.onerror = (error) => {
+					console.error('❌ WebSocket error:', error);
+				};
+
+				multiplayerWs.onclose = () => {
+					console.log('🔌 Disconnected from multiplayer server');
+					multiplayerWs = null;
+				};
+			}
+
+			function disconnectMultiplayer() {
+				if (multiplayerWs) {
+					multiplayerWs.send(JSON.stringify({ type: 'disconnect' }));
+					multiplayerWs.close();
+					multiplayerWs = null;
+				}
+
+				isHosting = false;
+				currentSessionCode = null;
+				document.getElementById('session-code-display').style.display = 'none';
+				document.getElementById('host-session-btn').style.display = 'block';
+				document.getElementById('generated-code').textContent = '------';
+
+				// Re-enable join section
+				document.getElementById('session-code').disabled = false;
+				document.getElementById('join-session-btn').disabled = false;
+				document.getElementById('join-session-btn').style.opacity = '1';
+				document.getElementById('session-code').style.opacity = '1';
+			}
+
+			// Return home button handler (for spectators when host disconnects)
+			document.getElementById('return-home-btn').addEventListener('click', () => {
+				// Remove session parameter from URL and reload
+				window.location.href = window.location.origin + window.location.pathname;
+			});
+
+			// ========================================
+			// MULTIPLAYER CHAT SYSTEM
+			// ========================================
+			let mpChatOpen = false;
+			const mpChatContainer = document.getElementById('multiplayer-chat');
+			const mpChatMessages = document.getElementById('chat-messages');
+			const mpChatInputContainer = document.getElementById('chat-input-container');
+			const mpChatInput = document.getElementById('chat-input');
+			const mpChatSendBtn = document.getElementById('chat-send-btn');
+
+			function showMpChat() {
+				if (!isHosting && !isSpectatorMode) return; // Only show in multiplayer sessions
+				mpChatContainer.style.display = 'block';
+			}
+
+			function hideMpChat() {
+				mpChatContainer.style.display = 'none';
+			}
+
+			function openMpChatInput() {
+				if (!isHosting && !isSpectatorMode) return;
+
+				mpChatOpen = true;
+				mpChatInputContainer.style.display = 'block';
+				mpChatMessages.style.display = 'block';
+				mpChatInput.focus();
+
+				// Disable game controls
+				if (world && world.inputManager) {
+					world.inputManager.inputReceiver = window.dummyInputReceiver;
+				}
+
+				// Exit pointer lock
+				if (document.pointerLockElement) {
+					document.exitPointerLock();
+				}
+			}
+
+			function closeMpChatInput() {
+				mpChatOpen = false;
+				mpChatInputContainer.style.display = 'none';
+
+				// If no messages, hide the whole chat
+				if (mpChatMessages.children.length === 0) {
+					mpChatMessages.style.display = 'none';
+				}
+
+				// Re-enable game controls
+				if (character) {
+					character.takeControl();
+				} else if (world && world.cameraOperator && isSpectatorMode) {
+					world.inputManager.inputReceiver = world.cameraOperator;
+				}
+
+				// Re-lock pointer
+				if (world && world.renderer && world.renderer.domElement) {
+					world.renderer.domElement.requestPointerLock();
+				}
+			}
+
+			function addMpChatMessage(username, message, isSystem = false) {
+				const messageEl = document.createElement('div');
+				messageEl.style.marginBottom = '8px';
+				messageEl.style.lineHeight = '1.4';
+
+				if (isSystem) {
+					messageEl.style.color = '#888';
+					messageEl.innerHTML = `[SYSTEM] ${message}`;
+				} else {
+					messageEl.innerHTML = `<span style="color: #bee17b; font-weight: bold;">[${username}]</span> ${message}`;
+				}
+
+				mpChatMessages.appendChild(messageEl);
+				mpChatMessages.scrollTop = mpChatMessages.scrollHeight;
+
+				// Show messages container
+				mpChatMessages.style.display = 'block';
+
+				// Auto-hide messages after 10 seconds if chat is closed
+				if (!mpChatOpen) {
+					setTimeout(() => {
+						if (!mpChatOpen && mpChatMessages.children.length > 0) {
+							messageEl.style.transition = 'opacity 1s';
+							messageEl.style.opacity = '0';
+							setTimeout(() => {
+								if (messageEl.parentNode) {
+									messageEl.remove();
+								}
+								// Hide container if no messages left
+								if (mpChatMessages.children.length === 0) {
+									mpChatMessages.style.display = 'none';
+								}
+							}, 1000);
+						}
+					}, 10000);
+				}
+			}
+
+			function sendMpChatMessage() {
+				const message = mpChatInput.value.trim();
+				if (!message || !multiplayerWs || multiplayerWs.readyState !== WebSocket.OPEN) {
+					return;
+				}
+
+				// Send message to server
+				multiplayerWs.send(JSON.stringify({
+					type: 'chat_message',
+					message: message
+				}));
+
+				// Clear input
+				mpChatInput.value = '';
+			}
+
+			// Chat send button
+			mpChatSendBtn.addEventListener('click', () => {
+				sendMpChatMessage();
+			});
+
+			// Chat input enter key
+			mpChatInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					sendMpChatMessage();
+				} else if (e.key === 'Escape') {
+					closeMpChatInput();
+				}
+			});
+
+			// T key to open chat
+			document.addEventListener('keydown', (e) => {
+				// Don't open chat if already typing or in other UI
+				if (mpChatOpen || window.terminalOpen || window.customizationOpen) return;
+				if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+				if (e.key === 't' || e.key === 'T') {
+					e.preventDefault();
+					openMpChatInput();
+				}
+			});
+
+			// Host session button
+			document.getElementById('host-session-btn').addEventListener('click', () => {
+				console.log('🎮 Starting host session...');
+				connectMultiplayer();
+
+				// Disable join section while hosting
+				document.getElementById('session-code').disabled = true;
+				document.getElementById('join-session-btn').disabled = true;
+				document.getElementById('join-session-btn').style.opacity = '0.5';
+				document.getElementById('session-code').style.opacity = '0.5';
+
+				// Wait for connection then send host message
+				const checkConnection = setInterval(() => {
+					if (multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+						clearInterval(checkConnection);
+
+						// Get customization data from localStorage
+						let savedCustomization = localStorage.getItem('characterCustomization');
+						let customizationData = savedCustomization ? JSON.parse(savedCustomization) : {};
+
+						multiplayerWs.send(JSON.stringify({
+							type: 'host',
+							playerData: {
+								username: window.authState?.username || 'Host Player'
+							},
+							customization: customizationData // Include ALL customization colors
+						}));
+					}
+				}, 100);
+			});
+
+			// Join session button
+			document.getElementById('join-session-btn').addEventListener('click', () => {
+				const code = document.getElementById('session-code').value.trim().toUpperCase();
+				if (code.length !== 6) {
+					alert('Please enter a valid 6-character session code');
+					return;
+				}
+
+				console.log(`🔗 Joining session: ${code}`);
+				connectMultiplayer();
+
+				// Wait for connection then send join message
+				const checkConnection = setInterval(() => {
+					if (multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+						clearInterval(checkConnection);
+						multiplayerWs.send(JSON.stringify({
+							type: 'join',
+							sessionCode: code,
+							playerData: {
+								username: window.authState?.username || 'Spectator'
+							}
+						}));
+					}
+				}, 100);
+			});
+
+			// Disconnect button
+			document.getElementById('disconnect-btn').addEventListener('click', () => {
+				console.log('🛑 Disconnecting from session...');
+				disconnectMultiplayer();
+			});
+
+			// Copy session code on click
+			document.getElementById('generated-code').addEventListener('click', () => {
+				const code = document.getElementById('generated-code').textContent;
+				if (code && code !== '------') {
+					navigator.clipboard.writeText(code).then(() => {
+						console.log('📋 Session code copied to clipboard');
+						const codeEl = document.getElementById('generated-code');
+						const originalBg = codeEl.style.background;
+						codeEl.style.background = '#bee17b';
+						codeEl.style.color = '#000';
+						setTimeout(() => {
+							codeEl.style.background = originalBg;
+							codeEl.style.color = '#bee17b';
+						}, 200);
+					});
+				}
+			});
+
+			// Copy URL button
+			document.getElementById('copy-url-btn').addEventListener('click', () => {
+				const url = document.getElementById('share-url').value;
+				navigator.clipboard.writeText(url).then(() => {
+					console.log('📋 Share URL copied to clipboard');
+					const btn = document.getElementById('copy-url-btn');
+					btn.textContent = '[COPIED!]';
+					setTimeout(() => {
+						btn.textContent = '[COPY]';
+					}, 1500);
+				});
+			});
+
+			// Copy URL on input click
+			document.getElementById('share-url').addEventListener('click', function() {
+				navigator.clipboard.writeText(this.value).then(() => {
+					console.log('📋 Share URL copied to clipboard');
+					this.select();
+				});
+			});
 
 			// Chat System
 			const chatMessages = document.getElementById('chat-messages');
@@ -7809,7 +8915,7 @@
 
 				// Debug every 100 cycles (5 seconds)
 				if (debugCounter % 100 === 0 && char) {
-					console.log(`🔍 Footstep check: character=${!!char}, terminal=${terminalOpen}, custom=${customizationOpen}, soundEngine=${!!soundEngine}, moving=${isMovingState(char)}, grounded=${char.rayHasHit}`);
+					// Footstep check (logging disabled)
 				}
 				debugCounter++;
 
@@ -7836,7 +8942,7 @@
 
 							// Debug logging (only show every 5th footstep to avoid spam)
 							if (footstepDebugCount % 5 === 0) {
-								console.log(`🦶 Footstep #${footstepDebugCount}: ${footstepName}, vol: ${finalVolume.toFixed(3)}, pitch: ${pitchVariation.toFixed(2)}, speed: ${speed.toFixed(2)}, AudioContext: ${audioListener.context.state}`);
+								// Footstep played (logging disabled)
 							}
 							footstepDebugCount++;
 
@@ -8040,6 +9146,34 @@
 				world.physicsWorld.addBody(speakersBody);
 			});
 
+			// Load the portal for multiplayer (only when hosting)
+			loadingManager.loadGLTF('build/assets/portal.glb', (portalModel) => {
+				const portal = portalModel.scene;
+				window.portal = portal; // Make globally accessible
+				portal.position.set(50, 15, 5); // Even further back along X-axis
+				portal.scale.set(1, 1, 1);
+				portal.rotation.y = Math.PI / 2; // Rotate 90 degrees on Y-axis
+				portal.rotation.x = Math.PI / 4; // 45 degrees on X-axis
+
+				// Only add portal to scene if hosting multiplayer
+				portal.visible = false; // Hidden by default
+				world.graphicsWorld.add(portal);
+
+				// Play portal animation if it exists
+				if (portalModel.animations && portalModel.animations.length > 0) {
+					const portalMixer = new THREE.AnimationMixer(portal);
+					window.portalMixer = portalMixer;
+					portalModel.animations.forEach((clip) => {
+						const action = portalMixer.clipAction(clip);
+						action.loop = THREE.LoopRepeat;
+						action.play();
+					});
+					console.log('🌀 Portal animation playing');
+				}
+
+				console.log('🌀 Portal loaded (hidden until hosting)');
+			});
+
 			// Computer interaction system
 			let nearComputer = false;
 			let nearCar = false;
@@ -8118,6 +9252,334 @@
 
 			// Add to update loop
 			const updateInterval = setInterval(() => {
+				// Update portal animation
+				if (window.portalMixer) {
+					window.portalMixer.update(0.016); // ~60fps delta
+				}
+
+				// Smooth interpolation for spectator ghosts (host side) - OPTIMIZED
+				if (window.spectatorGhosts && window.spectatorGhostTargets) {
+					Object.keys(window.spectatorGhosts).forEach(playerId => {
+						const ghost = window.spectatorGhosts[playerId];
+						const target = window.spectatorGhostTargets[playerId];
+
+						if (ghost && target && ghost.position) {
+							// Calculate distance for adaptive lerp speed
+							const distance = Math.sqrt(
+								Math.pow(target.x - ghost.position.x, 2) +
+								Math.pow(target.y - ghost.position.y, 2) +
+								Math.pow(target.z - ghost.position.z, 2)
+							);
+
+							// Adaptive lerp: faster when far, slower when close
+							const lerpFactor = distance > 1 ? 0.3 : distance > 0.1 ? 0.2 : 0.15;
+
+							// Smoothly interpolate position
+							ghost.position.x += (target.x - ghost.position.x) * lerpFactor;
+							ghost.position.y += (target.y - ghost.position.y) * lerpFactor;
+							ghost.position.z += (target.z - ghost.position.z) * lerpFactor;
+
+							// Use look direction to orient the ghost to face where spectator is looking
+							if (target.lookDirection) {
+								const lookVec = target.lookDirection; // Already normalized
+
+								// Create a target point using the look direction
+								const lookTarget = new THREE.Vector3(
+									ghost.position.x + lookVec.x,
+									ghost.position.y + lookVec.y,
+									ghost.position.z + lookVec.z
+								);
+
+								// Store current rotation as quaternion
+								const currentQuat = ghost.quaternion.clone();
+
+								// Use Three.js lookAt for correct rotation (handles all the math)
+								ghost.lookAt(lookTarget);
+
+								// Get the target quaternion from lookAt
+								const targetQuat = ghost.quaternion.clone();
+
+								// Restore current rotation and interpolate
+								ghost.quaternion.copy(currentQuat);
+								ghost.quaternion.slerp(targetQuat, lerpFactor);
+							}
+						}
+					});
+				}
+
+				// Smooth interpolation and animation for host character (spectator side) - OPTIMIZED v2
+				if (window.hostCharacterContainer && window.hostCharacterTarget && window.hostUpdateBuffer) {
+					const now = performance.now();
+					const target = window.hostCharacterTarget;
+					const container = window.hostCharacterContainer;
+					const buffer = window.hostUpdateBuffer;
+
+					// Calculate velocity magnitude to check if character is moving
+					const velocityMag = target.velocity ? target.velocity.length() : 0;
+					const isMoving = velocityMag > 0.1;
+
+					// Render time - slightly in the past (100ms buffer) for smoother interpolation
+					const renderTime = now - 100;
+
+					// Find two updates to interpolate between
+					let prevUpdate = null;
+					let nextUpdate = null;
+
+					for (let i = 0; i < buffer.length - 1; i++) {
+						if (buffer[i].receivedAt <= renderTime && buffer[i + 1].receivedAt >= renderTime) {
+							prevUpdate = buffer[i];
+							nextUpdate = buffer[i + 1];
+							break;
+						}
+					}
+
+					// Fallback: use latest if we don't have buffer data
+					if (!prevUpdate || !nextUpdate) {
+						prevUpdate = buffer.length > 1 ? buffer[buffer.length - 2] : target;
+						nextUpdate = target;
+					}
+
+					// Calculate interpolation alpha between the two updates
+					const totalTime = nextUpdate.receivedAt - prevUpdate.receivedAt;
+					const currentTime = renderTime - prevUpdate.receivedAt;
+					let alpha = totalTime > 0 ? currentTime / totalTime : 1;
+					alpha = Math.max(0, Math.min(1, alpha)); // Clamp 0-1
+
+					// Interpolate position between prev and next
+					let interpPos = new THREE.Vector3(
+						prevUpdate.x + (nextUpdate.x - prevUpdate.x) * alpha,
+						prevUpdate.y + (nextUpdate.y - prevUpdate.y) * alpha,
+						prevUpdate.z + (nextUpdate.z - prevUpdate.z) * alpha
+					);
+
+					// Add extrapolation if moving for smoother feel
+					if (isMoving && alpha >= 0.8) { // Only extrapolate when close to latest update
+						const extrapolationTime = Math.min((now - nextUpdate.receivedAt) / 1000, 0.1);
+						interpPos.add(nextUpdate.velocity.clone().multiplyScalar(extrapolationTime));
+					}
+
+					// Calculate distance for adaptive lerp
+					const distance = container.position.distanceTo(interpPos);
+
+					// Smoother, more aggressive lerp factors
+					let lerpFactor;
+					if (distance > 5) {
+						lerpFactor = 0.6; // Very far, snap quickly
+					} else if (distance > 1) {
+						lerpFactor = 0.4; // Far - increased from 0.3
+					} else if (distance > 0.3) {
+						lerpFactor = 0.25; // Medium - increased from 0.2
+					} else {
+						lerpFactor = 0.15; // Close - increased from 0.12
+					}
+
+					// Interpolate position
+					container.position.lerp(interpPos, lerpFactor);
+
+					// Interpolate rotation between prev and next quaternions
+					if (prevUpdate.quaternion && nextUpdate.quaternion) {
+						const interpQuat = prevUpdate.quaternion.clone();
+						interpQuat.slerp(nextUpdate.quaternion, alpha);
+						container.quaternion.slerp(interpQuat, lerpFactor);
+					} else if (nextUpdate.quaternion) {
+						container.quaternion.slerp(nextUpdate.quaternion, lerpFactor);
+					}
+
+					// Update animation mixer with proper delta time
+					if (window.hostAnimationMixer) {
+						// Calculate actual delta time since last update
+						if (!window.lastHostAnimUpdate) window.lastHostAnimUpdate = now;
+						const animDelta = (now - window.lastHostAnimUpdate) / 1000; // Convert to seconds
+						window.lastHostAnimUpdate = now;
+
+						window.hostAnimationMixer.update(Math.min(animDelta, 0.1)); // Cap at 100ms to prevent huge jumps
+
+						// Switch animations based on state (optimized - cache current anim)
+						if (window.hostAnimations && target.animationState) {
+							const targetAnim = target.animationState;
+
+							// Cache to avoid repeated state changes
+							if (window.lastHostAnimState !== targetAnim) {
+								// Animation name mapping (character state → animation clip name)
+								const animMap = {
+									// Basic movement states
+									'Idle': 'idle',
+									'IdleRotateLeft': 'idle',
+									'IdleRotateRight': 'idle',
+									'Walk': 'run',
+									'Sprint': 'sprint',
+									'StartWalkForward': 'run',
+									'StartWalkLeft': 'run',
+									'StartWalkRight': 'run',
+									'StartWalkBackLeft': 'run',
+									'StartWalkBackRight': 'run',
+									'EndWalk': 'idle',
+
+									// Jump/fall states
+									'JumpIdle': 'jump_idle',
+									'JumpRunning': 'jump_running',
+									'Falling': 'falling',
+									'DropIdle': 'idle',
+									'DropRunning': 'run',
+									'DropRolling': 'run',
+
+									// Vehicle states
+									'Driving': 'driving',
+									'Sitting': 'sitting',
+									'EnteringVehicle': 'sit_down_left',
+									'ExitingVehicle': 'stand_up_left',
+									'ExitingAirplane': 'stand_up_left',
+									'OpenVehicleDoor': 'open_door_standing_left',
+									'CloseVehicleDoorInside': 'close_door_sitting_left',
+									'CloseVehicleDoorOutside': 'close_door_standing_left',
+									'SwitchingSeats': 'sitting_shift_left'
+								};
+
+								// Map the state to animation clip name
+								let targetClipName = animMap[targetAnim] || targetAnim.toLowerCase();
+
+								// Try to find matching animation (case-insensitive)
+								let matchedAnimName = null;
+								Object.keys(window.hostAnimations).forEach(animName => {
+									if (animName.toLowerCase() === targetClipName.toLowerCase()) {
+										matchedAnimName = animName;
+									}
+								});
+
+								// Fallback chain: sprint → run → idle
+								if (!matchedAnimName) {
+									// Special fallback for sprint
+									if (targetClipName === 'sprint') {
+										console.warn(`⚠️ 'sprint' animation not found, falling back to 'run'`);
+										matchedAnimName = Object.keys(window.hostAnimations).find(a => a.toLowerCase() === 'run');
+									}
+
+									// Final fallback to idle
+									if (!matchedAnimName) {
+										console.warn(`⚠️ Animation '${targetClipName}' not found for state '${targetAnim}', using idle. Available:`, Object.keys(window.hostAnimations));
+										matchedAnimName = Object.keys(window.hostAnimations).find(a => a.toLowerCase() === 'idle');
+									}
+								}
+
+								if (matchedAnimName) {
+									// Stop all other animations
+									Object.keys(window.hostAnimations).forEach(animName => {
+										const action = window.hostAnimations[animName];
+										if (animName !== matchedAnimName && action.isRunning()) {
+											action.fadeOut(0.2);
+										}
+									});
+
+									// Play the target animation
+									const targetAction = window.hostAnimations[matchedAnimName];
+									if (!targetAction.isRunning()) {
+										targetAction.reset().fadeIn(0.2).play();
+									}
+
+									window.lastHostAnimState = targetAnim;
+								}
+							}
+						}
+					}
+				}
+
+				// Broadcast host position and animation state to spectators (THROTTLED)
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN && character) {
+					// Throttle updates to 30Hz (every ~33ms) instead of 60Hz
+					if (!window.lastHostBroadcast) window.lastHostBroadcast = 0;
+					const now = performance.now();
+					const timeSinceLastBroadcast = now - window.lastHostBroadcast;
+
+					if (timeSinceLastBroadcast >= 33) { // ~30 updates/sec
+						window.lastHostBroadcast = now;
+
+						// Get current animation state
+						const currentState = character.charState ? character.charState.constructor.name : 'Idle';
+
+						// Get full quaternion rotation for precise orientation
+						const quat = new THREE.Quaternion();
+						quat.setFromEuler(character.rotation);
+
+						// Check if character is in a vehicle
+						const inVehicle = character.occupyingSeat !== null;
+
+						// Prepare car data if car exists
+						let carData = null;
+						if (window.car && window.car.collision) {
+							const carPos = window.car.collision.position;
+							const carQuat = window.car.collision.quaternion;
+							carData = {
+								position: {
+									x: Math.round(carPos.x * 1000) / 1000,
+									y: Math.round(carPos.y * 1000) / 1000,
+									z: Math.round(carPos.z * 1000) / 1000
+								},
+								rotation: {
+									x: Math.round(carQuat.x * 10000) / 10000,
+									y: Math.round(carQuat.y * 10000) / 10000,
+									z: Math.round(carQuat.z * 10000) / 10000,
+									w: Math.round(carQuat.w * 10000) / 10000
+								},
+								characterInVehicle: inVehicle
+							};
+						}
+
+						multiplayerWs.send(JSON.stringify({
+							type: 'position_update',
+							timestamp: now,
+							position: {
+								x: Math.round(character.position.x * 1000) / 1000,
+								y: Math.round(character.position.y * 1000) / 1000,
+								z: Math.round(character.position.z * 1000) / 1000
+							},
+							rotation: {
+								x: Math.round(quat.x * 10000) / 10000,
+								y: Math.round(quat.y * 10000) / 10000,
+								z: Math.round(quat.z * 10000) / 10000,
+								w: Math.round(quat.w * 10000) / 10000
+							},
+							animationState: currentState,
+							velocity: character.velocity ? {
+								x: Math.round(character.velocity.x * 100) / 100,
+								y: Math.round(character.velocity.y * 100) / 100,
+								z: Math.round(character.velocity.z * 100) / 100
+							} : null,
+							car: carData
+						}));
+					}
+				}
+
+				// Broadcast spectator camera position and rotation to host (THROTTLED)
+				if (isSpectatorMode && window.spectatorReady && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN && world && world.camera) {
+					// Throttle spectator updates to 20Hz (every 50ms) - less critical than host
+					if (!window.lastSpectatorBroadcast) window.lastSpectatorBroadcast = 0;
+					const now = performance.now();
+					const timeSinceLastBroadcast = now - window.lastSpectatorBroadcast;
+
+					if (timeSinceLastBroadcast >= 50) { // 20 updates/sec
+						window.lastSpectatorBroadcast = now;
+
+						// Get camera direction vector (where the spectator is looking)
+						const lookDirection = new THREE.Vector3();
+						world.camera.getWorldDirection(lookDirection);
+
+						multiplayerWs.send(JSON.stringify({
+							type: 'spectator_position',
+							timestamp: now,
+							position: {
+								x: Math.round(world.camera.position.x * 1000) / 1000,
+								y: Math.round(world.camera.position.y * 1000) / 1000,
+								z: Math.round(world.camera.position.z * 1000) / 1000
+							},
+							lookDirection: {
+								x: Math.round(lookDirection.x * 10000) / 10000,
+								y: Math.round(lookDirection.y * 10000) / 10000,
+								z: Math.round(lookDirection.z * 10000) / 10000
+							}
+						}));
+					}
+				}
+
 				if (character) {
 					checkComputerProximity();
 					checkCarProximity();
@@ -9540,6 +11002,26 @@
 				};
 				window.isPlaybackPaused = false;
 
+				// Broadcast audio sync to spectators
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					multiplayerWs.send(JSON.stringify({
+						type: 'audio_sync',
+						action: 'play',
+						trackData: {
+							id: track.id,
+							title: track.title,
+							artistName: track.artistName,
+							artistUsername: track.artistUsername,
+							artwork_url: track.artwork_url,
+							user_id: track.user_id
+						},
+						trackIndex: index,
+						audioOutput: window.currentAudioOutput,
+						timestamp: performance.now()
+					}));
+					console.log('📡 Broadcasting audio play to spectators:', track.title);
+				}
+
 				// Start 30-second timer for play count
 				if (radioCurrentTrackId) {
 					radioPlayCountTimer = setTimeout(() => {
@@ -9597,10 +11079,27 @@
 						audioOutput.play();
 						window.isPlaybackPaused = false;
 						btn.textContent = '⏸';
+						// Broadcast resume to spectators
+						if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+							multiplayerWs.send(JSON.stringify({
+								type: 'audio_sync',
+								action: 'resume',
+								currentTime: audioOutput.source?.buffer?.duration ? (audioOutput.context.currentTime - audioOutput.source.startedAt) : 0
+							}));
+							console.log('📡 Broadcasting audio resume');
+						}
 					} else {
 						audioOutput.pause();
 						window.isPlaybackPaused = true;
 						btn.textContent = '▶';
+						// Broadcast pause to spectators
+						if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+							multiplayerWs.send(JSON.stringify({
+								type: 'audio_sync',
+								action: 'pause'
+							}));
+							console.log('📡 Broadcasting audio pause');
+						}
 					}
 				}
 			}

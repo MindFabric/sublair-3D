@@ -37,13 +37,17 @@ const PORT = process.env.PORT || 3000;
 // Trust proxy (required for Railway)
 app.set('trust proxy', 1);
 
-// Security Middleware
-app.use(helmet({
-  contentSecurityPolicy: false, // Disable CSP to allow inline scripts
-}));
+// CORS - Allow all origins
 app.use(cors({
   origin: '*' // Allow all origins for now (can restrict later)
 }));
+
+// Security Middleware - disabled temporarily to fix redirect loop
+// app.use(helmet({
+//   contentSecurityPolicy: false,
+//   hsts: false,
+//   frameguard: false
+// }));
 
 // Rate Limiting
 const limiter = rateLimit({

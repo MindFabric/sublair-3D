@@ -1941,7 +1941,7 @@
 			background: #d4f098;
 		}
 
-		/* Chat Messages Scrollbar */
+		/* Chat Messages Scrollbar (Multiplayer) */
 		#chat-messages::-webkit-scrollbar {
 			width: 16px;
 		}
@@ -1958,6 +1958,31 @@
 
 		#chat-messages::-webkit-scrollbar-thumb:hover {
 			background: #d4f098;
+		}
+
+		/* OS Chat Messages Scrollbar */
+		#os-chat-messages::-webkit-scrollbar {
+			width: 16px;
+		}
+
+		#os-chat-messages::-webkit-scrollbar-track {
+			background: #000;
+			border-left: 1px solid #bee17b;
+		}
+
+		#os-chat-messages::-webkit-scrollbar-thumb {
+			background: #bee17b;
+			border: 2px solid #000;
+		}
+
+		#os-chat-messages::-webkit-scrollbar-thumb:hover {
+			background: #d4f098;
+		}
+
+		/* Firefox support */
+		#os-chat-messages {
+			scrollbar-width: thin;
+			scrollbar-color: #bee17b #000;
 		}
 
 		/* Online Users Scrollbar */
@@ -2349,20 +2374,17 @@
 	<!-- Crosshair (hidden by default) -->
 	<div class="crosshair" id="crosshair" style="display: none;"></div>
 
-	<!-- Multiplayer Chat (bottom left, only shown in multiplayer sessions) -->
+	<!-- Multiplayer Chat (bottom left) -->
 	<div id="multiplayer-chat" style="display: none; position: fixed; bottom: 20px; left: 20px; width: 400px; max-height: 300px; z-index: 1000;">
-		<!-- Chat messages container -->
-		<div id="chat-messages" style="background: rgba(0, 0, 0, 0.85); border: 2px solid #bee17b; padding: 15px; font-family: 'Share', monospace; color: #bee17b; font-size: 13px; max-height: 200px; overflow-y: auto; margin-bottom: 10px; display: none;">
+		<!-- Chat messages container (always visible in multiplayer) -->
+		<div id="chat-messages" style="background: rgba(0, 0, 0, 0.85); border: 2px solid #bee17b; padding: 15px; font-family: 'Share Tech Mono', monospace; color: #bee17b; font-size: 13px; max-height: 200px; overflow-y: auto; margin-bottom: 10px; display: none;">
 			<!-- Messages will be added here -->
 		</div>
 
 		<!-- Chat input (shown when T is pressed) -->
 		<div id="chat-input-container" style="display: none; background: rgba(0, 0, 0, 0.85); border: 2px solid #bee17b; padding: 10px;">
 			<div style="display: flex; gap: 10px; align-items: center;">
-				<input type="text" id="chat-input" placeholder="Type message..." maxlength="200" style="flex: 1; background: #000; border: 1px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 13px; padding: 8px; outline: none;" />
-				<button id="chat-send-btn" style="background: #bee17b; color: #000; border: none; padding: 8px 16px; font-family: 'Share', monospace; font-size: 12px; cursor: pointer; letter-spacing: 1px;">
-					[SEND]
-				</button>
+				<input type="text" id="chat-input" placeholder="Type message... (ESC to close)" maxlength="200" style="flex: 1; background: #000; border: 1px solid #bee17b; color: #bee17b; font-family: 'Share Tech Mono', monospace; font-size: 13px; padding: 8px; outline: none;" />
 			</div>
 		</div>
 	</div>
@@ -4977,14 +4999,14 @@
 							<div class="app-content" style="display: flex; flex-direction: row; height: 100%;">
 								<!-- Messages Area -->
 								<div style="flex: 1; display: flex; flex-direction: column;">
-									<div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 20px; background: #000; font-family: 'Share', monospace; color: #bee17b; font-size: 14px;">
+									<div id="os-chat-messages" style="flex: 1; overflow-y: auto; padding: 20px; background: #000; font-family: 'Share', monospace; color: #bee17b; font-size: 14px;">
 										<div style="color: #666; text-align: center; padding: 20px;">
 											[CONNECTING TO CHAT SERVER...]
 										</div>
 									</div>
 									<div style="padding: 15px; background: #111; border-top: 1px solid #bee17b; display: flex; gap: 10px;">
-										<input type="text" id="chat-input" placeholder="Type message..." style="flex: 1; padding: 10px; background: #000; border: 1px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 14px;" />
-										<button id="chat-send" class="audio-btn" style="width: auto; padding: 10px 20px;">[SEND]</button>
+										<input type="text" id="os-chat-input" placeholder="Type message..." style="flex: 1; padding: 10px; background: #000; border: 1px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 14px;" />
+										<button id="os-chat-send" class="audio-btn" style="width: auto; padding: 10px 20px;">[SEND]</button>
 									</div>
 								</div>
 								<!-- Online Users Sidebar -->
@@ -6360,6 +6382,20 @@
 					window.portal.visible = false;
 					console.log('🌀 Portal hidden - multiplayer session ended');
 				}
+
+				// Hide and clear multiplayer chat
+				hideMpChat();
+				closeMpChatInput();
+				mpChatMessages.innerHTML = ''; // Clear all messages
+				mpChatMessages.style.display = 'none';
+
+				// Reset spam detection
+				lastMessageTime = 0;
+				messageCount = 0;
+				messageHistory = [];
+				isSpamBlocked = false;
+
+				console.log('💬 Multiplayer chat cleared');
 			}
 
 			// Return home button handler (for spectators when host disconnects)
@@ -6376,7 +6412,15 @@
 			const mpChatMessages = document.getElementById('chat-messages');
 			const mpChatInputContainer = document.getElementById('chat-input-container');
 			const mpChatInput = document.getElementById('chat-input');
-			const mpChatSendBtn = document.getElementById('chat-send-btn');
+
+			// Spam detection
+			let lastMessageTime = 0;
+			let messageCount = 0;
+			let messageHistory = [];
+			const MESSAGE_COOLDOWN = 1000; // 1 second between messages
+			const SPAM_THRESHOLD = 5; // Max 5 messages
+			const SPAM_WINDOW = 10000; // Within 10 seconds
+			let isSpamBlocked = false;
 
 			function showMpChat() {
 				if (!isHosting && !isSpectatorMode) return; // Only show in multiplayer sessions
@@ -6410,6 +6454,9 @@
 				mpChatOpen = false;
 				mpChatInputContainer.style.display = 'none';
 
+				// Clear input field
+				mpChatInput.value = '';
+
 				// If no messages, hide the whole chat
 				if (mpChatMessages.children.length === 0) {
 					mpChatMessages.style.display = 'none';
@@ -6422,16 +6469,20 @@
 					world.inputManager.inputReceiver = world.cameraOperator;
 				}
 
-				// Re-lock pointer
-				if (world && world.renderer && world.renderer.domElement) {
-					world.renderer.domElement.requestPointerLock();
-				}
+				// Re-lock pointer after a small delay
+				setTimeout(() => {
+					if (world && world.renderer && world.renderer.domElement) {
+						world.renderer.domElement.requestPointerLock();
+					}
+				}, 100);
 			}
 
 			function addMpChatMessage(username, message, isSystem = false) {
 				const messageEl = document.createElement('div');
 				messageEl.style.marginBottom = '8px';
 				messageEl.style.lineHeight = '1.4';
+				messageEl.style.fontFamily = "'Share Tech Mono', monospace";
+				messageEl.style.fontSize = '13px';
 
 				if (isSystem) {
 					messageEl.style.color = '#888';
@@ -6472,27 +6523,68 @@
 					return;
 				}
 
+				// Check if spam blocked
+				if (isSpamBlocked) {
+					addMpChatMessage('', 'You are temporarily blocked from sending messages', true);
+					return;
+				}
+
+				// Check cooldown
+				const now = Date.now();
+				const timeSinceLastMessage = now - lastMessageTime;
+				if (timeSinceLastMessage < MESSAGE_COOLDOWN) {
+					const remainingTime = Math.ceil((MESSAGE_COOLDOWN - timeSinceLastMessage) / 1000);
+					addMpChatMessage('', `Please wait ${remainingTime}s before sending another message`, true);
+					return;
+				}
+
+				// Update message history
+				messageHistory.push(now);
+				messageHistory = messageHistory.filter(time => now - time < SPAM_WINDOW);
+
+				// Check for spam
+				if (messageHistory.length > SPAM_THRESHOLD) {
+					isSpamBlocked = true;
+					addMpChatMessage('', 'Spam detected! You have been blocked for 30 seconds', true);
+					setTimeout(() => {
+						isSpamBlocked = false;
+						messageHistory = [];
+						addMpChatMessage('', 'Chat block removed', true);
+					}, 30000);
+					mpChatInput.value = '';
+					return;
+				}
+
+				// Get username from Firebase auth or fallback
+				const username = window.authState?.user?.username ||
+								window.authState?.user?.displayName ||
+								window.authState?.email?.split('@')[0] ||
+								(isHosting ? 'Host' : 'Spectator');
+
 				// Send message to server
 				multiplayerWs.send(JSON.stringify({
 					type: 'chat_message',
-					message: message
+					message: message,
+					username: username
 				}));
 
-				// Clear input
-				mpChatInput.value = '';
-			}
+				// Update last message time
+				lastMessageTime = now;
 
-			// Chat send button
-			mpChatSendBtn.addEventListener('click', () => {
-				sendMpChatMessage();
-			});
+				// Clear input but keep chat open for conversation
+				mpChatInput.value = '';
+				mpChatInput.focus();
+			}
 
 			// Chat input enter key
 			mpChatInput.addEventListener('keydown', (e) => {
 				if (e.key === 'Enter') {
 					e.preventDefault();
+					e.stopPropagation();
 					sendMpChatMessage();
 				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					e.stopPropagation();
 					closeMpChatInput();
 				}
 			});
@@ -6611,10 +6703,10 @@
 				});
 			});
 
-			// Chat System
-			const chatMessages = document.getElementById('chat-messages');
-			const chatInput = document.getElementById('chat-input');
-			const chatSend = document.getElementById('chat-send');
+			// Chat System (OS Terminal Chat)
+			const chatMessages = document.getElementById('os-chat-messages');
+			const chatInput = document.getElementById('os-chat-input');
+			const chatSend = document.getElementById('os-chat-send');
 			const onlineUsers = document.getElementById('online-users');
 			const onlineCount = document.getElementById('online-count');
 			let lastMessageTimestamp = null;

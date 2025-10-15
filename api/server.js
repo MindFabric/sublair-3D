@@ -377,22 +377,34 @@ v1Router.get('/chat/messages', async (req, res) => {
     const messages = [];
 
     snapshot.forEach(doc => {
+      const data = doc.data();
       messages.push({
         id: doc.id,
-        ...doc.data()
+        ...data
       });
     });
 
     console.log(`✅ Returned ${messages.length} messages`);
+    console.log('📊 Sample message data:', messages.length > 0 ? messages[0] : 'No messages');
+
     res.json({
       success: true,
       data: messages.reverse() // Oldest first for display
     });
   } catch (error) {
     console.error('❌ Error fetching messages:', error);
+    console.error('❌ Error details:', error.message);
+
+    // If Firestore index is missing, return helpful error
+    if (error.message && error.message.includes('index')) {
+      console.error('⚠️ Firestore index required! Create an index for "messages" collection on "createdAt" field');
+      console.error('🔗 Index URL:', error.message.match(/https:\/\/[^\s]+/)?.[0]);
+    }
+
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch messages'
+      error: 'Failed to fetch messages',
+      details: error.message
     });
   }
 });
@@ -1255,7 +1267,8 @@ wss.on('connection', (ws, req) => {
           if (ws.sessionCode && data.message) {
             const session = sessions.get(ws.sessionCode);
             if (session) {
-              const username = ws.playerData?.username || (ws.isHost ? 'Host' : 'Spectator');
+              // Use username from client (includes Firebase auth username) or fallback
+              const username = data.username || ws.playerData?.username || (ws.isHost ? 'Host' : 'Spectator');
               const chatData = {
                 type: 'chat_message',
                 username: username,

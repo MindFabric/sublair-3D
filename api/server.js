@@ -8,15 +8,24 @@ const admin = require('firebase-admin');
 const http = require('http');
 const WebSocket = require('ws');
 
-// Initialize Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-  }),
-  databaseURL: process.env.FIREBASE_DATABASE_URL
-});
+// Initialize Firebase Admin (with error handling)
+try {
+  if (!process.env.FIREBASE_PROJECT_ID) {
+    console.warn('⚠️ Firebase credentials not found - some features will be disabled');
+  } else {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+      }),
+      databaseURL: process.env.FIREBASE_DATABASE_URL
+    });
+    console.log('✅ Firebase initialized successfully');
+  }
+} catch (error) {
+  console.error('❌ Firebase initialization failed:', error.message);
+}
 
 const db = admin.firestore();
 const realtimeDb = admin.database();
@@ -1312,12 +1321,19 @@ function handleDisconnect(ws) {
 }
 
 // Start server (works for both development and Railway)
-server.listen(PORT, () => {
+console.log('🔄 Starting server...');
+console.log(`📍 PORT: ${PORT}`);
+console.log(`📍 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 API Server running on port ${PORT}`);
   console.log(`🌐 WebSocket Server running on port ${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
   console.log(`🎵 Tracks endpoint: http://localhost:${PORT}/api/v1/tracks`);
+}).on('error', (err) => {
+  console.error('❌ Server failed to start:', err);
+  process.exit(1);
 });
 
 // Export for Vercel serverless (API routes only, not WebSocket)

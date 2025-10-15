@@ -28,9 +28,7 @@ const PORT = process.env.PORT || 3000;
 // Security Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://yourdomain.com'] // Update with your production domain
-    : ['http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:8080']
+  origin: '*' // Allow all origins for now (can restrict later)
 }));
 
 // Rate Limiting
@@ -51,6 +49,10 @@ const chatLimiter = rateLimit({
 // Body Parser
 app.use(express.json());
 app.use(express.text({ type: 'text/plain' })); // Support sendBeacon requests
+
+// Serve static files from root directory (for Railway deployment)
+const path = require('path');
+app.use(express.static(path.join(__dirname, '..')));
 
 // Firebase Database URL
 const FIREBASE_DB_URL = process.env.FIREBASE_DATABASE_URL;

@@ -9502,8 +9502,20 @@
 					if (timeSinceLastBroadcast >= 33) { // ~30 updates/sec
 						window.lastHostBroadcast = now;
 
-						// Get current animation state
-						const currentState = character.charState ? character.charState.constructor.name : 'Idle';
+						// Get current animation state with robust fallback
+						let currentState = 'Idle';
+						if (character && character.charState) {
+							if (character.charState.constructor && character.charState.constructor.name) {
+								currentState = character.charState.constructor.name;
+							} else if (typeof character.charState === 'string') {
+								currentState = character.charState;
+							}
+						}
+
+						// Debug log occasionally
+						if (Math.random() < 0.01) {
+							console.log('📤 Host sending animation:', currentState, 'charState:', character.charState);
+						}
 
 						// Get full quaternion rotation for precise orientation
 						const quat = new THREE.Quaternion();

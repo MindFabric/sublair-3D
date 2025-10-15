@@ -5854,6 +5854,11 @@
 						case 'host_position':
 							// Handle host position updates when spectating
 							if (isSpectatorMode && data.position) {
+								// Debug: Log animation state occasionally
+								if (Math.random() < 0.01) { // 1% of updates
+									console.log('📥 Spectator received animation:', data.animationState);
+								}
+
 								// Load host character model if not loaded yet
 								if (!window.hostCharacterModel && !window.hostCharacterLoading) {
 									window.hostCharacterLoading = true;

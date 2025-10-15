@@ -1135,6 +1135,11 @@ wss.on('connection', (ws) => {
           if (ws.isHost && ws.sessionCode) {
             const hostSession = sessions.get(ws.sessionCode);
             if (hostSession) {
+              // Debug: Log animation state occasionally
+              if (Math.random() < 0.01) { // 1% of updates
+                console.log('🎬 Server forwarding animation:', data.animationState);
+              }
+
               // Forward ALL data from host to spectators (including car data)
               const hostPositionData = JSON.stringify({
                 type: 'host_position',

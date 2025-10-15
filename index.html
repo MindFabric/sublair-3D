@@ -9403,6 +9403,7 @@
 
 							// Cache to avoid repeated state changes
 							if (window.lastHostAnimState !== targetAnim) {
+								console.log(`🎬 Changing animation: ${window.lastHostAnimState || 'none'} → ${targetAnim}`);
 								// Animation name mapping (character state → animation clip name)
 								const animMap = {
 									// Basic movement states

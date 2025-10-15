@@ -9502,19 +9502,40 @@
 					if (timeSinceLastBroadcast >= 33) { // ~30 updates/sec
 						window.lastHostBroadcast = now;
 
-						// Get current animation state with robust fallback
+						// Get current animation state - use the actual animation being played
 						let currentState = 'Idle';
-						if (character && character.charState) {
-							if (character.charState.constructor && character.charState.constructor.name) {
-								currentState = character.charState.constructor.name;
-							} else if (typeof character.charState === 'string') {
-								currentState = character.charState;
-							}
-						}
 
-						// Debug log occasionally
-						if (Math.random() < 0.01) {
-							console.log('📤 Host sending animation:', currentState, 'charState:', character.charState);
+						// Best approach: Get the currently playing animation from the mixer
+						if (character && character.mixer) {
+							const actions = character.mixer._actions;
+							if (actions && actions.length > 0) {
+								// Find the currently playing action
+								for (let action of actions) {
+									if (action.isRunning() && action.weight > 0.5) {
+										// Get animation clip name
+										const clipName = action.getClip().name;
+										// Map animation clip name to state name
+										const clipToStateMap = {
+											'idle': 'Idle',
+											'run': 'Walk',
+											'sprint': 'Sprint',
+											'jump_idle': 'JumpIdle',
+											'jump_running': 'JumpRunning',
+											'falling': 'Falling',
+											'driving': 'Driving',
+											'sitting': 'Sitting',
+											'sit_down_left': 'EnteringVehicle',
+											'stand_up_left': 'ExitingVehicle',
+											'open_door_standing_left': 'OpenVehicleDoor',
+											'close_door_sitting_left': 'CloseVehicleDoorInside',
+											'close_door_standing_left': 'CloseVehicleDoorOutside',
+											'sitting_shift_left': 'SwitchingSeats'
+										};
+										currentState = clipToStateMap[clipName.toLowerCase()] || 'Idle';
+										break;
+									}
+								}
+							}
 						}
 
 						// Get full quaternion rotation for precise orientation

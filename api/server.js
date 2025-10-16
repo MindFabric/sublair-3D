@@ -1283,6 +1283,48 @@ wss.on('connection', (ws, req) => {
           }
           break;
 
+        case 'eq_update':
+          // Broadcast EQ update from host to all spectators
+          if (ws.isHost && ws.sessionCode && data.band && typeof data.value === 'number') {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const eqData = JSON.stringify({
+                type: 'eq_update',
+                band: data.band,
+                value: data.value
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(eqData);
+                }
+              });
+
+              console.log(`🎚️ Broadcasting EQ update to ${session.players.length} spectators: ${data.band} = ${data.value}`);
+            }
+          }
+          break;
+
+        case 'eq_reset':
+          // Broadcast EQ reset from host to all spectators
+          if (ws.isHost && ws.sessionCode) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const eqResetData = JSON.stringify({
+                type: 'eq_reset'
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(eqResetData);
+                }
+              });
+
+              console.log(`🎚️ Broadcasting EQ reset to ${session.players.length} spectators`);
+            }
+          }
+          break;
+
         case 'chat_message':
           // Broadcast chat message to all players in session
           if (ws.sessionCode && data.message) {

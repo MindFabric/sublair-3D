@@ -6045,6 +6045,45 @@
 							if (playerViewerOpen) {
 								updatePlayerList();
 							}
+
+							// Send current EQ state to the new spectator
+							if (window.eqFilters && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+								// Send 3-band EQ
+								multiplayerWs.send(JSON.stringify({
+									type: 'eq_update',
+									band: 'low',
+									value: window.eqFilters.low.gain.value
+								}));
+								multiplayerWs.send(JSON.stringify({
+									type: 'eq_update',
+									band: 'mid',
+									value: window.eqFilters.mid.gain.value
+								}));
+								multiplayerWs.send(JSON.stringify({
+									type: 'eq_update',
+									band: 'high',
+									value: window.eqFilters.high.gain.value
+								}));
+								// Send master volume
+								multiplayerWs.send(JSON.stringify({
+									type: 'eq_update',
+									band: 'masterVolume',
+									value: window.eqFilters.masterGain.gain.value * 100
+								}));
+								// Send lowpass filter
+								multiplayerWs.send(JSON.stringify({
+									type: 'eq_update',
+									band: 'lowpass',
+									value: window.eqFilters.lowpass.frequency.value
+								}));
+								// Send highpass filter
+								multiplayerWs.send(JSON.stringify({
+									type: 'eq_update',
+									band: 'highpass',
+									value: window.eqFilters.highpass.frequency.value
+								}));
+								console.log('🎚️ Sent complete EQ state to new spectator');
+							}
 							break;
 
 						case 'player_left':
@@ -6570,14 +6609,35 @@
 									positionalAudio.setLoop(false);
 									positionalAudio.setVolume(1.0);
 
-									// Connect to audio analyser for visual effects
+									// Connect through full EQ chain for spectators
 									const source = positionalAudio.getOutput();
 									source.disconnect();
 
-									if (window.audioAnalyser) {
+									if (window.speakerDirectionalBass && window.speakerDirectionalLowpass && window.eqFilters && window.audioAnalyser) {
+										// Full EQ chain: source → speaker filters → EQ → analyser → destination
+										try {
+											source.connect(window.speakerDirectionalBass);
+											window.speakerDirectionalBass.connect(window.speakerDirectionalLowpass);
+											window.speakerDirectionalLowpass.connect(window.eqFilters.vehicleLowpass);
+											window.eqFilters.vehicleLowpass.connect(window.eqFilters.lowpass);
+											window.eqFilters.lowpass.connect(window.eqFilters.highpass);
+											window.eqFilters.highpass.connect(window.eqFilters.low);
+											window.eqFilters.low.connect(window.eqFilters.mid);
+											window.eqFilters.mid.connect(window.eqFilters.high);
+											window.eqFilters.high.connect(window.eqFilters.masterGain);
+											window.eqFilters.masterGain.connect(window.audioAnalyser);
+											window.audioAnalyser.connect(positionalAudio.context.destination);
+											console.log('✅ Spectator audio connected through full EQ chain');
+										} catch (e) {
+											console.warn('⚠️ Failed to connect full EQ chain, using fallback:', e);
+											source.connect(positionalAudio.context.destination);
+										}
+									} else if (window.audioAnalyser) {
+										console.log('⚠️ Some EQ filters not available, connecting through analyser only');
 										source.connect(window.audioAnalyser);
 										window.audioAnalyser.connect(positionalAudio.context.destination);
 									} else {
+										console.log('⚠️ No filters available, connecting directly to destination');
 										source.connect(positionalAudio.context.destination);
 									}
 
@@ -6742,6 +6802,38 @@
 
 							// Hide Now Playing display
 							hideNowPlayingDisplay();
+							break;
+
+						case 'eq_update':
+							// Spectator receives EQ change from host
+							if (data.band && typeof data.value === 'number' && window.eqFilters) {
+								console.log(`🎚️ Spectator received EQ update: ${data.band} = ${data.value}`);
+								if (data.band === 'low' && window.eqFilters.low) {
+									window.eqFilters.low.gain.value = data.value;
+								} else if (data.band === 'mid' && window.eqFilters.mid) {
+									window.eqFilters.mid.gain.value = data.value;
+								} else if (data.band === 'high' && window.eqFilters.high) {
+									window.eqFilters.high.gain.value = data.value;
+								} else if (data.band === 'masterVolume' && window.eqFilters.masterGain) {
+									window.eqFilters.masterGain.gain.value = data.value / 100;
+								} else if (data.band === 'lowpass' && window.eqFilters.lowpass) {
+									window.eqFilters.lowpass.frequency.value = data.value;
+								} else if (data.band === 'highpass' && window.eqFilters.highpass) {
+									window.eqFilters.highpass.frequency.value = data.value;
+								}
+							}
+							break;
+
+						case 'eq_reset':
+							// Spectator receives EQ reset from host
+							if (window.eqFilters) {
+								console.log('🎚️ Spectator received EQ reset');
+								window.eqFilters.low.gain.value = 0;
+								window.eqFilters.mid.gain.value = 0;
+								window.eqFilters.high.gain.value = 0;
+								window.eqFilters.lowpass.frequency.value = 20000;
+								window.eqFilters.highpass.frequency.value = 20;
+							}
 							break;
 					}
 				};
@@ -8447,18 +8539,45 @@
 				const value = parseFloat(e.target.value);
 				window.eqFilters.low.gain.value = value;
 				document.getElementById('eq-low-value').textContent = `${value > 0 ? '+' : ''}${value} dB`;
+
+				// Broadcast EQ change to spectators if hosting
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					multiplayerWs.send(JSON.stringify({
+						type: 'eq_update',
+						band: 'low',
+						value: value
+					}));
+				}
 			});
 
 			document.getElementById('eq-mid').addEventListener('input', (e) => {
 				const value = parseFloat(e.target.value);
 				window.eqFilters.mid.gain.value = value;
 				document.getElementById('eq-mid-value').textContent = `${value > 0 ? '+' : ''}${value} dB`;
+
+				// Broadcast EQ change to spectators if hosting
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					multiplayerWs.send(JSON.stringify({
+						type: 'eq_update',
+						band: 'mid',
+						value: value
+					}));
+				}
 			});
 
 			document.getElementById('eq-high').addEventListener('input', (e) => {
 				const value = parseFloat(e.target.value);
 				window.eqFilters.high.gain.value = value;
 				document.getElementById('eq-high-value').textContent = `${value > 0 ? '+' : ''}${value} dB`;
+
+				// Broadcast EQ change to spectators if hosting
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					multiplayerWs.send(JSON.stringify({
+						type: 'eq_update',
+						band: 'high',
+						value: value
+					}));
+				}
 			});
 
 			document.getElementById('master-volume').addEventListener('input', (e) => {
@@ -8467,18 +8586,45 @@
 					window.eqFilters.masterGain.gain.value = value / 100;
 				}
 				document.getElementById('master-volume-value').textContent = `${value}%`;
+
+				// Broadcast master volume change to spectators if hosting
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					multiplayerWs.send(JSON.stringify({
+						type: 'eq_update',
+						band: 'masterVolume',
+						value: value
+					}));
+				}
 			});
 
 			document.getElementById('filter-lowpass').addEventListener('input', (e) => {
 				const value = parseFloat(e.target.value);
 				window.eqFilters.lowpass.frequency.value = value;
 				document.getElementById('filter-lowpass-value').textContent = `${value} Hz`;
+
+				// Broadcast lowpass filter change to spectators if hosting
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					multiplayerWs.send(JSON.stringify({
+						type: 'eq_update',
+						band: 'lowpass',
+						value: value
+					}));
+				}
 			});
 
 			document.getElementById('filter-highpass').addEventListener('input', (e) => {
 				const value = parseFloat(e.target.value);
 				window.eqFilters.highpass.frequency.value = value;
 				document.getElementById('filter-highpass-value').textContent = `${value} Hz`;
+
+				// Broadcast highpass filter change to spectators if hosting
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					multiplayerWs.send(JSON.stringify({
+						type: 'eq_update',
+						band: 'highpass',
+						value: value
+					}));
+				}
 			});
 
 			document.getElementById('eq-reset').addEventListener('click', () => {
@@ -8503,6 +8649,13 @@
 				document.getElementById('filter-highpass').value = 20;
 				document.getElementById('filter-lowpass-value').textContent = '20000 Hz';
 				document.getElementById('filter-highpass-value').textContent = '20 Hz';
+
+				// Broadcast EQ reset to spectators if hosting
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					multiplayerWs.send(JSON.stringify({
+						type: 'eq_reset'
+					}));
+				}
 			});
 
 			// Play count tracking

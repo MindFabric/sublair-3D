@@ -2259,6 +2259,127 @@
 		#eq-view input[type="range"]:hover::-moz-range-thumb {
 			background: #d4f098;
 		}
+
+		/* Now Playing Display - Top Middle */
+		#now-playing-display {
+			position: fixed;
+			top: 20px;
+			left: 50%;
+			transform: translateX(-50%);
+			z-index: 10000;
+			pointer-events: none;
+			display: none; /* Hidden by default */
+			opacity: 0;
+			transition: opacity 0.5s ease;
+		}
+
+		#now-playing-display.show {
+			display: flex;
+			opacity: 1;
+		}
+
+		.now-playing-container {
+			display: flex;
+			align-items: center;
+			gap: 16px;
+			background: rgba(0, 0, 0, 0.85);
+			border: 2px solid #bee17b;
+			padding: 12px 20px;
+			font-family: 'Share Tech Mono', monospace;
+			box-shadow: 0 4px 20px rgba(190, 225, 123, 0.3);
+			backdrop-filter: blur(10px);
+			max-width: 600px;
+		}
+
+		.now-playing-artwork {
+			width: 50px;
+			height: 50px;
+			border: 2px solid #bee17b;
+			background: #000;
+			flex-shrink: 0;
+			overflow: hidden;
+		}
+
+		.now-playing-artwork img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+		}
+
+		.now-playing-info {
+			flex: 1;
+			min-width: 0; /* Allow text truncation */
+		}
+
+		.now-playing-label {
+			font-size: 10px;
+			color: #bee17b;
+			opacity: 0.7;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			margin-bottom: 4px;
+		}
+
+		.now-playing-title {
+			font-size: 16px;
+			color: #bee17b;
+			font-weight: bold;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			margin-bottom: 4px;
+		}
+
+		.now-playing-artist {
+			font-size: 12px;
+			color: #bee17b;
+			opacity: 0.8;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.now-playing-title a {
+			color: inherit;
+			text-decoration: none;
+			transition: opacity 0.2s;
+		}
+
+		.now-playing-title a:hover {
+			opacity: 0.8;
+			text-decoration: underline;
+		}
+
+		.now-playing-artist a {
+			color: #bee17b;
+			text-decoration: none;
+			transition: opacity 0.2s;
+		}
+
+		.now-playing-artist a:hover {
+			opacity: 1;
+			text-decoration: underline;
+		}
+
+		.now-playing-pulse {
+			width: 20px;
+			height: 20px;
+			background: #bee17b;
+			border-radius: 50%;
+			animation: pulse 1.5s ease-in-out infinite;
+			flex-shrink: 0;
+		}
+
+		@keyframes pulse {
+			0%, 100% {
+				opacity: 1;
+				transform: scale(1);
+			}
+			50% {
+				opacity: 0.5;
+				transform: scale(0.8);
+			}
+		}
 	</style>
 </head>
 
@@ -2374,6 +2495,21 @@
 
 	<!-- Crosshair (hidden by default) -->
 	<div class="crosshair" id="crosshair" style="display: none;"></div>
+
+	<!-- Now Playing Display (top middle) -->
+	<div id="now-playing-display">
+		<div class="now-playing-container">
+			<div class="now-playing-artwork">
+				<img id="now-playing-artwork-img" src="" alt="Album Art">
+			</div>
+			<div class="now-playing-info">
+				<div class="now-playing-label">NOW PLAYING</div>
+				<div class="now-playing-title" id="now-playing-title">Track Title</div>
+				<div class="now-playing-artist" id="now-playing-artist">Artist Name</div>
+			</div>
+			<div class="now-playing-pulse"></div>
+		</div>
+	</div>
 
 	<!-- Multiplayer Chat (bottom left) -->
 	<div id="multiplayer-chat" style="display: none; position: fixed; bottom: 20px; left: 20px; width: 400px; max-height: 300px; z-index: 1000;">
@@ -6579,6 +6715,20 @@
 							}
 							break;
 
+						case 'track_info':
+							// Spectator receives track info from host
+							if (data.trackData) {
+								console.log('🎵 Spectator received track info:', data.trackData);
+								updateNowPlayingDisplay(
+									data.trackData.title,
+									data.trackData.artistName,
+									data.trackData.artistUsername,
+									data.trackData.artworkUrl,
+									data.trackData.trackId
+								);
+							}
+							break;
+
 						case 'audio_stop':
 							// Spectator receives stop command from host
 							console.log('🎵 Spectator received audio_stop message');
@@ -6589,6 +6739,9 @@
 							} else {
 								console.log('🎵 Spectator conditions not met:', { isSpectatorMode, hasAudio: !!positionalAudio });
 							}
+
+							// Hide Now Playing display
+							hideNowPlayingDisplay();
 							break;
 					}
 				};
@@ -8276,6 +8429,9 @@
 					const stopBtn = document.getElementById('audio-stop');
 					if (stopBtn) stopBtn.disabled = true;
 
+					// Hide Now Playing display
+					hideNowPlayingDisplay();
+
 					// Broadcast stop to spectators
 					if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
 						multiplayerWs.send(JSON.stringify({
@@ -8461,6 +8617,42 @@
 				}
 			};
 
+			// Helper function to update Now Playing display
+			function updateNowPlayingDisplay(title, artistName, artistUsername, artworkUrl, trackId) {
+				const display = document.getElementById('now-playing-display');
+				const titleEl = document.getElementById('now-playing-title');
+				const artistEl = document.getElementById('now-playing-artist');
+				const artworkImg = document.getElementById('now-playing-artwork-img');
+
+				// Make title clickable if trackId is provided
+				if (trackId) {
+					titleEl.innerHTML = `<a href="https://www.sublair.com/track/${trackId}" target="_blank" style="pointer-events: auto; color: inherit; text-decoration: none;">${title || 'UNKNOWN TRACK'}</a>`;
+				} else {
+					titleEl.textContent = title || 'UNKNOWN TRACK';
+				}
+
+				if (artistUsername) {
+					artistEl.innerHTML = `by <a href="https://www.sublair.com/u/${artistUsername}" target="_blank" style="pointer-events: auto;">${artistName || 'Unknown Artist'}</a>`;
+				} else {
+					artistEl.textContent = `by ${artistName || 'Unknown Artist'}`;
+				}
+
+				if (artworkUrl) {
+					artworkImg.src = artworkUrl;
+					artworkImg.style.display = 'block';
+				} else {
+					artworkImg.style.display = 'none';
+				}
+
+				display.classList.add('show');
+			}
+
+			// Helper function to hide Now Playing display
+			function hideNowPlayingDisplay() {
+				const display = document.getElementById('now-playing-display');
+				display.classList.remove('show');
+			}
+
 			function playTrack(url, title, artworkUrl, trackId, trackUserId, artistName, artistUsername) {
 				// Reset playback tracking for new track
 				currentTrackId = trackId;
@@ -8483,6 +8675,24 @@
 				currentTrackTitle = title || 'UNKNOWN TRACK';
 				window.currentArtistName = artistName || 'Unknown Artist';
 				window.currentArtistUsername = artistUsername;
+
+				// Update Now Playing display
+				updateNowPlayingDisplay(title, artistName, artistUsername, artworkUrl, trackId);
+
+				// Broadcast track info to spectators if hosting
+				if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					multiplayerWs.send(JSON.stringify({
+						type: 'track_info',
+						trackData: {
+							title: title || 'UNKNOWN TRACK',
+							artistName: artistName || 'Unknown Artist',
+							artistUsername: artistUsername,
+							artworkUrl: artworkUrl,
+							trackId: trackId
+						}
+					}));
+					console.log('📡 Broadcasting track info to spectators:', title);
+				}
 
 				// Show loading indicator
 				const loadingDiv = document.getElementById('audio-loading');

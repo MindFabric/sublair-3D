@@ -1262,6 +1262,27 @@ wss.on('connection', (ws, req) => {
           }
           break;
 
+        case 'track_info':
+          // Broadcast track info from host to all spectators
+          if (ws.isHost && ws.sessionCode && data.trackData) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const trackInfoData = JSON.stringify({
+                type: 'track_info',
+                trackData: data.trackData
+              });
+
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(trackInfoData);
+                }
+              });
+
+              console.log(`🎵 Broadcasting track info to ${session.players.length} spectators: ${data.trackData.title}`);
+            }
+          }
+          break;
+
         case 'chat_message':
           // Broadcast chat message to all players in session
           if (ws.sessionCode && data.message) {

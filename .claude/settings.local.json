@@ -34,7 +34,8 @@
       "Bash(awk 'NR>=5893 && NR<=5908' /mnt/c/Users/User/Documents/GitHub/sublair-3D/index.html)",
       "Bash(awk 'NR>=6380 && NR<=6388' /mnt/c/Users/User/Documents/GitHub/sublair-3D/index.html)",
       "Bash(awk 'NR>=2936 && NR<=2944' /mnt/c/Users/User/Documents/GitHub/sublair-3D/index.html)",
-      "Bash(awk 'NR>=8095 && NR<=8112' /mnt/c/Users/User/Documents/GitHub/sublair-3D/index.html)"
+      "Bash(awk 'NR>=8095 && NR<=8112' /mnt/c/Users/User/Documents/GitHub/sublair-3D/index.html)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

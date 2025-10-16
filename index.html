@@ -2380,6 +2380,29 @@
 				transform: scale(0.8);
 			}
 		}
+
+		/* Floating name tags above characters */
+		.name-tag {
+			position: fixed;
+			color: #fff;
+			background: rgba(0, 0, 0, 0.5);
+			padding: 4px 8px;
+			border-radius: 4px;
+			font-family: 'Share', Arial, sans-serif;
+			font-size: 14px;
+			font-weight: 700;
+			text-align: center;
+			pointer-events: none;
+			text-shadow:
+				2px 2px 4px rgba(0, 0, 0, 0.8),
+				-1px -1px 2px rgba(0, 0, 0, 0.8),
+				1px -1px 2px rgba(0, 0, 0, 0.8),
+				-1px 1px 2px rgba(0, 0, 0, 0.8);
+			z-index: 999999;
+			white-space: nowrap;
+			user-select: none;
+			transform: translate(-50%, -50%);
+		}
 	</style>
 </head>
 
@@ -3384,6 +3407,14 @@
 					world.add(character);
 					character.takeControl();
 
+					// Create THREE.js sprite name tag for local character
+					const username = window.authState?.user?.username || window.authState?.user?.displayName || window.authState?.email?.split('@')[0] || 'USER';
+					const nameTagSprite = window.createNameTagSprite(username);
+					nameTagSprite.position.set(0, 0.75, 0); // Position just above character head
+					character.add(nameTagSprite); // Attach to character so it moves with them
+					window.localNameTag = nameTagSprite;
+					console.log('🏷️ Created name tag sprite for local character:', username);
+
 				// Add audio listener to the camera for spatial audio
 				world.camera.add(audioListener);
 
@@ -3989,6 +4020,7 @@
 				let savedCameraTheta, savedCameraPhi, savedCameraRadius;
 
 				// Set colors globally IMMEDIATELY so they're available when assets load
+				window.hatColor = hatColor;
 				window.speakerCabColor = speakerCabColor;
 				window.speakerTrimColor = speakerTrimColor;
 				window.speakerFaceColor = speakerFaceColor;
@@ -4077,11 +4109,7 @@
 								// If hat has username texture, regenerate it with new color
 								if (child.material.map && window.authState?.isLoggedIn) {
 									child.material.color.set(hatColor);
-									const username = window.authState.user?.username ||
-													 window.authState.user?.displayName ||
-													 window.authState.email?.split('@')[0] ||
-													 'USER';
-									window.updateHatWithUsername(username);
+									// Username now displayed as floating name tag instead of hat texture
 								} else {
 									child.material.color.set(hatColor);
 								}
@@ -4394,6 +4422,7 @@
 					// Hat color picker
 					hatColorPicker.addEventListener('input', (e) => {
 						hatColor = e.target.value;
+						window.hatColor = hatColor; // Set global so updateHatWithUsername can access it
 						hatColorValue.textContent = hatColor.toUpperCase();
 						updateCharacter();
 						saveCustomization();
@@ -6204,7 +6233,7 @@
 													traverse: (callback) => charModel.scene.traverse(callback)
 												};
 												window.character = tempCharacterWrapper;
-												window.updateHatWithUsername(hostUsername);
+												// window.updateHatWithUsername(hostUsername); // Removed - using floating name tags now
 												window.character = originalCharacter;
 												console.log('🧢 Applied host username to hat:', hostUsername);
 											}
@@ -6292,6 +6321,14 @@
 										} else {
 											console.log('⚠️ No animations found in character model');
 										}
+
+										// Create THREE.js sprite name tag for host character
+										const hostUsername = window.hostCustomization?.username || 'HOST';
+										const hostNameTagSprite = window.createNameTagSprite(hostUsername);
+										hostNameTagSprite.position.set(0, 0.75, 0); // Position just above character head
+										window.hostCharacterContainer.add(hostNameTagSprite); // Attach to container so it moves with host
+										window.hostNameTag = hostNameTagSprite;
+										console.log('🏷️ Created name tag sprite for host character:', hostUsername);
 
 										window.hostCharacterLoading = false;
 									});
@@ -6420,6 +6457,12 @@
 								console.log('🎨 Received live customization update:', data.customization);
 								window.hostCustomization = data.customization;
 								const c = data.customization;
+
+								// Update host name tag sprite if username changed
+								if (window.hostNameTag && c.username && window.updateNameTagSprite) {
+									window.updateNameTagSprite(window.hostNameTag, c.username);
+									console.log('🏷️ Updated host name tag sprite:', c.username);
+								}
 
 								// Update global color variables (so they're available when objects load)
 								window.floorGlowColor = c.floorGlowColor;
@@ -8336,9 +8379,10 @@
 						window.updateComputerScreen(photoURL);
 					}
 
-					// Update hat material with username text
-					if (window.updateHatWithUsername) {
-						window.updateHatWithUsername(username);
+					// Update name tag sprite with new username
+					if (window.localNameTag && window.updateNameTagSprite) {
+						window.updateNameTagSprite(window.localNameTag, username);
+						console.log('🏷️ Updated name tag sprite:', username);
 					}
 
 					// Update character FACE material with user's photoURL
@@ -9727,30 +9771,82 @@
 			}
 			hatMesh.material = hatMesh.material.clone();
 
-			// Create canvas with hat color as background and fixed text color
+			// Store the current hat color to preserve it
+			const currentHatColor = hatMesh.material.color.clone();
+
+			// Create canvas - fill with white so material color shows through
 			const canvas = document.createElement('canvas');
 			canvas.width = 512;
 			canvas.height = 512;
 			const ctx = canvas.getContext('2d');
 
-			// Fill entire canvas with current hat color (darker to compensate for white material)
-			const currentColor = hatMesh.material.color;
-			const r = Math.floor(currentColor.r * 255 * 0.6); // Darken by 40%
-			const g = Math.floor(currentColor.g * 255 * 0.6);
-			const b = Math.floor(currentColor.b * 255 * 0.6);
-			ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+			// Fill with white (this gets multiplied by material.color to show hat color)
+			ctx.fillStyle = '#ffffff';
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-			// Draw username text with fixed SUBLAIR green (on front of hat)
+			// Use the ACTUAL hat color from the picker, not from material
+			const hatColorHex = window.hatColor || '#282828';
+
+			// Convert hex to RGB (parse the picker color, not material color)
+			const hexToRgb = (hex) => {
+				const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+				return result ? {
+					r: parseInt(result[1], 16) / 255,
+					g: parseInt(result[2], 16) / 255,
+					b: parseInt(result[3], 16) / 255
+				} : { r: 0, g: 0, b: 0 };
+			};
+
+			// Convert RGB to HSL to get saturation and lightness
+			const rgbToHsl = (r, g, b) => {
+				const max = Math.max(r, g, b);
+				const min = Math.min(r, g, b);
+				let h, s, l = (max + min) / 2;
+
+				if (max === min) {
+					h = s = 0; // achromatic
+				} else {
+					const d = max - min;
+					s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+					switch (max) {
+						case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+						case g: h = ((b - r) / d + 2) / 6; break;
+						case b: h = ((r - g) / d + 4) / 6; break;
+					}
+				}
+				return { h, s, l };
+			};
+
+			const rgb = hexToRgb(hatColorHex);
+			const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+			// Better contrast calculation that considers saturation and lightness
+			// Use luminance formula for perceptual brightness
+			const luminance = (rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114);
+
+			// For saturated colors, use a different threshold
+			// High saturation colors need more careful contrast calculation
+			let textColor;
+			if (hsl.s > 0.5) {
+				// Saturated color - use luminance with lower threshold
+				textColor = luminance > 0.45 ? '#000000' : '#ffffff';
+			} else {
+				// Desaturated color - use standard threshold
+				textColor = hsl.l > 0.5 ? '#000000' : '#ffffff';
+			}
+
+			console.log(`🎨 Hat color: ${hatColorHex}, HSL: ${JSON.stringify(hsl)}, Luminance: ${luminance.toFixed(2)}, Text: ${textColor}`);
+
+			// Draw username text with contrasting color
 			const text = username.toUpperCase();
-			ctx.fillStyle = '#bee17b'; // SUBLAIR green - always this color
+			ctx.fillStyle = textColor;
 			ctx.font = 'bold 16px Arial';
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
 
-			// Add outline for better visibility
-			ctx.strokeStyle = '#000000';
-			ctx.lineWidth = 1;
+			// Add outline for better visibility (inverse of text color)
+			ctx.strokeStyle = textColor === '#ffffff' ? '#000000' : '#ffffff';
+			ctx.lineWidth = 2;
 
 			// Rotate text 90 degrees, mirror, and position for normalized UVs
 			ctx.save();
@@ -9777,7 +9873,7 @@
 				hatMesh.material.map.dispose();
 			}
 			hatMesh.material.map = texture;
-			hatMesh.material.color = new THREE.Color(0xffffff); // Set to white so texture colors show exactly
+			hatMesh.material.color = currentHatColor; // Preserve the original hat color
 			hatMesh.material.roughness = 1.0; // Make it less glossy
 			hatMesh.material.metalness = 0.0; // No metallic effect
 			hatMesh.material.needsUpdate = true;
@@ -9871,6 +9967,102 @@
 			}, undefined, (error) => {
 				console.error('Failed to load profile picture for FACE material:', error);
 			});
+		};
+
+		// Function to create a THREE.js sprite-based name tag
+		window.createNameTagSprite = function(username) {
+			// Create canvas for the text
+			const canvas = document.createElement('canvas');
+			const context = canvas.getContext('2d');
+
+			// Set canvas size
+			canvas.width = 512;
+			canvas.height = 128;
+
+			// Configure text style
+			context.font = 'Bold 36px Share, Arial, sans-serif';
+			context.textAlign = 'center';
+			context.textBaseline = 'middle';
+
+			// Add ">_" prefix for flare
+			const displayText = '>_ ' + username.toUpperCase();
+
+			// Draw semi-transparent background
+			const textWidth = context.measureText(displayText).width;
+			const padding = 16;
+			const bgWidth = textWidth + padding * 2;
+			const bgHeight = 56;
+			const bgX = (canvas.width - bgWidth) / 2;
+			const bgY = (canvas.height - bgHeight) / 2;
+
+			context.fillStyle = 'rgba(0, 0, 0, 0.6)';
+			context.roundRect(bgX, bgY, bgWidth, bgHeight, 8);
+			context.fill();
+
+			// Draw text with outline
+			context.strokeStyle = '#000000';
+			context.lineWidth = 5;
+			context.strokeText(displayText, canvas.width / 2, canvas.height / 2);
+
+			context.fillStyle = '#ffffff';
+			context.fillText(displayText, canvas.width / 2, canvas.height / 2);
+
+			// Create texture from canvas
+			const texture = new THREE.CanvasTexture(canvas);
+			texture.needsUpdate = true;
+
+			// Create sprite material
+			const material = new THREE.SpriteMaterial({
+				map: texture,
+				transparent: true,
+				depthTest: false,
+				depthWrite: false
+			});
+
+			// Create sprite
+			const sprite = new THREE.Sprite(material);
+			sprite.scale.set(0.8, 0.2, 1); // Much smaller size: Width, height, depth
+
+			return sprite;
+		};
+
+		// Function to update name tag sprite text
+		window.updateNameTagSprite = function(sprite, username) {
+			if (!sprite || !sprite.material || !sprite.material.map) return;
+
+			const canvas = sprite.material.map.image;
+			const context = canvas.getContext('2d');
+
+			// Clear canvas
+			context.clearRect(0, 0, canvas.width, canvas.height);
+
+			// Redraw with new text
+			context.font = 'Bold 36px Share, Arial, sans-serif';
+			context.textAlign = 'center';
+			context.textBaseline = 'middle';
+
+			// Add ">_" prefix for flare
+			const displayText = '>_ ' + username.toUpperCase();
+
+			const textWidth = context.measureText(displayText).width;
+			const padding = 16;
+			const bgWidth = textWidth + padding * 2;
+			const bgHeight = 56;
+			const bgX = (canvas.width - bgWidth) / 2;
+			const bgY = (canvas.height - bgHeight) / 2;
+
+			context.fillStyle = 'rgba(0, 0, 0, 0.6)';
+			context.roundRect(bgX, bgY, bgWidth, bgHeight, 8);
+			context.fill();
+
+			context.strokeStyle = '#000000';
+			context.lineWidth = 5;
+			context.strokeText(displayText, canvas.width / 2, canvas.height / 2);
+
+			context.fillStyle = '#ffffff';
+			context.fillText(displayText, canvas.width / 2, canvas.height / 2);
+
+			sprite.material.map.needsUpdate = true;
 		};
 
 			// Load the dome surrounding everything

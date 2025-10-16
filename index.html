@@ -2851,6 +2851,19 @@
 				console.error('Failed to preload ShaderPass:', err);
 			});
 
+		// Preload BokehPass for DOF effect (spectators only)
+		let BokehPass = null;
+		let bokehPassReady = false;
+		import('https://cdn.skypack.dev/three@0.113.0/examples/jsm/postprocessing/BokehPass.js')
+			.then(module => {
+				BokehPass = module.BokehPass;
+				bokehPassReady = true;
+				console.log('✓ BokehPass preloaded');
+			})
+			.catch(err => {
+				console.error('Failed to preload BokehPass:', err);
+			});
+
 		// Create a simple flat world with a car
 		window.world = new Sketchbook.World();
 		const world = window.world; // Keep local reference for compatibility
@@ -3411,9 +3424,10 @@
 					const username = window.authState?.user?.username || window.authState?.user?.displayName || window.authState?.email?.split('@')[0] || 'USER';
 					const nameTagSprite = window.createNameTagSprite(username);
 					nameTagSprite.position.set(0, 0.75, 0); // Position just above character head
+					nameTagSprite.visible = false; // Hide own name tag (others will still see it in multiplayer)
 					character.add(nameTagSprite); // Attach to character so it moves with them
 					window.localNameTag = nameTagSprite;
-					console.log('🏷️ Created name tag sprite for local character:', username);
+					console.log('🏷️ Created name tag sprite for local character (hidden):', username);
 
 				// Add audio listener to the camera for spatial audio
 				world.camera.add(audioListener);
@@ -6054,6 +6068,41 @@
 										// Mark spectator as ready to broadcast position
 										window.spectatorReady = true;
 										console.log('👻 Spectator spawned at portal facing +X');
+
+										// Initialize vintage camera zoom system for spectators
+										window.spectatorZoom = {
+											currentFOV: 80,          // Default FOV
+											targetFOV: 80,           // Target FOV for smooth transition
+											minFOV: 10,              // Max zoom in (narrow FOV = zoomed in) - increased zoom range
+											maxFOV: 80,              // Max zoom out (wide FOV = zoomed out)
+											zoomSpeed: 3,            // FOV change per scroll tick
+											smoothness: 0.2,         // Lerp factor for smooth transitions (0-1, higher = faster) - increased for responsiveness
+											shakeIntensity: 0,       // Current shake intensity
+											shakeOffset: new THREE.Vector3(0, 0, 0)
+										};
+
+										// Custom easing function (ease-in-out cubic bezier)
+										window.easeInOutCubic = function(t) {
+											return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+										};
+
+										// Mouse wheel handler for vintage camera zoom
+										window.addEventListener('wheel', (event) => {
+											if (!isSpectatorMode || !window.spectatorReady) return;
+											event.preventDefault();
+
+											const zoom = window.spectatorZoom;
+											const delta = Math.sign(event.deltaY);
+
+											// Adjust target FOV
+											zoom.targetFOV += delta * zoom.zoomSpeed;
+											zoom.targetFOV = THREE.MathUtils.clamp(zoom.targetFOV, zoom.minFOV, zoom.maxFOV);
+										}, { passive: false });
+
+										// DOF disabled - causes too much lag
+										// TODO: Implement more performant DOF solution
+										window.spectatorDOF = null;
+										console.log('📷 DOF disabled for performance');
 
 										// Wait a moment, then hide loading screen
 										setTimeout(() => {
@@ -10934,6 +10983,18 @@
 							car: carData
 						}));
 					}
+				}
+
+				// Update vintage camera zoom for spectators (ultra-minimal for performance)
+				if (isSpectatorMode && window.spectatorReady && window.spectatorZoom && world && world.camera) {
+					const zoom = window.spectatorZoom;
+
+					// Smooth lerp to target FOV
+					zoom.currentFOV = THREE.MathUtils.lerp(zoom.currentFOV, zoom.targetFOV, zoom.smoothness);
+
+					// Update camera FOV
+					world.camera.fov = zoom.currentFOV;
+					world.camera.updateProjectionMatrix();
 				}
 
 				// Broadcast spectator camera position and rotation to host (THROTTLED)

@@ -2124,25 +2124,9 @@
 			font-weight: bold;
 		}
 
-		/* CRT Scanline Overlay */
+		/* CRT Scanline Overlay - DISABLED (spectators are now full characters) */
 		#crt-overlay {
-			position: fixed;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-			pointer-events: none;
-			z-index: 9998;
-			opacity: 0.15;
-			display: none; /* Hidden by default, only shown for spectators */
-			background:
-				repeating-linear-gradient(
-					0deg,
-					rgba(0, 0, 0, 0.4),
-					rgba(0, 0, 0, 0.4) 3px,
-					transparent 3px,
-					transparent 6px
-				);
+			display: none !important;
 		}
 
 		/* Grain Overlay - hidden, now in shader */
@@ -2150,24 +2134,13 @@
 			display: none;
 		}
 
-		/* CRT Camera UI */
+		/* CRT Camera UI - DISABLED (spectators are now full characters) */
 		#crt-ui {
-			position: fixed;
-			top: 8%;
-			left: 5%;
-			font-family: 'Share', 'Courier New', monospace;
-			color: #ffffff;
-			font-size: 18px;
-			font-weight: bold;
-			z-index: 9999;
-			pointer-events: none;
-			text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
-			opacity: 0;
-			transition: opacity 0.5s ease;
+			display: none !important;
 		}
 
 		#crt-ui.visible {
-			opacity: 1;
+			display: none !important;
 		}
 
 		#rec-indicator {
@@ -2837,32 +2810,7 @@
 		setInterval(updateTimestamp, 1000);
 
 
-		// Preload CRT shader before world creation
-		let crtShaderReady = false;
-		let ShaderPass = null;
-
-		import('https://cdn.skypack.dev/three@0.113.0/examples/jsm/postprocessing/ShaderPass.js')
-			.then(module => {
-				ShaderPass = module.ShaderPass;
-				crtShaderReady = true;
-				console.log('✓ CRT ShaderPass preloaded');
-			})
-			.catch(err => {
-				console.error('Failed to preload ShaderPass:', err);
-			});
-
-		// Preload BokehPass for DOF effect (spectators only)
-		let BokehPass = null;
-		let bokehPassReady = false;
-		import('https://cdn.skypack.dev/three@0.113.0/examples/jsm/postprocessing/BokehPass.js')
-			.then(module => {
-				BokehPass = module.BokehPass;
-				bokehPassReady = true;
-				console.log('✓ BokehPass preloaded');
-			})
-			.catch(err => {
-				console.error('Failed to preload BokehPass:', err);
-			});
+		// CRT shader and BokehPass preloading removed - spectators are now full characters
 
 		// Create a simple flat world with a car
 		window.world = new Sketchbook.World();
@@ -2889,83 +2837,7 @@
 			console.log('👻 Initial spectator camera position set in front of portal');
 		}
 
-		// Add CRT barrel distortion effect using ShaderPass
-		// Apply ONLY in spectator mode
-		const applyCRTEffect = () => {
-			if (world.composer && crtShaderReady && ShaderPass && isSpectatorMode) {
-
-					// CRT Shader
-					const CRTShader = {
-						uniforms: {
-							tDiffuse: { value: null },
-							distortion: { value: 0.12 },
-							distortionX: { value: 0.12 },
-							distortionY: { value: 0.15 }
-						},
-						vertexShader: `
-							varying vec2 vUv;
-							void main() {
-								vUv = uv;
-								gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-							}
-						`,
-						fragmentShader: `
-							uniform sampler2D tDiffuse;
-							uniform float distortion;
-							uniform float distortionX;
-							uniform float distortionY;
-							varying vec2 vUv;
-
-							vec2 barrelDistortion(vec2 coord, float distX, float distY) {
-								vec2 cc = coord - 0.5;
-								float dist = dot(cc, cc);
-								vec2 result = coord + cc * (distX + distY) * dist;
-								return result;
-							}
-
-							void main() {
-								vec2 uv = barrelDistortion(vUv, distortionX, distortionY);
-
-								// Out of bounds check - show black
-								if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-									gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-									return;
-								}
-
-								// Sample with barrel distortion
-								vec4 color = texture2D(tDiffuse, uv);
-
-								// Add subtle vignette
-								vec2 center = vUv - 0.5;
-								float vignette = 1.0 - dot(center, center) * 0.35;
-								color.rgb *= vignette;
-
-								// Add slight noise
-								float noise = fract(sin(dot(vUv * 1000.0, vec2(12.9898, 78.233))) * 43758.5453);
-								color.rgb += noise * 0.03;
-
-								gl_FragColor = color;
-							}
-						`
-					};
-
-				const crtPass = new ShaderPass(CRTShader);
-				crtPass.renderToScreen = true; // CRT is now the final pass
-
-				// Disable renderToScreen for all previous passes
-				const passes = world.composer.passes;
-				for (let i = 0; i < passes.length; i++) {
-					passes[i].renderToScreen = false;
-				}
-
-				world.composer.addPass(crtPass);
-
-				console.log('✓ CRT barrel distortion shader added as final pass!');
-			}
-		};
-
-		// Try to apply CRT effect immediately and keep retrying
-		applyCRTEffect();
+		// CRT shader removed - spectators are now full characters, not cameras
 
 		// Load asset colors from localStorage IMMEDIATELY (before assets load)
 		(function() {
@@ -3016,18 +2888,7 @@
 			}
 		})();
 
-		// Keep trying to apply CRT effect until it succeeds
-		const crtRetryInterval = setInterval(() => {
-			if (world.composer && crtShaderReady && ShaderPass) {
-				applyCRTEffect();
-				clearInterval(crtRetryInterval);
-			}
-		}, 50);
-
-		// Give up after 5 seconds
-		setTimeout(() => {
-			clearInterval(crtRetryInterval);
-		}, 5000);
+		// CRT retry logic removed - no longer needed
 
 		// We need to wait a moment for the world to initialize
 		setTimeout(() => {
@@ -3095,6 +2956,18 @@
 			world.graphicsWorld.add(groundMesh);
 			window.groundMesh = groundMesh; // Make accessible for customization
 
+			// Apply host customization to floor if spectator
+			if (isSpectatorMode && window.hostCustomization) {
+				const c = window.hostCustomization;
+				if (c.floorGlowColor && c.floorPanelColor && window.generateGridTexture) {
+					window.generateGridTexture(c.floorGlowColor, c.floorPanelColor);
+					window.groundMesh.material.emissive.set(c.floorGlowColor);
+					window.groundMesh.material.color.set(c.floorPanelColor);
+					window.groundMesh.material.needsUpdate = true;
+					console.log('🎨 Applied host floor customization on load');
+				}
+			}
+
 			// Setup ground material for shadows
 			world.sky.csm.setupMaterial(groundMaterial);
 
@@ -3118,12 +2991,7 @@
 				Sketchbook.UIManager.setUserInterfaceVisible(false);
 				Sketchbook.UIManager.setLoadingScreenVisible(false);
 
-				// Show CRT UI and scanlines only for spectators
-				if (isSpectatorMode) {
-					document.getElementById('crt-ui').classList.add('visible');
-					document.getElementById('crt-engine-credit').classList.add('visible');
-					document.getElementById('crt-overlay').style.display = 'block';
-				}
+				// CRT overlay removed - spectators are now full characters, not cameras
 
 				// Check if spectator mode (set by URL param check)
 				if (isSpectatorMode) {
@@ -3230,6 +3098,39 @@
 				world.graphicsWorld.add(car.spawnPoint);
 
 				world.add(car);
+
+				// Apply host customization to car if spectator and customization already received
+				if (isSpectatorMode && window.hostCustomization) {
+					const c = window.hostCustomization;
+					car.traverse((child) => {
+						if (child.isMesh && child.material) {
+							const matName = child.material.name;
+							if (matName === 'DOOR' || matName.toLowerCase().includes('door')) {
+								child.material.color.set(c.carDoorColor);
+							} else if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+								child.material.color.set(c.carFrameColor);
+							} else if (matName === 'HEADLIGHTS' || matName.toLowerCase().includes('headlight')) {
+								child.material.color.set(c.carHeadlightsColor);
+							} else if (matName === 'HOOD' || matName.toLowerCase().includes('hood')) {
+								child.material.color.set(c.carHoodColor);
+							} else if (matName === 'INTERIOR' || matName.toLowerCase().includes('interior')) {
+								child.material.color.set(c.carInteriorColor);
+							} else if (matName === 'RIM' || matName.toLowerCase().includes('rim')) {
+								child.material.color.set(c.carRimColor);
+							} else if (matName === 'STEERING' || matName.toLowerCase().includes('steering')) {
+								child.material.color.set(c.carSteeringColor);
+							} else if (matName === 'TAILLIGHTS' || matName.toLowerCase().includes('taillight')) {
+								child.material.color.set(c.carTaillightsColor);
+							} else if (matName === 'TIRE' || matName.toLowerCase().includes('tire')) {
+								child.material.color.set(c.carTireColor);
+							} else if (matName === 'TRIM' || (matName.toLowerCase().includes('trim') && !matName.toLowerCase().includes('speaker'))) {
+								child.material.color.set(c.carTrimColor);
+							}
+							child.material.needsUpdate = true;
+						}
+					});
+					console.log('🎨 Applied host car customization on load');
+				}
 
 				// Create spatial audio for the car
 				const listener = new THREE.AudioListener();
@@ -6045,40 +5946,7 @@
 										window.spectatorReady = true;
 										console.log('👻 Spectator character system ready!');
 
-										// Initialize vintage camera zoom system for spectators
-										window.spectatorZoom = {
-											currentFOV: 80,          // Default FOV
-											targetFOV: 80,           // Target FOV for smooth transition
-											minFOV: 10,              // Max zoom in (narrow FOV = zoomed in) - increased zoom range
-											maxFOV: 80,              // Max zoom out (wide FOV = zoomed out)
-											zoomSpeed: 3,            // FOV change per scroll tick
-											smoothness: 0.2,         // Lerp factor for smooth transitions (0-1, higher = faster) - increased for responsiveness
-											shakeIntensity: 0,       // Current shake intensity
-											shakeOffset: new THREE.Vector3(0, 0, 0)
-										};
-
-										// Custom easing function (ease-in-out cubic bezier)
-										window.easeInOutCubic = function(t) {
-											return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-										};
-
-										// Mouse wheel handler for vintage camera zoom
-										window.addEventListener('wheel', (event) => {
-											if (!isSpectatorMode || !window.spectatorReady) return;
-											event.preventDefault();
-
-											const zoom = window.spectatorZoom;
-											const delta = Math.sign(event.deltaY);
-
-											// Adjust target FOV
-											zoom.targetFOV += delta * zoom.zoomSpeed;
-											zoom.targetFOV = THREE.MathUtils.clamp(zoom.targetFOV, zoom.minFOV, zoom.maxFOV);
-										}, { passive: false });
-
-										// DOF disabled - causes too much lag
-										// TODO: Implement more performant DOF solution
-										window.spectatorDOF = null;
-										console.log('📷 DOF disabled for performance');
+										// Vintage camera zoom removed - spectators are now full characters with regular camera controls
 
 										// Wait a moment, then hide loading screen
 										setTimeout(() => {
@@ -6137,11 +6005,33 @@
 							disconnectMultiplayer();
 							break;
 
+						case 'players_update':
+							// Receive complete player list from server
+							if (data.players) {
+								console.log('📋 Received player list update:', data.players.length, 'players');
+								window.multiplayerPlayers = data.players; // Store full player list
+								if (playerViewerOpen) {
+									updatePlayerList();
+								}
+							}
+							break;
+
 						case 'player_joined':
 							console.log(`👻 Spectator joined (${data.playerCount} total)`);
 							window.spectatorCount = data.playerCount;
 							if (playerViewerOpen) {
 								updatePlayerList();
+							}
+
+							// Send current customization state to the new spectator
+							const savedCustomization = localStorage.getItem('characterCustomization');
+							if (savedCustomization && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+								const customizationData = JSON.parse(savedCustomization);
+								multiplayerWs.send(JSON.stringify({
+									type: 'customization_update',
+									customization: customizationData
+								}));
+								console.log('🎨 Sent complete customization state to new spectator:', customizationData);
 							}
 
 							// Send current EQ state to the new spectator
@@ -6269,18 +6159,11 @@
 											// Apply host profile picture to FACE material
 											const hostPhotoURL = window.hostCustomization.photoURL;
 											console.log('🔍 Host photoURL:', hostPhotoURL);
-											console.log('🔍 updateCharacterFace function exists?', !!window.updateCharacterFace);
-											if (hostPhotoURL && window.updateCharacterFace) {
-												// Temporarily set window.character to host character scene
-												const originalCharacter = window.character;
-												const tempCharacterWrapper = {
-													traverse: (callback) => charModel.scene.traverse(callback)
-												};
-												window.character = tempCharacterWrapper;
-												console.log('📞 Calling updateCharacterFace with:', hostPhotoURL);
-												window.updateCharacterFace(hostPhotoURL);
-												window.character = originalCharacter;
-												console.log('😀 updateCharacterFace called (async loading)');
+											console.log('🔍 applyPhotoToCharacterFace function exists?', !!window.applyPhotoToCharacterFace);
+											if (hostPhotoURL && window.applyPhotoToCharacterFace) {
+												console.log('📞 Calling applyPhotoToCharacterFace for host with:', hostPhotoURL);
+												window.applyPhotoToCharacterFace(charModel.scene, hostPhotoURL, 'host-character');
+												console.log('😀 applyPhotoToCharacterFace called (async loading)');
 											} else {
 												console.warn('⚠️ Cannot update FACE - photoURL or function missing');
 											}
@@ -6374,6 +6257,7 @@
 										data.rotation.w
 									) : null,
 									animationState: data.animationState || 'Idle',
+									animations: data.animations || [], // NEW: Blend data for smooth transitions
 									velocity: data.velocity ? new THREE.Vector3(
 										data.velocity.x,
 										data.velocity.y,
@@ -6542,14 +6426,52 @@
 											console.log('🎬 Initial spectator animation:', playerId, '→', firstAnim);
 										}
 
-										// Create name tag sprite for spectator
-										const spectatorUsername = 'Spectator ' + playerId.slice(-4); // Last 4 chars of ID
+										// Apply spectator customization if available
+										if (data.customization) {
+											const c = data.customization;
+											console.log('🎨 Applying spectator customization:', playerId, c);
+
+											characterScene.traverse((child) => {
+												if (child.isMesh && child.material) {
+													const materialName = child.material.name.toLowerCase();
+
+													// Skip TAPE and FACE materials
+													if (materialName.includes('tape') || (materialName.includes('face') && !materialName.includes('speaker'))) {
+														return;
+													}
+
+													// Apply colors
+													if (materialName.includes('skin') && c.skinColor) {
+														child.material.color.set(c.skinColor);
+													} else if (materialName.includes('shirt') && c.shirtColor) {
+														child.material.color.set(c.shirtColor);
+													} else if (materialName.includes('pants') && c.pantsColor) {
+														child.material.color.set(c.pantsColor);
+													} else if (materialName.includes('hat') && c.hatColor) {
+														child.material.color.set(c.hatColor);
+													}
+													child.material.needsUpdate = true;
+												}
+											});
+										}
+
+										// Create name tag sprite for spectator (use real username if available)
+										const spectatorUsername = data.customization?.username || 'Spectator ' + playerId.slice(-4);
 										const nameTagSprite = window.createNameTagSprite(spectatorUsername);
-										nameTagSprite.position.set(0, 0.75, 0); // Position just above character head
+										nameTagSprite.position.set(0, 1.2, 0); // Position higher above character head
 										container.add(nameTagSprite);
 
+										// Store name tag reference for updates
+										window.spectatorCharacters[playerId + '_nametag'] = nameTagSprite;
+
+										// Apply spectator's photoURL to FACE material if available
+										if (data.customization?.photoURL && window.applyPhotoToCharacterFace) {
+											window.applyPhotoToCharacterFace(characterScene, data.customization.photoURL, playerId);
+											console.log('📸 Applying spectator photoURL:', playerId, data.customization.photoURL);
+										}
+
 										world.graphicsWorld.add(container);
-										console.log('✅ Boxman character loaded for spectator:', playerId);
+										console.log('✅ Boxman character loaded for spectator:', playerId, 'username:', spectatorUsername);
 										delete window.spectatorCharacters[playerId + '_loading'];
 									});
 								}
@@ -6564,6 +6486,7 @@
 										data.rotation.w
 									) : null,
 									animationState: data.animationState || 'Idle',
+									animations: data.animations || [], // NEW: Blend data for smooth transitions
 									velocity: data.velocity ? new THREE.Vector3(
 										data.velocity.x,
 										data.velocity.y,
@@ -6573,11 +6496,70 @@
 									receivedAt: performance.now()
 								};
 
+								// Apply customization if character already exists and customization data is new
+								if (window.spectatorCharacters[playerId] && data.customization) {
+									const characterScene = window.spectatorCharacters[playerId + '_scene'];
+									const currentCustomization = window.spectatorCharacters[playerId + '_customization'];
+
+									// Check if customization changed
+									const customizationChanged = !currentCustomization ||
+										JSON.stringify(currentCustomization) !== JSON.stringify(data.customization);
+
+									if (customizationChanged && characterScene) {
+										console.log('🎨 Updating spectator customization:', playerId, data.customization);
+										const c = data.customization;
+
+										characterScene.traverse((child) => {
+											if (child.isMesh && child.material) {
+												const materialName = child.material.name.toLowerCase();
+
+												// Skip TAPE and FACE materials
+												if (materialName.includes('tape') || (materialName.includes('face') && !materialName.includes('speaker'))) {
+													return;
+												}
+
+												// Apply colors
+												if (materialName.includes('skin') && c.skinColor) {
+													child.material.color.set(c.skinColor);
+												} else if (materialName.includes('shirt') && c.shirtColor) {
+													child.material.color.set(c.shirtColor);
+												} else if (materialName.includes('pants') && c.pantsColor) {
+													child.material.color.set(c.pantsColor);
+												} else if (materialName.includes('hat') && c.hatColor) {
+													child.material.color.set(c.hatColor);
+												}
+												child.material.needsUpdate = true;
+											}
+										});
+
+										// Update name tag with real username
+										const nameTag = window.spectatorCharacters[playerId + '_nametag'];
+										if (nameTag && c.username && window.updateNameTagSprite) {
+											window.updateNameTagSprite(nameTag, c.username);
+											console.log('🏷️ Updated spectator name tag:', playerId, c.username);
+										}
+
+										// Apply spectator's photoURL to FACE material if changed
+										if (c.photoURL && window.applyPhotoToCharacterFace) {
+											const previousPhotoURL = currentCustomization?.photoURL;
+											if (previousPhotoURL !== c.photoURL) {
+												window.applyPhotoToCharacterFace(characterScene, c.photoURL, playerId);
+												console.log('📸 Updated spectator photoURL:', playerId, c.photoURL);
+											}
+										}
+
+										// Store customization to prevent redundant updates
+										window.spectatorCharacters[playerId + '_customization'] = data.customization;
+									}
+								}
+
 								// Debug logging (occasional) - show position too
 								if (Math.random() < 0.01) { // 1% of updates
 									console.log('📥 HOST received spectator update:', playerId, {
 										anim: data.animationState,
-										pos: `(${data.position.x.toFixed(1)}, ${data.position.y.toFixed(1)}, ${data.position.z.toFixed(1)})`
+										pos: `(${data.position.x.toFixed(1)}, ${data.position.y.toFixed(1)}, ${data.position.z.toFixed(1)})`,
+										hasCustomization: !!data.customization,
+										username: data.customization?.username
 									});
 								}
 							}
@@ -6855,6 +6837,29 @@
 								const latency = Date.now() - data.timestamp;
 								const playerId = data.playerId || 'host';
 								playerLatencies.set(playerId, latency);
+
+								// Send latency to server so it can broadcast to everyone
+								if (multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+									multiplayerWs.send(JSON.stringify({
+										type: 'latency_update',
+										latency: latency
+									}));
+								}
+
+								if (playerViewerOpen) {
+									updatePlayerList();
+								}
+							}
+							break;
+
+						case 'latencies_update':
+							// Receive all player latencies from server
+							if (data.latencies) {
+								// Update local latency map with all player latencies
+								Object.entries(data.latencies).forEach(([playerId, latency]) => {
+									playerLatencies.set(playerId, latency);
+								});
+
 								if (playerViewerOpen) {
 									updatePlayerList();
 								}
@@ -7419,48 +7424,59 @@
 
 				viewerSessionCode.textContent = currentSessionCode;
 
-				// Get current username
-				const myUsername = window.authState?.user?.username ||
-								   window.authState?.user?.displayName ||
-								   window.authState?.email?.split('@')[0] ||
-								   (isHosting ? 'Host' : 'Spectator');
+				// Get current player ID
+				const myId = isHosting ? 'host' : window.spectatorId;
 
 				let html = '';
 
-				// Add host (yourself if hosting)
-				const hostLatency = playerLatencies.get('host') || 0;
-				html += `
-					<tr style="border-bottom: 1px solid rgba(190, 225, 123, 0.3);">
-						<td style="padding: 12px 10px;">
-							<span style="color: #bee17b;">⬤</span> ${myUsername} ${isHosting ? '(You)' : ''}
-						</td>
-						<td style="padding: 12px 10px; text-align: center;">
-							<span style="background: #bee17b; color: #000; padding: 2px 8px; font-size: 11px; letter-spacing: 1px;">HOST</span>
-						</td>
-						<td style="padding: 12px 10px; text-align: center; color: ${hostLatency < 50 ? '#0f0' : hostLatency < 100 ? '#ff0' : '#f00'};">
-							${hostLatency}ms
-						</td>
-					</tr>
-				`;
+				// Use the player list from server if available
+				const players = window.multiplayerPlayers || [];
 
-				// Add spectators (from server tracking)
-				const spectatorCount = window.spectatorCount || 0;
-				for (let i = 0; i < spectatorCount; i++) {
-					const spectatorId = `spectator_${i}`;
-					const spectatorLatency = playerLatencies.get(spectatorId) || 0;
+				if (players.length === 0) {
+					// Fallback to old method if no player list yet
+					const myUsername = window.authState?.user?.username ||
+									   window.authState?.user?.displayName ||
+									   window.authState?.email?.split('@')[0] ||
+									   (isHosting ? 'Host' : 'Spectator');
+
+					const hostLatency = playerLatencies.get('host') || 0;
 					html += `
 						<tr style="border-bottom: 1px solid rgba(190, 225, 123, 0.3);">
 							<td style="padding: 12px 10px;">
-								<span style="color: #bee17b;">⬤</span> Spectator ${i + 1} ${!isHosting && i === 0 ? '(You)' : ''}
+								<span style="color: #bee17b;">⬤</span> ${myUsername} ${isHosting ? '(You)' : ''}
 							</td>
 							<td style="padding: 12px 10px; text-align: center;">
-								<span style="background: rgba(190, 225, 123, 0.3); color: #bee17b; padding: 2px 8px; font-size: 11px; letter-spacing: 1px;">SPEC</span>
+								<span style="background: #bee17b; color: #000; padding: 2px 8px; font-size: 11px; letter-spacing: 1px;">HOST</span>
 							</td>
-							<td style="padding: 12px 10px; text-align: center; color: ${spectatorLatency < 50 ? '#0f0' : spectatorLatency < 100 ? '#ff0' : '#f00'};">
-								${spectatorLatency}ms
+							<td style="padding: 12px 10px; text-align: center; color: ${hostLatency < 50 ? '#0f0' : hostLatency < 100 ? '#ff0' : '#f00'};">
+								${hostLatency}ms
 							</td>
 						</tr>
 					`;
+				} else {
+					// Use the full player list from server
+					players.forEach(player => {
+						const latency = playerLatencies.get(player.id) || 0;
+						const isMe = player.id === myId;
+						const roleLabel = player.isHost ? 'HOST' : 'SPEC';
+						const roleStyle = player.isHost
+							? 'background: #bee17b; color: #000;'
+							: 'background: rgba(190, 225, 123, 0.3); color: #bee17b;';
+
+						html += `
+							<tr style="border-bottom: 1px solid rgba(190, 225, 123, 0.3);">
+								<td style="padding: 12px 10px;">
+									<span style="color: #bee17b;">⬤</span> ${player.username} ${isMe ? '(You)' : ''}
+								</td>
+								<td style="padding: 12px 10px; text-align: center;">
+									<span style="${roleStyle} padding: 2px 8px; font-size: 11px; letter-spacing: 1px;">${roleLabel}</span>
+								</td>
+								<td style="padding: 12px 10px; text-align: center; color: ${latency < 50 ? '#0f0' : latency < 100 ? '#ff0' : '#f00'};">
+									${latency}ms
+								</td>
+							</tr>
+						`;
+					});
 				}
 
 				playerListBody.innerHTML = html;
@@ -9377,6 +9393,25 @@
 				// Add to world
 				world.graphicsWorld.add(computer);
 
+				// Apply host customization to computer if spectator and customization already received
+				if (isSpectatorMode && window.hostCustomization) {
+					const c = window.hostCustomization;
+					computer.traverse((child) => {
+						if (child.isMesh && child.material) {
+							const matName = child.material.name;
+							if (matName === 'CHASSIS' || matName.toLowerCase().includes('chassis')) {
+								child.material.color.set(c.computerChassisColor);
+							} else if (matName === 'KEYBOARD' || matName.toLowerCase().includes('keyboard')) {
+								child.material.color.set(c.computerKeyboardColor);
+							} else if (matName === 'FEATURES' || matName.toLowerCase().includes('features')) {
+								child.material.color.set(c.computerFeaturesColor);
+							}
+							child.material.needsUpdate = true;
+						}
+					});
+					console.log('🎨 Applied host computer customization on load');
+				}
+
 				// Setup materials for shadows, apply saved colors, and find screen
 				let screenMesh = null;
 				computer.traverse((child) => {
@@ -10012,24 +10047,26 @@
 		};
 
 		// Update character FACE material with user's profile picture
-		window.updateCharacterFace = function(photoURL) {
-			console.log('🎨 updateCharacterFace called with photoURL:', photoURL);
-			if (!window.character) {
-				console.warn('❌ Character not ready for FACE material update');
+		// Generic function to apply photoURL to any character's FACE material
+		window.applyPhotoToCharacterFace = function(characterScene, photoURL, characterId = 'character') {
+			console.log('🎨 applyPhotoToCharacterFace called for:', characterId, 'photoURL:', photoURL);
+
+			if (!characterScene) {
+				console.warn('❌ Character scene not provided for FACE material update');
 				return;
 			}
 
 			// Find the FACE material on the character
 			let faceMesh = null;
-			window.character.traverse((child) => {
+			characterScene.traverse((child) => {
 				if (child.isMesh && child.material && child.material.name === 'FACE') {
 					faceMesh = child;
-					console.log('✅ Found FACE mesh:', child.name);
+					console.log('✅ Found FACE mesh for', characterId, ':', child.name);
 				}
 			});
 
 			if (!faceMesh) {
-				console.warn('❌ FACE material not found on character');
+				console.warn('❌ FACE material not found on character:', characterId);
 				return;
 			}
 
@@ -10041,7 +10078,7 @@
 				}
 				faceMesh.material.color = new THREE.Color(0xffffff);
 				faceMesh.material.needsUpdate = true;
-				console.log('😶 FACE material cleared');
+				console.log('😶 FACE material cleared for', characterId);
 				return;
 			}
 
@@ -10093,10 +10130,20 @@
 				faceMesh.material.color = new THREE.Color(0xffffff); // White so texture shows correctly
 				faceMesh.material.needsUpdate = true;
 
-				console.log('😀 FACE material updated with profile picture');
+				console.log('😀 FACE material updated with profile picture for', characterId);
 			}, undefined, (error) => {
-				console.error('Failed to load profile picture for FACE material:', error);
+				console.error('Failed to load profile picture for FACE material:', characterId, error);
 			});
+		};
+
+		// Wrapper for local character (backwards compatibility)
+		window.updateCharacterFace = function(photoURL) {
+			console.log('🎨 updateCharacterFace called with photoURL:', photoURL);
+			if (!window.character) {
+				console.warn('❌ Character not ready for FACE material update');
+				return;
+			}
+			window.applyPhotoToCharacterFace(window.character, photoURL, 'local-character');
 		};
 
 		// Function to create a THREE.js sprite-based name tag
@@ -10458,6 +10505,27 @@
 				// Add to world
 				world.graphicsWorld.add(speakers);
 
+				// Apply host customization to speakers if spectator and customization already received
+				if (isSpectatorMode && window.hostCustomization) {
+					const c = window.hostCustomization;
+					speakers.traverse((child) => {
+						if (child.isMesh && child.material) {
+							const matName = child.material.name;
+							if (matName === 'CAB' || matName.toLowerCase().includes('cab')) {
+								child.material.color.set(c.speakerCabColor);
+							} else if (matName === 'TRIM' || matName === 'SPEAKER_TRIM' || (matName.toLowerCase().includes('trim') && matName.toLowerCase().includes('speaker'))) {
+								child.material.color.set(c.speakerTrimColor);
+							} else if (matName === 'FACE' || matName.toLowerCase().includes('face')) {
+								child.material.color.set(c.speakerFaceColor);
+							} else if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+								child.material.color.set(c.speakerFrameColor);
+							}
+							child.material.needsUpdate = true;
+						}
+					});
+					console.log('🎨 Applied host speakers customization on load');
+				}
+
 				// Add positional audio to speakers
 				speakers.add(positionalAudio);
 				positionalAudio.position.set(1, 1, -3.5); // Offset on X, Y, and Z in local space
@@ -10740,8 +10808,10 @@
 					window.portalMixer.update(0.016); // ~60fps delta
 				}
 
-				// Smooth interpolation and animation for spectator CHARACTERS (full boxman with physics) - NEW SYSTEM!
+				// Smooth interpolation and animation for spectator CHARACTERS - SAME SYSTEM AS HOST!
 				if (window.spectatorCharacters && window.spectatorCharacterTargets) {
+					const now = performance.now();
+
 					Object.keys(window.spectatorCharacters).forEach(playerId => {
 						// Skip loading markers
 						if (playerId.includes('_loading') || playerId.includes('_scene')) return;
@@ -10752,22 +10822,48 @@
 						const animations = window.spectatorAnimations[playerId];
 
 						if (container && target && container.position && target.position) {
-							// ALWAYS directly set position - no lerp! (Spectators send 50Hz updates, lerp causes lag)
-							container.position.copy(target.position);
+							// Calculate velocity magnitude to check if character is moving
+							const velocityMag = target.velocity ? target.velocity.length() : 0;
+							const isMoving = velocityMag > 0.1;
 
-							// Apply the same Y offset that Sketchbook.Character uses (-0.57)
-							// This accounts for the model's center vs physics body position
-							container.position.y -= 0.57;
+							// Target position with Y offset applied
+							const targetPos = target.position.clone();
+							targetPos.y -= 0.57; // Apply Sketchbook.Character offset
 
-							// Directly set rotation too
-							if (target.rotation) {
-								container.quaternion.copy(target.rotation);
+							// Calculate distance for adaptive lerp
+							const distance = container.position.distanceTo(targetPos);
+
+							// Much more aggressive lerp factors for fast movements
+							let lerpFactor;
+							if (distance > 5) {
+								// Teleport if too far
+								container.position.copy(targetPos);
+								lerpFactor = 1.0;
+							} else if (distance > 2) {
+								lerpFactor = 0.8; // Very aggressive catch-up
+							} else if (distance > 0.5) {
+								lerpFactor = 0.6; // Fast catch-up
+							} else if (distance > 0.1) {
+								lerpFactor = 0.4; // Medium
+							} else {
+								lerpFactor = 0.2; // Smooth when very close
 							}
 
-							// Log position updates occasionally
-							if (Math.random() < 0.02) {
-								console.log('📍 Spectator position updated:', playerId,
-									'pos:', container.position.x.toFixed(1), container.position.y.toFixed(1), container.position.z.toFixed(1));
+							// Smooth interpolate position (if not teleported)
+							if (lerpFactor < 1.0) {
+								container.position.lerp(targetPos, lerpFactor);
+							}
+
+							// Add stronger extrapolation if moving fast
+							if (isMoving && target.velocity) {
+								const extrapolationTime = velocityMag > 5 ? 0.1 : 0.05; // More prediction for fast movement
+								const extrapolation = target.velocity.clone().multiplyScalar(extrapolationTime);
+								container.position.add(extrapolation);
+							}
+
+							// Smooth interpolate rotation
+							if (target.rotation) {
+								container.quaternion.slerp(target.rotation, lerpFactor);
 							}
 
 							// Update animation mixer with proper delta time (SAME AS HOST - line 10972-10979)
@@ -10805,6 +10901,36 @@
 									currentPos: container.position ? `(${container.position.x.toFixed(1)}, ${container.position.y.toFixed(1)}, ${container.position.z.toFixed(1)})` : 'none',
 									targetPos: target?.position ? `(${target.position.x.toFixed(1)}, ${target.position.y.toFixed(1)}, ${target.position.z.toFixed(1)})` : 'none'
 								});
+							}
+
+							// SAFETY CHECK: Force an animation if NONE are playing (prevents rigid/frozen character)
+							if (animations) {
+								let anyAnimationRunning = false;
+								Object.keys(animations).forEach(animName => {
+									if (animations[animName].isRunning() && animations[animName].getEffectiveWeight() > 0.01) {
+										anyAnimationRunning = true;
+									}
+								});
+
+								// Emergency fallback: If nothing is running, play appropriate animation based on velocity
+								if (!anyAnimationRunning) {
+									console.warn('⚠️ No animation running for spectator:', playerId, 'velocity:', velocityMag.toFixed(2), 'state:', target.animationState);
+
+									// Choose animation based on velocity
+									let emergencyAnim = null;
+									if (velocityMag > 3) {
+										emergencyAnim = Object.keys(animations).find(a => a.toLowerCase() === 'sprint' || a.toLowerCase() === 'run');
+									} else if (velocityMag > 0.5) {
+										emergencyAnim = Object.keys(animations).find(a => a.toLowerCase() === 'run');
+									} else {
+										emergencyAnim = Object.keys(animations).find(a => a.toLowerCase() === 'idle');
+									}
+
+									if (emergencyAnim) {
+										console.log('🚨 Emergency animation recovery:', emergencyAnim);
+										animations[emergencyAnim].reset().setEffectiveWeight(1.0).play();
+									}
+								}
 							}
 
 							// Switch animations based on state (EXACT COPY OF HOST SYSTEM)
@@ -10985,6 +11111,37 @@
 
 						window.hostAnimationMixer.update(Math.min(animDelta, 0.1)); // Cap at 100ms to prevent huge jumps
 
+						// SAFETY CHECK: Force an animation if NONE are playing (prevents rigid/frozen host)
+						if (window.hostAnimations) {
+							let anyAnimationRunning = false;
+							Object.keys(window.hostAnimations).forEach(animName => {
+								if (window.hostAnimations[animName].isRunning() && window.hostAnimations[animName].getEffectiveWeight() > 0.01) {
+									anyAnimationRunning = true;
+								}
+							});
+
+							// Emergency fallback: If nothing is running, play appropriate animation based on velocity
+							if (!anyAnimationRunning) {
+								const hostVelocityMag = velocityMag; // Use velocity from earlier calculation
+								console.warn('⚠️ No animation running for host, velocity:', hostVelocityMag.toFixed(2), 'state:', target.animationState);
+
+								// Choose animation based on velocity
+								let emergencyAnim = null;
+								if (hostVelocityMag > 3) {
+									emergencyAnim = Object.keys(window.hostAnimations).find(a => a.toLowerCase() === 'sprint' || a.toLowerCase() === 'run');
+								} else if (hostVelocityMag > 0.5) {
+									emergencyAnim = Object.keys(window.hostAnimations).find(a => a.toLowerCase() === 'run');
+								} else {
+									emergencyAnim = Object.keys(window.hostAnimations).find(a => a.toLowerCase() === 'idle');
+								}
+
+								if (emergencyAnim) {
+									console.log('🚨 Emergency animation recovery for host:', emergencyAnim);
+									window.hostAnimations[emergencyAnim].reset().setEffectiveWeight(1.0).play();
+								}
+							}
+						}
+
 						// Switch animations based on state (optimized - cache current anim)
 						if (window.hostAnimations && target.animationState) {
 							const targetAnim = target.animationState;
@@ -11087,35 +11244,47 @@
 
 						// Get current animation state - use the actual animation being played
 						let currentState = 'Idle';
+						let hostAnimationData = []; // Collect ALL running animations for smooth blending
 
 						// Best approach: Get the currently playing animation from the mixer
 						if (character && character.mixer) {
 							const actions = character.mixer._actions;
 							if (actions && actions.length > 0) {
-								// Find the currently playing action
+								// Map for clip name to state name
+								const clipToStateMap = {
+									'idle': 'Idle',
+									'run': 'Walk',
+									'sprint': 'Sprint',
+									'jump_idle': 'JumpIdle',
+									'jump_running': 'JumpRunning',
+									'falling': 'Falling',
+									'driving': 'Driving',
+									'sitting': 'Sitting',
+									'sit_down_left': 'EnteringVehicle',
+									'stand_up_left': 'ExitingVehicle',
+									'open_door_standing_left': 'OpenVehicleDoor',
+									'close_door_sitting_left': 'CloseVehicleDoorInside',
+									'close_door_standing_left': 'CloseVehicleDoorOutside',
+									'sitting_shift_left': 'SwitchingSeats'
+								};
+
+								// Collect ALL running animations (for smooth blending across network)
 								for (let action of actions) {
-									if (action.isRunning() && action.weight > 0.5) {
-										// Get animation clip name
+									if (action.isRunning() && action.getEffectiveWeight() > 0.01) {
 										const clipName = action.getClip().name;
-										// Map animation clip name to state name
-										const clipToStateMap = {
-											'idle': 'Idle',
-											'run': 'Walk',
-											'sprint': 'Sprint',
-											'jump_idle': 'JumpIdle',
-											'jump_running': 'JumpRunning',
-											'falling': 'Falling',
-											'driving': 'Driving',
-											'sitting': 'Sitting',
-											'sit_down_left': 'EnteringVehicle',
-											'stand_up_left': 'ExitingVehicle',
-											'open_door_standing_left': 'OpenVehicleDoor',
-											'close_door_sitting_left': 'CloseVehicleDoorInside',
-											'close_door_standing_left': 'CloseVehicleDoorOutside',
-											'sitting_shift_left': 'SwitchingSeats'
-										};
-										currentState = clipToStateMap[clipName.toLowerCase()] || 'Idle';
-										break;
+										const stateName = clipToStateMap[clipName.toLowerCase()] || clipName;
+
+										hostAnimationData.push({
+											state: stateName,
+											clipName: clipName,
+											time: Math.round(action.time * 1000) / 1000, // Round to 3 decimals
+											weight: Math.round(action.getEffectiveWeight() * 1000) / 1000
+										});
+
+										// Track primary animation (highest weight) for backwards compatibility
+										if (action.getEffectiveWeight() > 0.5) {
+											currentState = stateName;
+										}
 									}
 								}
 							}
@@ -11163,7 +11332,8 @@
 								z: Math.round(quat.z * 10000) / 10000,
 								w: Math.round(quat.w * 10000) / 10000
 							},
-							animationState: currentState,
+							animationState: currentState, // Primary animation for backwards compatibility
+							animations: hostAnimationData, // NEW: All running animations with blend weights and times
 							velocity: character.velocity ? {
 								x: Math.round(character.velocity.x * 100) / 100,
 								y: Math.round(character.velocity.y * 100) / 100,
@@ -11174,17 +11344,7 @@
 					}
 				}
 
-				// Update vintage camera zoom for spectators (ultra-minimal for performance)
-				if (isSpectatorMode && window.spectatorReady && window.spectatorZoom && world && world.camera) {
-					const zoom = window.spectatorZoom;
-
-					// Smooth lerp to target FOV
-					zoom.currentFOV = THREE.MathUtils.lerp(zoom.currentFOV, zoom.targetFOV, zoom.smoothness);
-
-					// Update camera FOV
-					world.camera.fov = zoom.currentFOV;
-					world.camera.updateProjectionMatrix();
-				}
+				// Vintage camera zoom removed - spectators use regular camera
 
 				// Broadcast spectator CHARACTER state (full boxman with animations) - THROTTLED
 				if (isSpectatorMode && window.spectatorReady && character && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
@@ -11193,52 +11353,77 @@
 					const now = performance.now();
 					const timeSinceLastBroadcast = now - window.lastSpectatorBroadcast;
 
-					if (timeSinceLastBroadcast >= 50) { // 20 updates/sec
+					if (timeSinceLastBroadcast >= 33) { // 30 updates/sec (same as host)
 						window.lastSpectatorBroadcast = now;
 
 						// Get current animation state - use the actual animation being played (SAME AS HOST)
 						let currentState = 'Idle';
+						let animationData = []; // Collect ALL running animations for smooth blending
 
 						// Best approach: Get the currently playing animation from the mixer
 						if (character && character.mixer) {
 							const actions = character.mixer._actions;
 							if (actions && actions.length > 0) {
-								// Find the currently playing action
-								for (let action of actions) {
-									if (action.isRunning() && action.weight > 0.5) {
-										// Get animation clip name
-										const clipName = action.getClip().name;
-										// Map animation clip name to state name
-										const clipToStateMap = {
-											'idle': 'Idle',
-											'run': 'Walk',
-											'sprint': 'Sprint',
-											'jump_idle': 'JumpIdle',
-											'jump_running': 'JumpRunning',
-											'falling': 'Falling',
-											'driving': 'Driving',
-											'sitting': 'Sitting',
-											'sit_down_left': 'EnteringVehicle',
-											'stand_up_left': 'ExitingVehicle',
-											'open_door_standing_left': 'OpenVehicleDoor',
-											'close_door_sitting_left': 'CloseVehicleDoorInside',
-											'close_door_standing_left': 'CloseVehicleDoorOutside',
-											'sitting_shift_left': 'SwitchingSeats'
-										};
-										currentState = clipToStateMap[clipName.toLowerCase()] || 'Idle';
+								// Map for clip name to state name
+								const clipToStateMap = {
+									'idle': 'Idle',
+									'run': 'Walk',
+									'sprint': 'Sprint',
+									'jump_idle': 'JumpIdle',
+									'jump_running': 'JumpRunning',
+									'falling': 'Falling',
+									'driving': 'Driving',
+									'sitting': 'Sitting',
+									'sit_down_left': 'EnteringVehicle',
+									'stand_up_left': 'ExitingVehicle',
+									'open_door_standing_left': 'OpenVehicleDoor',
+									'close_door_sitting_left': 'CloseVehicleDoorInside',
+									'close_door_standing_left': 'CloseVehicleDoorOutside',
+									'sitting_shift_left': 'SwitchingSeats'
+								};
 
-										// Debug logging (occasional)
-										if (Math.random() < 0.01) { // 1% of updates
-											console.log('📤 Spectator broadcasting:', {
-												anim: currentState,
-												clip: clipName,
-												pos: `(${character.position.x.toFixed(1)}, ${character.position.y.toFixed(1)}, ${character.position.z.toFixed(1)})`
-											});
+								// Collect ALL running animations (for smooth blending across network)
+								for (let action of actions) {
+									if (action.isRunning() && action.getEffectiveWeight() > 0.01) {
+										const clipName = action.getClip().name;
+										const stateName = clipToStateMap[clipName.toLowerCase()] || clipName;
+
+										animationData.push({
+											state: stateName,
+											clipName: clipName,
+											time: Math.round(action.time * 1000) / 1000, // Round to 3 decimals
+											weight: Math.round(action.getEffectiveWeight() * 1000) / 1000
+										});
+
+										// Track primary animation (highest weight) for backwards compatibility
+										if (action.getEffectiveWeight() > 0.5) {
+											currentState = stateName;
 										}
-										break;
 									}
 								}
+
+								// Debug logging (occasional)
+								if (Math.random() < 0.01) { // 1% of updates
+									console.log('📤 Spectator broadcasting:', {
+										primary: currentState,
+										blending: animationData.length + ' anims',
+										pos: `(${character.position.x.toFixed(1)}, ${character.position.y.toFixed(1)}, ${character.position.z.toFixed(1)})`
+									});
+								}
 							}
+						}
+
+						// Get spectator customization data
+						let spectatorCustomization = null;
+						const savedCustomization = localStorage.getItem('characterCustomization');
+						if (savedCustomization) {
+							spectatorCustomization = JSON.parse(savedCustomization);
+							// Debug log (occasional)
+							if (Math.random() < 0.01) {
+								console.log('📤 Spectator broadcasting customization:', spectatorCustomization);
+							}
+						} else {
+							console.warn('⚠️ No customization data found in localStorage for spectator');
 						}
 
 						multiplayerWs.send(JSON.stringify({
@@ -11255,12 +11440,14 @@
 								z: Math.round(character.quaternion.z * 10000) / 10000,
 								w: Math.round(character.quaternion.w * 10000) / 10000
 							},
-							animationState: currentState,
+							animationState: currentState, // Primary animation for backwards compatibility
+							animations: animationData, // NEW: All running animations with blend weights and times
 							velocity: {
 								x: Math.round(character.velocity.x * 1000) / 1000,
 								y: Math.round(character.velocity.y * 1000) / 1000,
 								z: Math.round(character.velocity.z * 1000) / 1000
-							}
+							},
+							customization: spectatorCustomization // NEW: Username and skin colors
 						}));
 					}
 				}

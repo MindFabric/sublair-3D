@@ -1149,6 +1149,9 @@ wss.on('connection', (ws, req) => {
               playerCount: session.players.length
             }));
           }
+
+          // Broadcast complete player list to everyone (host + all spectators)
+          broadcastPlayerList(session);
           break;
 
         case 'position_update':
@@ -1191,7 +1194,9 @@ wss.on('connection', (ws, req) => {
                 position: data.position,
                 rotation: data.rotation,
                 animationState: data.animationState,
+                animations: data.animations, // NEW: Animation blend data
                 velocity: data.velocity,
+                customization: data.customization, // NEW: Spectator skin colors and username
                 timestamp: data.timestamp,
                 playerId: ws.spectatorId || ws.playerData?.username || 'Spectator',
                 username: ws.playerData?.username || 'Spectator'
@@ -1536,6 +1541,51 @@ wss.on('connection', (ws, req) => {
           }
           break;
 
+        case 'latency_update':
+          // Receive latency measurement from client and broadcast to everyone
+          if (ws.sessionCode && typeof data.latency === 'number') {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const playerId = ws.isHost ? 'host' : ws.spectatorId;
+
+              // Store latency on the websocket
+              ws.latency = data.latency;
+
+              // Build latency map for all players
+              const latencies = {};
+
+              // Add host latency
+              if (session.host.latency !== undefined) {
+                latencies['host'] = session.host.latency;
+              }
+
+              // Add all spectator latencies
+              session.players.forEach(player => {
+                if (player.spectatorId && player.latency !== undefined) {
+                  latencies[player.spectatorId] = player.latency;
+                }
+              });
+
+              const latencyUpdate = JSON.stringify({
+                type: 'latencies_update',
+                latencies: latencies
+              });
+
+              // Broadcast to host
+              if (session.host.readyState === WebSocket.OPEN) {
+                session.host.send(latencyUpdate);
+              }
+
+              // Broadcast to all spectators
+              session.players.forEach(player => {
+                if (player.readyState === WebSocket.OPEN) {
+                  player.send(latencyUpdate);
+                }
+              });
+            }
+          }
+          break;
+
         case 'disconnect':
           handleDisconnect(ws);
           break;
@@ -1589,8 +1639,58 @@ function handleDisconnect(ws) {
           playerCount: session.players.length
         }));
       }
+
+      // Broadcast updated player list to everyone
+      broadcastPlayerList(session);
     }
   }
+}
+
+// Helper function to broadcast complete player list to all players in session
+function broadcastPlayerList(session) {
+  if (!session) return;
+
+  // Build player list: host + all spectators
+  const players = [];
+
+  // Add host
+  players.push({
+    id: 'host',
+    username: session.hostData?.username || 'Host',
+    isHost: true,
+    customization: session.customization
+  });
+
+  // Add all spectators with their playerData
+  session.players.forEach(player => {
+    if (player.spectatorId && player.readyState === WebSocket.OPEN) {
+      players.push({
+        id: player.spectatorId,
+        username: player.playerData?.username || 'Spectator',
+        isHost: false,
+        customization: player.customization || null
+      });
+    }
+  });
+
+  const playerListMessage = JSON.stringify({
+    type: 'players_update',
+    players: players
+  });
+
+  // Send to host
+  if (session.host.readyState === WebSocket.OPEN) {
+    session.host.send(playerListMessage);
+  }
+
+  // Send to all spectators
+  session.players.forEach(player => {
+    if (player.readyState === WebSocket.OPEN) {
+      player.send(playerListMessage);
+    }
+  });
+
+  console.log(`📋 Broadcasted player list: ${players.length} players total`);
 }
 
 // Start server (works for both development and Railway)

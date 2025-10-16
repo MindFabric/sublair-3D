@@ -90,9 +90,19 @@ v1Router.get('/tracks', async (req, res) => {
       return res.status(404).json({ error: 'No tracks found' });
     }
 
-    // Transform tracks - remove stream_url for security
+    // Transform tracks - remove stream_url for security and strip artist info for anonymous tracks
     const tracksArray = Object.entries(tracks).map(([id, track]) => {
       const { stream_url, ...trackWithoutUrl } = track;
+
+      // If track is anonymous, remove artist information
+      if (track.isAnon === true) {
+        const { user_id, artistName, artistUsername, ...anonTrack } = trackWithoutUrl;
+        return {
+          id,
+          ...anonTrack
+        };
+      }
+
       return {
         id,
         ...trackWithoutUrl
@@ -131,10 +141,20 @@ v1Router.get('/tracks/:id', async (req, res) => {
     }
 
     const { stream_url, ...trackWithoutUrl } = track;
-    console.log(`✅ Returned track: ${track.title || id}`);
+
+    // If track is anonymous, remove artist information
+    let trackData;
+    if (track.isAnon === true) {
+      const { user_id, artistName, artistUsername, ...anonTrack } = trackWithoutUrl;
+      trackData = { id, ...anonTrack };
+    } else {
+      trackData = { id, ...trackWithoutUrl };
+    }
+
+    console.log(`✅ Returned track: ${track.title || id}${track.isAnon ? ' (anonymous)' : ''}`);
     res.json({
       success: true,
-      data: { id, ...trackWithoutUrl }
+      data: trackData
     });
   } catch (error) {
     console.error('❌ Error fetching track:', error);

@@ -3350,6 +3350,17 @@
 						charModel.scene.traverse((child) => {
 							if (child.isMesh && child.material) {
 								const materialName = child.material.name.toLowerCase();
+
+								// Skip TAPE and character FACE materials entirely - NEVER TOUCH THEM!
+								if (materialName.includes('tape')) {
+									console.log('  ⏭️ Skipping TAPE material - NEVER MODIFIED');
+									return; // ABSOLUTELY DO NOT TOUCH TAPE
+								}
+								if (materialName.includes('face') && !materialName.includes('speaker')) {
+									console.log('  ⏭️ Skipping protected FACE material:', child.material.name);
+									return; // Don't modify character face material
+								}
+
 								if (materialName.includes('skin')) {
 									child.material.color.set(skinColor);
 									console.log('  ✓ Skin:', skinColor);
@@ -4045,6 +4056,14 @@
 						if (child.isMesh && child.material) {
 							const materialName = child.material.name.toLowerCase();
 
+							// Skip TAPE and character FACE materials entirely - NEVER TOUCH THEM!
+							if (materialName.includes('tape')) {
+								return; // ABSOLUTELY DO NOT TOUCH TAPE
+							}
+							if (materialName.includes('face') && !materialName.includes('speaker')) {
+								return; // Don't modify character face material
+							}
+
 							// Apply color based on material name
 							if (materialName.includes('skin')) {
 								child.material.color.set(skinColor);
@@ -4066,7 +4085,7 @@
 								}
 							}
 
-							// Remove any texture EXCEPT on hat (preserve username texture)
+							// Remove any texture EXCEPT on hat (tape and face already skipped above)
 							if (!materialName.includes('hat')) {
 								child.material.map = null;
 							}
@@ -6128,6 +6147,15 @@
 											charModel.scene.traverse((child) => {
 												if (child.isMesh && child.material) {
 													const materialName = child.material.name.toLowerCase();
+
+													// Skip TAPE and character FACE materials entirely - NEVER TOUCH THEM!
+													if (materialName.includes('tape')) {
+														return; // ABSOLUTELY DO NOT TOUCH TAPE
+													}
+													if (materialName.includes('face') && !materialName.includes('speaker')) {
+														return; // Don't modify character face material
+													}
+
 													if (materialName.includes('skin')) {
 														child.material.color.set(skinColor);
 													} else if (materialName.includes('shirt')) {
@@ -6368,6 +6396,15 @@
 									window.hostCharacterScene.traverse((child) => {
 										if (child.isMesh && child.material) {
 											const materialName = child.material.name.toLowerCase();
+
+											// Skip TAPE and character FACE materials entirely - NEVER TOUCH THEM!
+											if (materialName.includes('tape')) {
+												return; // ABSOLUTELY DO NOT TOUCH TAPE
+											}
+											if (materialName.includes('face') && !materialName.includes('speaker')) {
+												return; // Don't modify character face material
+											}
+
 											if (materialName.includes('skin')) {
 												child.material.color.set(c.skinColor || '#bee17b');
 											} else if (materialName.includes('shirt')) {
@@ -8245,6 +8282,12 @@
 					if (window.updateHatWithUsername) {
 						window.updateHatWithUsername(username);
 					}
+
+					// Update character FACE material with user's photoURL
+					if (photoURL && window.updateCharacterFace) {
+						console.log('Updating character FACE with user photo:', photoURL);
+						window.updateCharacterFace(photoURL);
+					}
 				} else {
 					console.log('Setting to GUEST');
 					profileStatus.textContent = 'GUEST';
@@ -8255,6 +8298,10 @@
 					// Clear computer screen when logged out
 					if (window.updateComputerScreen) {
 						window.updateComputerScreen(null);
+					}
+					// Clear character FACE material when logged out
+					if (window.updateCharacterFace) {
+						window.updateCharacterFace(null);
 					}
 				}
 			}
@@ -9624,11 +9671,18 @@
 			ctx.strokeStyle = '#000000';
 			ctx.lineWidth = 1;
 
-			// Mirror text horizontally so it's readable
+			// Rotate text 90 degrees, mirror, and position for normalized UVs
 			ctx.save();
+			// Since UVs are normalized (0,0 to 1,1), position text accordingly
+			// Move to the position where the hat front face UVs are mapped
+			ctx.translate(canvas.width / 2, canvas.height / 4);
+			// Rotate 90 degrees clockwise (Math.PI / 2 radians)
+			ctx.rotate(Math.PI / 2);
+			// Mirror horizontally
 			ctx.scale(-1, 1);
-			ctx.strokeText(text, -canvas.width / 2, canvas.height / 2 - 50);
-			ctx.fillText(text, -canvas.width / 2, canvas.height / 2 - 50);
+			// Draw text at this rotated and mirrored position
+			ctx.strokeText(text, 0, 0);
+			ctx.fillText(text, 0, 0);
 			ctx.restore();
 
 			// Create texture from canvas
@@ -9648,6 +9702,86 @@
 			hatMesh.material.needsUpdate = true;
 
 			console.log('🧢 Hat updated with username:', username.toUpperCase());
+		};
+
+		// Update character FACE material with user's profile picture
+		window.updateCharacterFace = function(photoURL) {
+			if (!window.character) {
+				console.warn('Character not ready for FACE material update');
+				return;
+			}
+
+			// Find the FACE material on the character
+			let faceMesh = null;
+			window.character.traverse((child) => {
+				if (child.isMesh && child.material && child.material.name === 'FACE') {
+					faceMesh = child;
+				}
+			});
+
+			if (!faceMesh) {
+				console.warn('FACE material not found on character');
+				return;
+			}
+
+			if (!photoURL) {
+				// No photo - clear texture and set default appearance
+				if (faceMesh.material.map) {
+					faceMesh.material.map.dispose();
+					faceMesh.material.map = null;
+				}
+				faceMesh.material.color = new THREE.Color(0xffffff);
+				faceMesh.material.needsUpdate = true;
+				console.log('😶 FACE material cleared');
+				return;
+			}
+
+			// Clone material to avoid affecting other meshes
+			faceMesh.material = faceMesh.material.clone();
+
+			// Load profile picture
+			const loader = new THREE.TextureLoader();
+			loader.crossOrigin = "anonymous";
+			loader.load(photoURL, (texture) => {
+				// Create canvas to process the image
+				const canvas = document.createElement('canvas');
+				canvas.width = 512;
+				canvas.height = 512;
+				const ctx = canvas.getContext('2d');
+
+				// Fill with black background
+				ctx.fillStyle = '#000000';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				// Calculate dimensions to fit image while maintaining aspect ratio
+				const img = texture.image;
+				const scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.5; // Shrink to 50%
+				const scaledWidth = img.width * scale;
+				const scaledHeight = img.height * scale;
+
+				// Position the image (adjusted for UV mapping)
+				const x = (canvas.width - scaledWidth) / 2;
+				const y = (canvas.height - scaledHeight) / 3; // Move down
+				ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+
+				// Create texture from canvas
+				const faceTexture = new THREE.CanvasTexture(canvas);
+				faceTexture.wrapS = THREE.ClampToEdgeWrapping;
+				faceTexture.wrapT = THREE.ClampToEdgeWrapping;
+				faceTexture.needsUpdate = true;
+
+				// Apply texture to FACE material
+				if (faceMesh.material.map) {
+					faceMesh.material.map.dispose();
+				}
+				faceMesh.material.map = faceTexture;
+				faceMesh.material.color = new THREE.Color(0xffffff); // White so texture shows correctly
+				faceMesh.material.needsUpdate = true;
+
+				console.log('😀 FACE material updated with profile picture');
+			}, undefined, (error) => {
+				console.error('Failed to load profile picture for FACE material:', error);
+			});
 		};
 
 			// Load the dome surrounding everything

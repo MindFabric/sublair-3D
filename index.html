@@ -4036,7 +4036,9 @@
 						textureType: document.getElementById('texture-type')?.value || 'solid',
 						textureScale: parseFloat(document.getElementById('texture-scale')?.value || 1.0),
 						textureRotation: parseFloat(document.getElementById('texture-rotation')?.value || 0),
-						textureDensity: parseFloat(document.getElementById('texture-density')?.value || 1.0)
+						textureDensity: parseFloat(document.getElementById('texture-density')?.value || 1.0),
+						username: window.authState?.user?.username || window.authState?.user?.displayName || window.authState?.email?.split('@')[0] || 'USER',
+						photoURL: window.authState?.user?.photoURL || null
 					};
 					localStorage.setItem('characterCustomization', JSON.stringify(data));
 					console.log('💾 Customization saved:', data);
@@ -5944,6 +5946,29 @@
 							console.log(`✅ Joined session: ${data.sessionCode} - My ID: ${data.spectatorId}`);
 							console.log(`🎨 Received host customization:`, window.hostCustomization);
 
+							// Set global color variables from host's customization (so they're available when assets load)
+							const c = window.hostCustomization;
+							window.floorGlowColor = c.floorGlowColor || '#bee17b';
+							window.floorPanelColor = c.floorPanelColor || '#282828';
+							window.speakerCabColor = c.speakerCabColor || '#282828';
+							window.speakerTrimColor = c.speakerTrimColor || '#282828';
+							window.speakerFaceColor = c.speakerFaceColor || '#282828';
+							window.speakerFrameColor = c.speakerFrameColor || '#282828';
+							window.computerChassisColor = c.computerChassisColor || '#282828';
+							window.computerKeyboardColor = c.computerKeyboardColor || '#191919';
+							window.computerFeaturesColor = c.computerFeaturesColor || '#bee17b';
+							window.carDoorColor = c.carDoorColor || '#282828';
+							window.carFrameColor = c.carFrameColor || '#282828';
+							window.carHeadlightsColor = c.carHeadlightsColor || '#282828';
+							window.carHoodColor = c.carHoodColor || '#282828';
+							window.carInteriorColor = c.carInteriorColor || '#282828';
+							window.carRimColor = c.carRimColor || '#282828';
+							window.carSteeringColor = c.carSteeringColor || '#282828';
+							window.carTaillightsColor = c.carTaillightsColor || '#282828';
+							window.carTireColor = c.carTireColor || '#282828';
+							window.carTrimColor = c.carTrimColor || '#282828';
+							console.log('✅ Global color variables set from host customization');
+
 							// Show portal for spectators
 							if (window.portal) {
 								window.portal.visible = true;
@@ -6169,6 +6194,39 @@
 												}
 											});
 											console.log('✅ Host customization applied!');
+
+											// Apply host username to hat texture
+											const hostUsername = window.hostCustomization.username || 'HOST';
+											if (window.updateHatWithUsername) {
+												// Temporarily set window.character to host character scene so updateHatWithUsername can find the hat
+												const originalCharacter = window.character;
+												const tempCharacterWrapper = {
+													traverse: (callback) => charModel.scene.traverse(callback)
+												};
+												window.character = tempCharacterWrapper;
+												window.updateHatWithUsername(hostUsername);
+												window.character = originalCharacter;
+												console.log('🧢 Applied host username to hat:', hostUsername);
+											}
+
+											// Apply host profile picture to FACE material
+											const hostPhotoURL = window.hostCustomization.photoURL;
+											console.log('🔍 Host photoURL:', hostPhotoURL);
+											console.log('🔍 updateCharacterFace function exists?', !!window.updateCharacterFace);
+											if (hostPhotoURL && window.updateCharacterFace) {
+												// Temporarily set window.character to host character scene
+												const originalCharacter = window.character;
+												const tempCharacterWrapper = {
+													traverse: (callback) => charModel.scene.traverse(callback)
+												};
+												window.character = tempCharacterWrapper;
+												console.log('📞 Calling updateCharacterFace with:', hostPhotoURL);
+												window.updateCharacterFace(hostPhotoURL);
+												window.character = originalCharacter;
+												console.log('😀 updateCharacterFace called (async loading)');
+											} else {
+												console.warn('⚠️ Cannot update FACE - photoURL or function missing');
+											}
 										}
 
 										// Create container hierarchy to match Character class structure
@@ -8288,6 +8346,29 @@
 						console.log('Updating character FACE with user photo:', photoURL);
 						window.updateCharacterFace(photoURL);
 					}
+
+					// Save username and photoURL to localStorage for multiplayer
+					try {
+						const savedCustomization = localStorage.getItem('characterCustomization');
+						if (savedCustomization) {
+							const customizationData = JSON.parse(savedCustomization);
+							customizationData.username = username;
+							customizationData.photoURL = photoURL;
+							localStorage.setItem('characterCustomization', JSON.stringify(customizationData));
+							console.log('💾 Updated customization with username and photoURL:', username, photoURL);
+
+							// Broadcast to spectators if hosting
+							if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+								multiplayerWs.send(JSON.stringify({
+									type: 'customization_update',
+									customization: customizationData
+								}));
+								console.log('📡 Broadcast updated customization to spectators');
+							}
+						}
+					} catch (e) {
+						console.error('Failed to update customization:', e);
+					}
 				} else {
 					console.log('Setting to GUEST');
 					profileStatus.textContent = 'GUEST';
@@ -9706,8 +9787,9 @@
 
 		// Update character FACE material with user's profile picture
 		window.updateCharacterFace = function(photoURL) {
+			console.log('🎨 updateCharacterFace called with photoURL:', photoURL);
 			if (!window.character) {
-				console.warn('Character not ready for FACE material update');
+				console.warn('❌ Character not ready for FACE material update');
 				return;
 			}
 
@@ -9716,11 +9798,12 @@
 			window.character.traverse((child) => {
 				if (child.isMesh && child.material && child.material.name === 'FACE') {
 					faceMesh = child;
+					console.log('✅ Found FACE mesh:', child.name);
 				}
 			});
 
 			if (!faceMesh) {
-				console.warn('FACE material not found on character');
+				console.warn('❌ FACE material not found on character');
 				return;
 			}
 
@@ -9762,7 +9845,13 @@
 				// Position the image (adjusted for UV mapping)
 				const x = (canvas.width - scaledWidth) / 2;
 				const y = (canvas.height - scaledHeight) / 3; // Move down
-				ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+
+				// Flip the image vertically to fix upside-down issue
+				ctx.save();
+				ctx.translate(x + scaledWidth / 2, y + scaledHeight / 2); // Move to center of image
+				ctx.scale(1, -1); // Flip vertically
+				ctx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+				ctx.restore();
 
 				// Create texture from canvas
 				const faceTexture = new THREE.CanvasTexture(canvas);

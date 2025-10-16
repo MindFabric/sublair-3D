@@ -3359,20 +3359,13 @@
 				inputReceiverUpdate: () => {}
 			};
 
-			// Check if spectator mode before loading character
-			if (isSpectatorMode) {
-				console.log('👻 Spectator mode - skipping character load');
-				// Create a placeholder so character checks don't break
-				window.character = null;
-
-				// Flag to indicate spectator is ready to broadcast position
-				window.spectatorReady = false;
-
-				// Spectator camera will be initialized when joining session (see 'joined' case below)
-				console.log('👻 Spectator mode - waiting for session join to initialize camera');
-			} else {
-				// Normal player - load character
-				loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
+			// Load character for BOTH host and spectators (spectators get full boxman now!)
+			loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
+				if (isSpectatorMode) {
+					console.log('👻 Spectator mode - loading full boxman character with physics!');
+				} else {
+					console.log('👤 Host mode - loading character');
+				}
 					// Apply saved customization colors IMMEDIATELY to the model before creating Character
 					let savedCustomization = localStorage.getItem('characterCustomization');
 					if (savedCustomization) {
@@ -3415,10 +3408,21 @@
 						});
 					}
 
+					// Create Sketchbook.Character instance with full physics and animations
 					window.character = character = new Sketchbook.Character(charModel);
-					character.setPosition(5, 2, 0);
+
+					if (isSpectatorMode) {
+						// Spectator spawns at portal location
+						character.setPosition(45, 2, 50);
+						console.log('👻 Spectator character spawned at portal (45, 2, 50)');
+					} else {
+						// Host spawns at default location
+						character.setPosition(5, 2, 0);
+						console.log('👤 Host character spawned at (5, 2, 0)');
+					}
+
 					world.add(character);
-					character.takeControl();
+					character.takeControl(); // Give character control (works for both host and spectators)
 
 					// Create THREE.js sprite name tag for local character
 					const username = window.authState?.user?.username || window.authState?.user?.displayName || window.authState?.email?.split('@')[0] || 'USER';
@@ -3437,8 +3441,10 @@
 					world.cameraOperator.theta = 180; // Front facing
 				}, 100);
 
-				// Create dark sleek floating button in bottom-right
-				setTimeout(() => {
+				// Only create customization UI for host (not spectators)
+				if (!isSpectatorMode) {
+					// Create dark sleek floating button in bottom-right
+					setTimeout(() => {
 					const customizeButton = document.createElement('button');
 					customizeButton.className = 'customize-button';
 					customizeButton.innerHTML = 'Customize';
@@ -5040,8 +5046,8 @@
 						}
 					});
 				}, 1000);
-				}); // End of loadingManager.loadGLTF for character
-			} // End of if-else for spectator check
+				} // End of if (!isSpectatorMode) - customization UI only for host
+			}); // End of loadingManager.loadGLTF for character (runs for BOTH host and spectators)
 
 			// Create OS system
 			const osDiv = document.createElement('div');
@@ -6031,43 +6037,13 @@
 									if (world && world.camera) {
 										clearInterval(checkWorldReady);
 
-										loadingStatus.textContent = 'Spawning at portal...';
+										loadingStatus.textContent = 'Loading spectator character...';
 
-										// Initialize spectator camera and controls
-										if (world.cameraOperator && world.inputManager) {
-											// Position spectator in front of portal (facing toward the scene)
-											const spawnX = 45; // Move 5 units in -X direction from portal
-											const spawnY = 15;
-											const spawnZ = 5;
-
-											// Set camera operator target
-											world.cameraOperator.target.set(spawnX, spawnY, spawnZ);
-
-											// Set radius to 0 for true first-person view
-											world.cameraOperator.setRadius(0, true);
-
-											// Position camera
-											world.camera.position.set(spawnX, spawnY, spawnZ);
-
-											// Set camera rotation - theta is in DEGREES, not radians!
-											world.cameraOperator.theta = 90; // 90 degrees = face positive X direction (toward scene)
-											world.cameraOperator.phi = 0; // Level view
-
-											// Give spectator control of the camera for mouse look
-											world.inputManager.inputReceiver = world.cameraOperator;
-
-											console.log('👻 Spectator spawned at (' + spawnX + ',' + spawnY + ',' + spawnZ + ') facing scene');
-										}
-
-										// Disable character physics and controls for spectator
-										if (character) {
-											character.controlledObject = null;
-											character.charState = null;
-										}
-
+										// Spectators now have full boxman characters with physics!
+										// Character is loaded via the standard loadGLTF flow above
 										// Mark spectator as ready to broadcast position
 										window.spectatorReady = true;
-										console.log('👻 Spectator spawned at portal facing +X');
+										console.log('👻 Spectator character system ready!');
 
 										// Initialize vintage camera zoom system for spectators
 										window.spectatorZoom = {
@@ -6209,15 +6185,18 @@
 							break;
 
 						case 'player_left':
-							console.log(`👻 Spectator left (${data.playerCount} remaining) - ID: ${data.spectatorId}`);
+							console.log(`👤 Spectator left (${data.playerCount} remaining) - ID: ${data.spectatorId}`);
 							window.spectatorCount = data.playerCount;
 
-							// Remove the specific ghost from the scene
-							if (data.spectatorId && window.spectatorGhosts && window.spectatorGhosts[data.spectatorId]) {
-								console.log('🗑️ Removing ghost for spectator:', data.spectatorId);
-								world.graphicsWorld.remove(window.spectatorGhosts[data.spectatorId]);
-								delete window.spectatorGhosts[data.spectatorId];
-								delete window.spectatorGhostTargets[data.spectatorId];
+							// Remove the spectator's boxman character from the scene
+							if (data.spectatorId && window.spectatorCharacters && window.spectatorCharacters[data.spectatorId]) {
+								console.log('🗑️ Removing character for spectator:', data.spectatorId);
+								world.graphicsWorld.remove(window.spectatorCharacters[data.spectatorId]);
+								delete window.spectatorCharacters[data.spectatorId];
+								delete window.spectatorCharacters[data.spectatorId + '_scene'];
+								delete window.spectatorCharacterTargets[data.spectatorId];
+								delete window.spectatorAnimationMixers[data.spectatorId];
+								delete window.spectatorAnimations[data.spectatorId];
 							}
 
 							if (playerViewerOpen) {
@@ -6443,60 +6422,164 @@
 							}
 							break;
 
-						case 'spectator_position':
-							// Receive spectator positions - show ghost (works for host AND spectators)
+						case 'spectator_character':
+							// Receive spectator CHARACTER state - show full boxman with animations (works for host AND other spectators)
 							if (data.position) {
 								const playerId = data.playerId || 'Spectator';
 
-								// Don't show ghost for yourself if you're a spectator
+								// Don't show your own spectator character
 								if (isSpectatorMode && playerId === window.mySpectatorId) {
 									break;
 								}
 
-								// Create ghost models map if it doesn't exist
-								if (!window.spectatorGhosts) {
-									window.spectatorGhosts = {};
+								// Create spectator characters map if it doesn't exist
+								if (!window.spectatorCharacters) {
+									window.spectatorCharacters = {};
 								}
 
-								// Create target positions map for smooth interpolation
-								if (!window.spectatorGhostTargets) {
-									window.spectatorGhostTargets = {};
+								// Create target state map for smooth interpolation
+								if (!window.spectatorCharacterTargets) {
+									window.spectatorCharacterTargets = {};
 								}
 
-								// Load ghost model for this spectator if it doesn't exist
-								if (!window.spectatorGhosts[playerId] && !window.spectatorGhosts[playerId + '_loading']) {
-									window.spectatorGhosts[playerId + '_loading'] = true;
-									console.log('👻 Loading ghost model for spectator:', playerId, isHosting ? '(host view)' : '(spectator view)');
+								// Create animation mixers map
+								if (!window.spectatorAnimationMixers) {
+									window.spectatorAnimationMixers = {};
+								}
 
-									loadingManager.loadGLTF('build/assets/ghost.glb', (ghostModel) => {
-										window.spectatorGhosts[playerId] = ghostModel.scene;
-										window.spectatorGhosts[playerId].scale.set(0.01, 0.01, 0.01);
-										// Initialize position at target
-										window.spectatorGhosts[playerId].position.set(
-											data.position.x,
-											data.position.y,
-											data.position.z
-										);
+								// Create animations map
+								if (!window.spectatorAnimations) {
+									window.spectatorAnimations = {};
+								}
 
-										world.graphicsWorld.add(window.spectatorGhosts[playerId]);
-										console.log('✅ Ghost model loaded for spectator:', playerId);
-										delete window.spectatorGhosts[playerId + '_loading'];
+								// Create last animation tracking map (to prevent redundant switches)
+								if (!window.spectatorLastAnimation) {
+									window.spectatorLastAnimation = {};
+								}
+
+								// Load boxman character for this spectator if it doesn't exist
+								if (!window.spectatorCharacters[playerId] && !window.spectatorCharacters[playerId + '_loading']) {
+									window.spectatorCharacters[playerId + '_loading'] = true;
+									console.log('👤 Loading boxman character for spectator:', playerId, isHosting ? '(host view)' : '(spectator view)');
+
+									loadingManager.loadGLTF('build/assets/boxman.glb', (charModel) => {
+										// Create container for character and name tag
+										const container = new THREE.Group();
+										window.spectatorCharacters[playerId] = container;
+
+										// Add character model to container
+										const characterScene = charModel.scene;
+
+										// Reset any local transforms on the character model
+										characterScene.position.set(0, 0, 0);
+										characterScene.rotation.set(0, 0, 0);
+										characterScene.scale.set(1, 1, 1);
+
+										container.add(characterScene);
+
+										// Store scene reference for customization updates
+										window.spectatorCharacters[playerId + '_scene'] = characterScene;
+
+										console.log('📦 Character scene local position:', characterScene.position.y);
+
+										// Initialize position at target - use latest target if available
+										const latestTarget = window.spectatorCharacterTargets[playerId];
+										if (latestTarget && latestTarget.position) {
+											container.position.copy(latestTarget.position);
+											// Apply the same Y offset that Sketchbook.Character uses (-0.57)
+											container.position.y -= 0.57;
+											console.log('📍 Initialized spectator at latest target position:', latestTarget.position.x.toFixed(2), latestTarget.position.y.toFixed(2), latestTarget.position.z.toFixed(2), '(with -0.57 offset)');
+										} else {
+											container.position.set(
+												data.position.x,
+												data.position.y - 0.57,  // Apply Y offset
+												data.position.z
+											);
+											console.log('📍 Initialized spectator at data position:', data.position.x.toFixed(2), (data.position.y - 0.57).toFixed(2), data.position.z.toFixed(2), '(with -0.57 offset)');
+										}
+
+										// Set rotation if available
+										if (latestTarget && latestTarget.rotation) {
+											container.quaternion.copy(latestTarget.rotation);
+										} else if (data.rotation) {
+											container.quaternion.set(
+												data.rotation.x,
+												data.rotation.y,
+												data.rotation.z,
+												data.rotation.w
+											);
+										}
+
+										// Setup animation mixer (SAME AS HOST)
+										window.spectatorAnimationMixers[playerId] = new THREE.AnimationMixer(characterScene);
+										window.spectatorAnimations[playerId] = {};
+
+										// Load all animations with RAW CLIP NAMES (same as host - line 6336)
+										charModel.animations.forEach((clip) => {
+											const action = window.spectatorAnimationMixers[playerId].clipAction(clip);
+											action.setLoop(THREE.LoopRepeat);
+											action.clampWhenFinished = false;
+											// Store by clip name (e.g., 'idle', 'run', 'sprint')
+											window.spectatorAnimations[playerId][clip.name] = action;
+										});
+
+										console.log('✅ Spectator character loaded with', Object.keys(window.spectatorAnimations[playerId]).length, 'animations:', Object.keys(window.spectatorAnimations[playerId]));
+
+										// Play idle animation by default and set it up properly
+										if (window.spectatorAnimations[playerId]['idle']) {
+											const idleAction = window.spectatorAnimations[playerId]['idle'];
+											idleAction.reset();
+											idleAction.setEffectiveWeight(1.0);
+											idleAction.play();
+											console.log('🎬 Initial spectator animation:', playerId, '→ idle');
+										} else if (Object.keys(window.spectatorAnimations[playerId]).length > 0) {
+											// If no 'idle', play first available animation
+											const firstAnim = Object.keys(window.spectatorAnimations[playerId])[0];
+											const firstAction = window.spectatorAnimations[playerId][firstAnim];
+											firstAction.reset();
+											firstAction.setEffectiveWeight(1.0);
+											firstAction.play();
+											console.log('🎬 Initial spectator animation:', playerId, '→', firstAnim);
+										}
+
+										// Create name tag sprite for spectator
+										const spectatorUsername = 'Spectator ' + playerId.slice(-4); // Last 4 chars of ID
+										const nameTagSprite = window.createNameTagSprite(spectatorUsername);
+										nameTagSprite.position.set(0, 0.75, 0); // Position just above character head
+										container.add(nameTagSprite);
+
+										world.graphicsWorld.add(container);
+										console.log('✅ Boxman character loaded for spectator:', playerId);
+										delete window.spectatorCharacters[playerId + '_loading'];
 									});
 								}
 
-								// Store target position and rotation for smooth interpolation with timestamp
-								window.spectatorGhostTargets[playerId] = {
-									x: data.position.x,
-									y: data.position.y,
-									z: data.position.z,
-									lookDirection: data.lookDirection ? new THREE.Vector3(
-										data.lookDirection.x,
-										data.lookDirection.y,
-										data.lookDirection.z
-									).normalize() : null,
+								// Store target state for smooth interpolation
+								window.spectatorCharacterTargets[playerId] = {
+									position: new THREE.Vector3(data.position.x, data.position.y, data.position.z),
+									rotation: data.rotation ? new THREE.Quaternion(
+										data.rotation.x,
+										data.rotation.y,
+										data.rotation.z,
+										data.rotation.w
+									) : null,
+									animationState: data.animationState || 'Idle',
+									velocity: data.velocity ? new THREE.Vector3(
+										data.velocity.x,
+										data.velocity.y,
+										data.velocity.z
+									) : new THREE.Vector3(),
 									timestamp: data.timestamp || performance.now(),
 									receivedAt: performance.now()
 								};
+
+								// Debug logging (occasional) - show position too
+								if (Math.random() < 0.01) { // 1% of updates
+									console.log('📥 HOST received spectator update:', playerId, {
+										anim: data.animationState,
+										pos: `(${data.position.x.toFixed(1)}, ${data.position.y.toFixed(1)}, ${data.position.z.toFixed(1)})`
+									});
+								}
 							}
 							break;
 
@@ -7151,11 +7234,9 @@
 					mpChatMessages.style.display = 'none';
 				}
 
-				// Re-enable game controls
+				// Re-enable game controls (works for both host and spectators)
 				if (character) {
 					character.takeControl();
-				} else if (world && world.cameraOperator && isSpectatorMode) {
-					world.inputManager.inputReceiver = world.cameraOperator;
 				}
 
 				// Re-lock pointer after a small delay
@@ -10659,51 +10740,159 @@
 					window.portalMixer.update(0.016); // ~60fps delta
 				}
 
-				// Smooth interpolation for spectator ghosts (host side) - OPTIMIZED
-				if (window.spectatorGhosts && window.spectatorGhostTargets) {
-					Object.keys(window.spectatorGhosts).forEach(playerId => {
-						const ghost = window.spectatorGhosts[playerId];
-						const target = window.spectatorGhostTargets[playerId];
+				// Smooth interpolation and animation for spectator CHARACTERS (full boxman with physics) - NEW SYSTEM!
+				if (window.spectatorCharacters && window.spectatorCharacterTargets) {
+					Object.keys(window.spectatorCharacters).forEach(playerId => {
+						// Skip loading markers
+						if (playerId.includes('_loading') || playerId.includes('_scene')) return;
 
-						if (ghost && target && ghost.position) {
-							// Calculate distance for adaptive lerp speed
-							const distance = Math.sqrt(
-								Math.pow(target.x - ghost.position.x, 2) +
-								Math.pow(target.y - ghost.position.y, 2) +
-								Math.pow(target.z - ghost.position.z, 2)
-							);
+						const container = window.spectatorCharacters[playerId];
+						const target = window.spectatorCharacterTargets[playerId];
+						const mixer = window.spectatorAnimationMixers[playerId];
+						const animations = window.spectatorAnimations[playerId];
 
-							// Adaptive lerp: faster when far, slower when close
-							const lerpFactor = distance > 1 ? 0.3 : distance > 0.1 ? 0.2 : 0.15;
+						if (container && target && container.position && target.position) {
+							// ALWAYS directly set position - no lerp! (Spectators send 50Hz updates, lerp causes lag)
+							container.position.copy(target.position);
 
-							// Smoothly interpolate position
-							ghost.position.x += (target.x - ghost.position.x) * lerpFactor;
-							ghost.position.y += (target.y - ghost.position.y) * lerpFactor;
-							ghost.position.z += (target.z - ghost.position.z) * lerpFactor;
+							// Apply the same Y offset that Sketchbook.Character uses (-0.57)
+							// This accounts for the model's center vs physics body position
+							container.position.y -= 0.57;
 
-							// Use look direction to orient the ghost to face where spectator is looking
-							if (target.lookDirection) {
-								const lookVec = target.lookDirection; // Already normalized
+							// Directly set rotation too
+							if (target.rotation) {
+								container.quaternion.copy(target.rotation);
+							}
 
-								// Create a target point using the look direction
-								const lookTarget = new THREE.Vector3(
-									ghost.position.x + lookVec.x,
-									ghost.position.y + lookVec.y,
-									ghost.position.z + lookVec.z
-								);
+							// Log position updates occasionally
+							if (Math.random() < 0.02) {
+								console.log('📍 Spectator position updated:', playerId,
+									'pos:', container.position.x.toFixed(1), container.position.y.toFixed(1), container.position.z.toFixed(1));
+							}
 
-								// Store current rotation as quaternion
-								const currentQuat = ghost.quaternion.clone();
+							// Update animation mixer with proper delta time (SAME AS HOST - line 10972-10979)
+							if (mixer) {
+								const now = performance.now();
+								// Calculate actual delta time since last update for THIS spectator
+								if (!window.spectatorLastAnimUpdate) window.spectatorLastAnimUpdate = {};
+								if (!window.spectatorLastAnimUpdate[playerId]) window.spectatorLastAnimUpdate[playerId] = now;
+								const animDelta = (now - window.spectatorLastAnimUpdate[playerId]) / 1000; // Convert to seconds
+								window.spectatorLastAnimUpdate[playerId] = now;
 
-								// Use Three.js lookAt for correct rotation (handles all the math)
-								ghost.lookAt(lookTarget);
+								mixer.update(Math.min(animDelta, 0.1)); // Cap at 100ms to prevent huge jumps
+							}
 
-								// Get the target quaternion from lookAt
-								const targetQuat = ghost.quaternion.clone();
+							// Debug logging (occasional)
+							if (Math.random() < 0.05) { // 5% of updates for better visibility
+								// Find what's actually running
+								let runningAnims = [];
+								if (animations) {
+									Object.keys(animations).forEach(animName => {
+										const action = animations[animName];
+										if (action.isRunning()) {
+											runningAnims.push(`${animName}(weight:${action.getEffectiveWeight().toFixed(2)})`);
+										}
+									});
+								}
+								console.log('🔍 Spectator render loop check:', {
+									playerId: playerId,
+									hasAnimations: !!animations,
+									animationCount: animations ? Object.keys(animations).length : 0,
+									hasTarget: !!target,
+									targetAnimState: target?.animationState,
+									hasMixer: !!mixer,
+									runningAnimations: runningAnims,
+									currentPos: container.position ? `(${container.position.x.toFixed(1)}, ${container.position.y.toFixed(1)}, ${container.position.z.toFixed(1)})` : 'none',
+									targetPos: target?.position ? `(${target.position.x.toFixed(1)}, ${target.position.y.toFixed(1)}, ${target.position.z.toFixed(1)})` : 'none'
+								});
+							}
 
-								// Restore current rotation and interpolate
-								ghost.quaternion.copy(currentQuat);
-								ghost.quaternion.slerp(targetQuat, lerpFactor);
+							// Switch animations based on state (EXACT COPY OF HOST SYSTEM)
+							if (animations && target.animationState) {
+								const targetAnim = target.animationState;
+
+								// Initialize last animation state tracking for this spectator
+								if (!window.spectatorLastAnimation) window.spectatorLastAnimation = {};
+
+								// Cache to avoid repeated state changes (SAME AS HOST - line 11003)
+								if (window.spectatorLastAnimation[playerId] !== targetAnim) {
+									// Animation name mapping (character state → animation clip name)
+									const animMap = {
+										// Basic movement states
+										'Idle': 'idle',
+										'IdleRotateLeft': 'idle',
+										'IdleRotateRight': 'idle',
+										'Walk': 'run',
+										'Sprint': 'sprint',
+										'StartWalkForward': 'run',
+										'StartWalkLeft': 'run',
+										'StartWalkRight': 'run',
+										'StartWalkBackLeft': 'run',
+										'StartWalkBackRight': 'run',
+										'EndWalk': 'idle',
+
+										// Jump/fall states
+										'JumpIdle': 'jump_idle',
+										'JumpRunning': 'jump_running',
+										'Falling': 'falling',
+										'DropIdle': 'idle',
+										'DropRunning': 'run',
+										'DropRolling': 'run',
+
+										// Vehicle states
+										'Driving': 'driving',
+										'Sitting': 'sitting',
+										'EnteringVehicle': 'sit_down_left',
+										'ExitingVehicle': 'stand_up_left',
+										'ExitingAirplane': 'stand_up_left',
+										'OpenVehicleDoor': 'open_door_standing_left',
+										'CloseVehicleDoorInside': 'close_door_sitting_left',
+										'CloseVehicleDoorOutside': 'close_door_standing_left',
+										'SwitchingSeats': 'sitting_shift_left'
+									};
+
+									// Map the state to animation clip name
+									let targetClipName = animMap[targetAnim] || targetAnim.toLowerCase();
+
+									// Try to find matching animation (case-insensitive)
+									let matchedAnimName = null;
+									Object.keys(animations).forEach(animName => {
+										if (animName.toLowerCase() === targetClipName.toLowerCase()) {
+											matchedAnimName = animName;
+										}
+									});
+
+									// Fallback chain: sprint → run → idle
+									if (!matchedAnimName) {
+										// Special fallback for sprint
+										if (targetClipName === 'sprint') {
+											matchedAnimName = Object.keys(animations).find(a => a.toLowerCase() === 'run');
+										}
+
+										// Final fallback to idle
+										if (!matchedAnimName) {
+											matchedAnimName = Object.keys(animations).find(a => a.toLowerCase() === 'idle');
+										}
+									}
+
+									if (matchedAnimName) {
+										// Stop all other animations (SAME AS HOST - line 11068-11073)
+										Object.keys(animations).forEach(animName => {
+											const action = animations[animName];
+											if (animName !== matchedAnimName && action.isRunning()) {
+												action.fadeOut(0.2);
+											}
+										});
+
+										// Play the target animation (SAME AS HOST - line 11076-11079)
+										const targetAction = animations[matchedAnimName];
+										if (!targetAction.isRunning()) {
+											targetAction.reset().fadeIn(0.2).play();
+										}
+
+										window.spectatorLastAnimation[playerId] = targetAnim;
+									}
+								}
 							}
 						}
 					});
@@ -10997,9 +11186,9 @@
 					world.camera.updateProjectionMatrix();
 				}
 
-				// Broadcast spectator camera position and rotation to host (THROTTLED)
-				if (isSpectatorMode && window.spectatorReady && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN && world && world.camera) {
-					// Throttle spectator updates to 20Hz (every 50ms) - less critical than host
+				// Broadcast spectator CHARACTER state (full boxman with animations) - THROTTLED
+				if (isSpectatorMode && window.spectatorReady && character && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
+					// Throttle spectator updates to 20Hz (every 50ms)
 					if (!window.lastSpectatorBroadcast) window.lastSpectatorBroadcast = 0;
 					const now = performance.now();
 					const timeSinceLastBroadcast = now - window.lastSpectatorBroadcast;
@@ -11007,22 +11196,70 @@
 					if (timeSinceLastBroadcast >= 50) { // 20 updates/sec
 						window.lastSpectatorBroadcast = now;
 
-						// Get camera direction vector (where the spectator is looking)
-						const lookDirection = new THREE.Vector3();
-						world.camera.getWorldDirection(lookDirection);
+						// Get current animation state - use the actual animation being played (SAME AS HOST)
+						let currentState = 'Idle';
+
+						// Best approach: Get the currently playing animation from the mixer
+						if (character && character.mixer) {
+							const actions = character.mixer._actions;
+							if (actions && actions.length > 0) {
+								// Find the currently playing action
+								for (let action of actions) {
+									if (action.isRunning() && action.weight > 0.5) {
+										// Get animation clip name
+										const clipName = action.getClip().name;
+										// Map animation clip name to state name
+										const clipToStateMap = {
+											'idle': 'Idle',
+											'run': 'Walk',
+											'sprint': 'Sprint',
+											'jump_idle': 'JumpIdle',
+											'jump_running': 'JumpRunning',
+											'falling': 'Falling',
+											'driving': 'Driving',
+											'sitting': 'Sitting',
+											'sit_down_left': 'EnteringVehicle',
+											'stand_up_left': 'ExitingVehicle',
+											'open_door_standing_left': 'OpenVehicleDoor',
+											'close_door_sitting_left': 'CloseVehicleDoorInside',
+											'close_door_standing_left': 'CloseVehicleDoorOutside',
+											'sitting_shift_left': 'SwitchingSeats'
+										};
+										currentState = clipToStateMap[clipName.toLowerCase()] || 'Idle';
+
+										// Debug logging (occasional)
+										if (Math.random() < 0.01) { // 1% of updates
+											console.log('📤 Spectator broadcasting:', {
+												anim: currentState,
+												clip: clipName,
+												pos: `(${character.position.x.toFixed(1)}, ${character.position.y.toFixed(1)}, ${character.position.z.toFixed(1)})`
+											});
+										}
+										break;
+									}
+								}
+							}
+						}
 
 						multiplayerWs.send(JSON.stringify({
-							type: 'spectator_position',
+							type: 'spectator_character',
 							timestamp: now,
 							position: {
-								x: Math.round(world.camera.position.x * 1000) / 1000,
-								y: Math.round(world.camera.position.y * 1000) / 1000,
-								z: Math.round(world.camera.position.z * 1000) / 1000
+								x: Math.round(character.position.x * 1000) / 1000,
+								y: Math.round(character.position.y * 1000) / 1000,
+								z: Math.round(character.position.z * 1000) / 1000
 							},
-							lookDirection: {
-								x: Math.round(lookDirection.x * 10000) / 10000,
-								y: Math.round(lookDirection.y * 10000) / 10000,
-								z: Math.round(lookDirection.z * 10000) / 10000
+							rotation: {
+								x: Math.round(character.quaternion.x * 10000) / 10000,
+								y: Math.round(character.quaternion.y * 10000) / 10000,
+								z: Math.round(character.quaternion.z * 10000) / 10000,
+								w: Math.round(character.quaternion.w * 10000) / 10000
+							},
+							animationState: currentState,
+							velocity: {
+								x: Math.round(character.velocity.x * 1000) / 1000,
+								y: Math.round(character.velocity.y * 1000) / 1000,
+								z: Math.round(character.velocity.z * 1000) / 1000
 							}
 						}));
 					}

@@ -1181,7 +1181,39 @@ wss.on('connection', (ws, req) => {
           }
           break;
 
+        case 'spectator_character':
+          // Broadcast spectator CHARACTER (full boxman with animations) to host AND all other spectators
+          if (!ws.isHost && ws.sessionCode) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const characterData = JSON.stringify({
+                type: 'spectator_character',
+                position: data.position,
+                rotation: data.rotation,
+                animationState: data.animationState,
+                velocity: data.velocity,
+                timestamp: data.timestamp,
+                playerId: ws.spectatorId || ws.playerData?.username || 'Spectator',
+                username: ws.playerData?.username || 'Spectator'
+              });
+
+              // Send to host
+              if (session.host.readyState === WebSocket.OPEN) {
+                session.host.send(characterData);
+              }
+
+              // Send to all other spectators (not yourself)
+              session.players.forEach(player => {
+                if (player !== ws && player.readyState === WebSocket.OPEN) {
+                  player.send(characterData);
+                }
+              });
+            }
+          }
+          break;
+
         case 'spectator_position':
+          // DEPRECATED: Old ghost system - keeping for backwards compatibility
           // Broadcast spectator position to host AND all other spectators
           if (!ws.isHost && ws.sessionCode) {
             const session = sessions.get(ws.sessionCode);

@@ -7665,7 +7665,9 @@
 
 						// Create FLV player
 						const streamKey = data.streamKey;
-						const streamUrl = `http://localhost:8888/live/${streamKey}.flv`;
+						// Use current hostname for FLV stream URL (works for both localhost and production)
+						const hostname = window.location.hostname;
+						const streamUrl = `http://${hostname}:8888/live/${streamKey}.flv`;
 
 						window.djFlvPlayer = flvjs.createPlayer({
 							type: 'flv',
@@ -12553,9 +12555,11 @@ window.decksMenuOpen = false;
 							streamInfoDiv.classList.add('active');
 
 							// Populate with current session's stream key
-							const rtmpUrl = 'rtmp://localhost:1935/live';
+							// Use current hostname for RTMP URL (works for both localhost and production)
+							const hostname = window.location.hostname;
+							const rtmpUrl = `rtmp://${hostname}:1935/live`;
 							const streamKey = window.currentStreamKey || 'Not hosting a session';
-							
+
 							document.getElementById('stream-rtmp-url').textContent = rtmpUrl;
 							document.getElementById('stream-key-value').textContent = streamKey;
 						}

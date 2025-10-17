@@ -287,6 +287,11 @@ export class World
 		this.stats.end();
 		this.stats.begin();
 
+		// Update dome animation mixer if it exists
+		if ((window as any).domeMixer) {
+			(window as any).domeMixer.update(unscaledTimeStep);
+		}
+
 		// Actual rendering with a FXAA ON/OFF switch
 		if (this.params.FXAA) this.composer.render();
 		else this.renderer.render(this.graphicsWorld, this.camera);

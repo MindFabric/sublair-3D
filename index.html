@@ -2830,11 +2830,13 @@
 			}
 		}
 
-		// If spectator mode, immediately position camera in front of portal
+		// If spectator mode, immediately position camera at portal facing speakers
 		if (isSpectatorMode && world.camera) {
-			world.camera.position.set(45, 15, 5); // 5 units in front of portal
-			// Camera will be oriented by cameraOperator initialization
-			console.log('👻 Initial spectator camera position set in front of portal');
+			world.camera.position.set(50, 15, 5); // At portal location
+			// Face camera towards positive X direction (away from speakers)
+			const target = new THREE.Vector3(100, 15, 5);
+			world.camera.lookAt(target);
+			console.log('👻 Initial spectator camera positioned at portal (50, 15, 5) facing positive X');
 		}
 
 		// CRT shader removed - spectators are now full characters, not cameras
@@ -2853,6 +2855,10 @@
 				window.computerChassisColor = customizationData.computerChassisColor || '#282828';
 				window.computerKeyboardColor = customizationData.computerKeyboardColor || '#191919';
 				window.computerFeaturesColor = customizationData.computerFeaturesColor || '#bee17b';
+				window.skyTopColor = customizationData.skyTopColor || '#000000';
+				window.skyBottomColor = customizationData.skyBottomColor || '#000000';
+				window.skyTopPosition = customizationData.skyTopPosition !== undefined ? customizationData.skyTopPosition : 0;
+				window.skyBottomPosition = customizationData.skyBottomPosition !== undefined ? customizationData.skyBottomPosition : 100;
 				window.carDoorColor = customizationData.carDoorColor || '#282828';
 				window.carFrameColor = customizationData.carFrameColor || '#282828';
 				window.carHeadlightsColor = customizationData.carHeadlightsColor || '#282828';
@@ -2875,6 +2881,10 @@
 				window.computerChassisColor = '#282828';
 				window.computerKeyboardColor = '#191919';
 				window.computerFeaturesColor = '#bee17b';
+				window.skyTopColor = '#000000';
+				window.skyBottomColor = '#000000';
+				window.skyTopPosition = 0;
+				window.skyBottomPosition = 100;
 				window.carDoorColor = '#282828';
 				window.carFrameColor = '#282828';
 				window.carHeadlightsColor = '#282828';
@@ -2968,6 +2978,8 @@
 				}
 			}
 
+			// Note: Sky gradient will be initialized after loading completes
+
 			// Setup ground material for shadows
 			world.sky.csm.setupMaterial(groundMaterial);
 
@@ -2990,6 +3002,71 @@
 
 				Sketchbook.UIManager.setUserInterfaceVisible(false);
 				Sketchbook.UIManager.setLoadingScreenVisible(false);
+
+				// Apply sky gradient after world is fully loaded
+				const finalSkyTop = window.skyTopColor || '#000000';
+				const finalSkyBottom = window.skyBottomColor || '#000000';
+				const finalSkyTopPos = window.skyTopPosition !== undefined ? window.skyTopPosition : 0;
+				const finalSkyBottomPos = window.skyBottomPosition !== undefined ? window.skyBottomPosition : 100;
+
+				// Apply gradient to sky sphere immediately (inline version before updateSkyGradient is defined)
+				if (world && world.sky) {
+					const topColorObj = new THREE.Color(finalSkyTop);
+					const bottomColorObj = new THREE.Color(finalSkyBottom);
+
+					world.sky.traverse((child) => {
+						if (child.isMesh && child.geometry && child.geometry.type === 'SphereBufferGeometry') {
+							// Create gradient material
+							const gradientMaterial = new THREE.ShaderMaterial({
+								uniforms: {
+									topColor: { value: topColorObj },
+									bottomColor: { value: bottomColorObj },
+									topPosition: { value: finalSkyTopPos / 100 },
+									bottomPosition: { value: finalSkyBottomPos / 100 }
+								},
+								vertexShader: `
+									varying vec3 vWorldPosition;
+									void main() {
+										vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+										vWorldPosition = worldPosition.xyz;
+										gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+									}
+								`,
+								fragmentShader: `
+									uniform vec3 topColor;
+									uniform vec3 bottomColor;
+									uniform float topPosition;
+									uniform float bottomPosition;
+									varying vec3 vWorldPosition;
+
+									void main() {
+										// Normalize Y position to 0-1 range
+										float h = normalize(vWorldPosition).y;
+										float gradientPos = (h + 1.0) / 2.0;
+
+										vec3 finalColor;
+										if (gradientPos < topPosition) {
+											finalColor = topColor;
+										} else if (gradientPos > bottomPosition) {
+											finalColor = bottomColor;
+										} else {
+											float t = (gradientPos - topPosition) / (bottomPosition - topPosition);
+											finalColor = mix(topColor, bottomColor, t);
+										}
+
+										gl_FragColor = vec4(finalColor, 1.0);
+									}
+								`,
+								side: THREE.BackSide,
+								toneMapped: false
+							});
+
+							gradientMaterial.userData.isCustomSky = true;
+							child.material = gradientMaterial;
+							console.log('🌌 Sky gradient initialized after loading:', finalSkyTop, '@', finalSkyTopPos + '%', '->', finalSkyBottom, '@', finalSkyBottomPos + '%');
+						}
+					});
+				}
 
 				// CRT overlay removed - spectators are now full characters, not cameras
 
@@ -3314,8 +3391,10 @@
 
 					if (isSpectatorMode) {
 						// Spectator spawns at portal location
-						character.setPosition(45, 2, 50);
-						console.log('👻 Spectator character spawned at portal (45, 2, 50)');
+						character.setPosition(50, 15, 5);
+						// Face towards the speaker/computer area (negative X direction)
+						character.setOrientation(new THREE.Vector3(-1, 0, 0), true);
+						console.log('👻 Spectator character spawned at portal (50, 15, 5) facing speakers');
 					} else {
 						// Host spawns at default location
 						character.setPosition(5, 2, 0);
@@ -3324,6 +3403,12 @@
 
 					world.add(character);
 					character.takeControl(); // Give character control (works for both host and spectators)
+
+					// Mark character as ready for spectator
+					if (isSpectatorMode) {
+						window.spectatorCharacterReady = true;
+						console.log('🎮 Spectator character loaded and ready');
+					}
 
 					// Create THREE.js sprite name tag for local character
 					const username = window.authState?.user?.username || window.authState?.user?.displayName || window.authState?.email?.split('@')[0] || 'USER';
@@ -3337,9 +3422,18 @@
 				// Add audio listener to the camera for spatial audio
 				world.camera.add(audioListener);
 
-				// Set initial camera to face front of character
+				// Set initial camera angle
 				setTimeout(() => {
-					world.cameraOperator.theta = 180; // Front facing
+					if (isSpectatorMode) {
+						world.cameraOperator.theta = 90; // 90 degrees - behind character (positive X, character faces negative X)
+						world.cameraOperator.phi = 0; // Level with character
+
+						// Mark camera as ready for spectator
+						window.spectatorCameraReady = true;
+						console.log('📷 Spectator camera positioned and ready');
+					} else {
+						world.cameraOperator.theta = 180; // Front facing for host
+					}
 				}, 100);
 
 				// Only create customization UI for host (not spectators)
@@ -3549,6 +3643,50 @@
 											<div class="color-info-label">FEATURES Material</div>
 											<div class="color-info-value" id="computer-features-value">#BEE17B</div>
 										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Sky Section -->
+						<div class="collapsible-section collapsed">
+							<div class="collapsible-header">
+								<div class="collapsible-title">Sky</div>
+								<div class="collapsible-arrow">▼</div>
+							</div>
+							<div class="collapsible-content">
+								<div class="customization-section">
+									<div class="section-label">Top Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="sky-top-picker" value="#000000">
+										<div class="color-info">
+											<div class="color-info-label">Gradient Top</div>
+											<div class="color-info-value" id="sky-top-value">#0A0A0A</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Top Position</div>
+									<div class="slider-container">
+										<input type="range" id="sky-top-position" min="0" max="100" value="0" step="1">
+										<div class="slider-value" id="sky-top-position-value">0%</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Bottom Color</div>
+									<div class="color-picker-container">
+										<input type="color" id="sky-bottom-picker" value="#000000">
+										<div class="color-info">
+											<div class="color-info-label">Gradient Bottom</div>
+											<div class="color-info-value" id="sky-bottom-value">#1A1A1A</div>
+										</div>
+									</div>
+								</div>
+								<div class="customization-section">
+									<div class="section-label">Bottom Position</div>
+									<div class="slider-container">
+										<input type="range" id="sky-bottom-position" min="0" max="100" value="100" step="1">
+										<div class="slider-value" id="sky-bottom-position-value">100%</div>
 									</div>
 								</div>
 							</div>
@@ -3928,6 +4066,10 @@
 				let computerChassisColor = customizationData.computerChassisColor || '#282828';
 				let computerKeyboardColor = customizationData.computerKeyboardColor || '#191919';
 				let computerFeaturesColor = customizationData.computerFeaturesColor || '#bee17b';
+				let skyTopColor = customizationData.skyTopColor || '#000000';
+				let skyBottomColor = customizationData.skyBottomColor || '#000000';
+				let skyTopPosition = customizationData.skyTopPosition !== undefined ? customizationData.skyTopPosition : 0;
+				let skyBottomPosition = customizationData.skyBottomPosition !== undefined ? customizationData.skyBottomPosition : 100;
 				let carDoorColor = customizationData.carDoorColor || '#282828';
 				let carFrameColor = customizationData.carFrameColor || '#282828';
 				let carHeadlightsColor = customizationData.carHeadlightsColor || '#282828';
@@ -3949,6 +4091,8 @@
 				window.computerChassisColor = computerChassisColor;
 				window.computerKeyboardColor = computerKeyboardColor;
 				window.computerFeaturesColor = computerFeaturesColor;
+				window.skyTopColor = skyTopColor;
+				window.skyBottomColor = skyBottomColor;
 				window.carDoorColor = carDoorColor;
 				window.carFrameColor = carFrameColor;
 				window.carHeadlightsColor = carHeadlightsColor;
@@ -3976,6 +4120,10 @@
 						computerChassisColor,
 						computerKeyboardColor,
 						computerFeaturesColor,
+						skyTopColor,
+						skyBottomColor,
+						skyTopPosition,
+						skyBottomPosition,
 						carDoorColor,
 						carFrameColor,
 						carHeadlightsColor,
@@ -4204,6 +4352,10 @@
 					const computerChassisPicker = document.getElementById('computer-chassis-picker');
 					const computerKeyboardPicker = document.getElementById('computer-keyboard-picker');
 					const computerFeaturesPicker = document.getElementById('computer-features-picker');
+					const skyTopPicker = document.getElementById('sky-top-picker');
+					const skyBottomPicker = document.getElementById('sky-bottom-picker');
+					const skyTopPositionSlider = document.getElementById('sky-top-position');
+					const skyBottomPositionSlider = document.getElementById('sky-bottom-position');
 					const carDoorPicker = document.getElementById('car-door-picker');
 					const carFramePicker = document.getElementById('car-frame-picker');
 					const carHeadlightsPicker = document.getElementById('car-headlights-picker');
@@ -4228,6 +4380,10 @@
 					const computerChassisValue = document.getElementById('computer-chassis-value');
 					const computerKeyboardValue = document.getElementById('computer-keyboard-value');
 					const computerFeaturesValue = document.getElementById('computer-features-value');
+					const skyTopValue = document.getElementById('sky-top-value');
+					const skyBottomValue = document.getElementById('sky-bottom-value');
+					const skyTopPositionValue = document.getElementById('sky-top-position-value');
+					const skyBottomPositionValue = document.getElementById('sky-bottom-position-value');
 					const carDoorValue = document.getElementById('car-door-value');
 					const carFrameValue = document.getElementById('car-frame-value');
 					const carHeadlightsValue = document.getElementById('car-headlights-value');
@@ -4266,6 +4422,14 @@
 					computerKeyboardValue.textContent = computerKeyboardColor.toUpperCase();
 					computerFeaturesPicker.value = computerFeaturesColor;
 					computerFeaturesValue.textContent = computerFeaturesColor.toUpperCase();
+					skyTopPicker.value = skyTopColor;
+					skyTopValue.textContent = skyTopColor.toUpperCase();
+					skyBottomPicker.value = skyBottomColor;
+					skyBottomValue.textContent = skyBottomColor.toUpperCase();
+					skyTopPositionSlider.value = skyTopPosition;
+					skyTopPositionValue.textContent = skyTopPosition + '%';
+					skyBottomPositionSlider.value = skyBottomPosition;
+					skyBottomPositionValue.textContent = skyBottomPosition + '%';
 					carDoorPicker.value = carDoorColor;
 					carDoorValue.textContent = carDoorColor.toUpperCase();
 					carFramePicker.value = carFrameColor;
@@ -4295,6 +4459,8 @@
 					window.computerChassisColor = computerChassisColor;
 					window.computerKeyboardColor = computerKeyboardColor;
 					window.computerFeaturesColor = computerFeaturesColor;
+					window.skyTopColor = skyTopColor;
+					window.skyBottomColor = skyBottomColor;
 					window.carDoorColor = carDoorColor;
 					window.carFrameColor = carFrameColor;
 					window.carHeadlightsColor = carHeadlightsColor;
@@ -4494,6 +4660,120 @@
 								}
 							});
 						}
+						saveCustomization();
+					});
+
+					// Function to update sky gradient
+					window.updateSkyGradient = function(topColor, bottomColor, topPos, bottomPos) {
+						if (!world || !world.graphicsWorld || !world.sky) return;
+
+						// Default positions if not provided
+						topPos = topPos !== undefined ? topPos : 0;
+						bottomPos = bottomPos !== undefined ? bottomPos : 100;
+
+						// Convert hex colors to THREE.Color
+						const topColorObj = new THREE.Color(topColor);
+						const bottomColorObj = new THREE.Color(bottomColor);
+
+						// Find the sky sphere mesh and replace its material
+						world.sky.traverse((child) => {
+							if (child.isMesh && child.geometry && child.geometry.type === 'SphereBufferGeometry') {
+
+								// Check if we already have a custom gradient material
+								if (child.material.userData.isCustomSky) {
+									// Update existing uniforms
+									child.material.uniforms.topColor.value = topColorObj;
+									child.material.uniforms.bottomColor.value = bottomColorObj;
+									child.material.uniforms.topPosition.value = topPos / 100;
+									child.material.uniforms.bottomPosition.value = bottomPos / 100;
+									console.log('🌌 Sky gradient updated:', topColor, '@', topPos + '%', '->', bottomColor, '@', bottomPos + '%');
+								} else {
+									// Create new gradient material
+									const gradientMaterial = new THREE.ShaderMaterial({
+										uniforms: {
+											topColor: { value: topColorObj },
+											bottomColor: { value: bottomColorObj },
+											topPosition: { value: topPos / 100 },
+											bottomPosition: { value: bottomPos / 100 }
+										},
+										vertexShader: `
+											varying vec3 vWorldPosition;
+											void main() {
+												vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+												vWorldPosition = worldPosition.xyz;
+												gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+											}
+										`,
+										fragmentShader: `
+											uniform vec3 topColor;
+											uniform vec3 bottomColor;
+											uniform float topPosition;
+											uniform float bottomPosition;
+											varying vec3 vWorldPosition;
+
+											void main() {
+												// Normalize Y position to 0-1 range
+												float h = normalize(vWorldPosition).y;
+												float gradientPos = (h + 1.0) / 2.0;
+
+												vec3 finalColor;
+												if (gradientPos < topPosition) {
+													finalColor = topColor;
+												} else if (gradientPos > bottomPosition) {
+													finalColor = bottomColor;
+												} else {
+													float t = (gradientPos - topPosition) / (bottomPosition - topPosition);
+													finalColor = mix(topColor, bottomColor, t);
+												}
+
+												gl_FragColor = vec4(finalColor, 1.0);
+											}
+										`,
+										side: THREE.BackSide,
+										toneMapped: false
+									});
+
+									gradientMaterial.userData.isCustomSky = true;
+									child.material = gradientMaterial;
+									console.log('🌌 Sky gradient material created:', topColor, '@', topPos + '%', '->', bottomColor, '@', bottomPos + '%');
+								}
+							}
+						});
+					};
+
+					// Sky top color picker
+					skyTopPicker.addEventListener('input', (e) => {
+						skyTopColor = e.target.value;
+						window.skyTopColor = skyTopColor;
+						skyTopValue.textContent = skyTopColor.toUpperCase();
+						window.updateSkyGradient(skyTopColor, skyBottomColor, skyTopPosition, skyBottomPosition);
+						saveCustomization();
+					});
+
+					// Sky bottom color picker
+					skyBottomPicker.addEventListener('input', (e) => {
+						skyBottomColor = e.target.value;
+						window.skyBottomColor = skyBottomColor;
+						skyBottomValue.textContent = skyBottomColor.toUpperCase();
+						window.updateSkyGradient(skyTopColor, skyBottomColor, skyTopPosition, skyBottomPosition);
+						saveCustomization();
+					});
+
+					// Sky top position slider
+					skyTopPositionSlider.addEventListener('input', (e) => {
+						skyTopPosition = parseInt(e.target.value);
+						window.skyTopPosition = skyTopPosition;
+						skyTopPositionValue.textContent = skyTopPosition + '%';
+						window.updateSkyGradient(skyTopColor, skyBottomColor, skyTopPosition, skyBottomPosition);
+						saveCustomization();
+					});
+
+					// Sky bottom position slider
+					skyBottomPositionSlider.addEventListener('input', (e) => {
+						skyBottomPosition = parseInt(e.target.value);
+						window.skyBottomPosition = skyBottomPosition;
+						skyBottomPositionValue.textContent = skyBottomPosition + '%';
+						window.updateSkyGradient(skyTopColor, skyBottomColor, skyTopPosition, skyBottomPosition);
 						saveCustomization();
 					});
 
@@ -4725,6 +5005,10 @@
 								computerChassisColor: '#282828',
 								computerKeyboardColor: '#191919',
 								computerFeaturesColor: '#bee17b',
+								skyTopColor: '#000000',
+								skyBottomColor: '#000000',
+								skyTopPosition: 0,
+								skyBottomPosition: 100,
 								carDoorColor: '#282828',
 								carFrameColor: '#282828',
 								carHeadlightsColor: '#282828',
@@ -4790,6 +5074,22 @@
 							computerFeaturesValue.textContent = defaults.computerFeaturesColor.toUpperCase();
 							computerFeaturesColor = defaults.computerFeaturesColor;
 
+							skyTopPicker.value = defaults.skyTopColor;
+							skyTopValue.textContent = defaults.skyTopColor.toUpperCase();
+							skyTopColor = defaults.skyTopColor;
+
+							skyBottomPicker.value = defaults.skyBottomColor;
+							skyBottomValue.textContent = defaults.skyBottomColor.toUpperCase();
+							skyBottomColor = defaults.skyBottomColor;
+
+							skyTopPositionSlider.value = defaults.skyTopPosition;
+							skyTopPositionValue.textContent = defaults.skyTopPosition + '%';
+							skyTopPosition = defaults.skyTopPosition;
+
+							skyBottomPositionSlider.value = defaults.skyBottomPosition;
+							skyBottomPositionValue.textContent = defaults.skyBottomPosition + '%';
+							skyBottomPosition = defaults.skyBottomPosition;
+
 							carDoorPicker.value = defaults.carDoorColor;
 							carDoorValue.textContent = defaults.carDoorColor.toUpperCase();
 							carDoorColor = defaults.carDoorColor;
@@ -4838,6 +5138,10 @@
 							window.computerChassisColor = defaults.computerChassisColor;
 							window.computerKeyboardColor = defaults.computerKeyboardColor;
 							window.computerFeaturesColor = defaults.computerFeaturesColor;
+							window.skyTopColor = defaults.skyTopColor;
+							window.skyBottomColor = defaults.skyBottomColor;
+							window.skyTopPosition = defaults.skyTopPosition;
+							window.skyBottomPosition = defaults.skyBottomPosition;
 							window.carDoorColor = defaults.carDoorColor;
 							window.carFrameColor = defaults.carFrameColor;
 							window.carHeadlightsColor = defaults.carHeadlightsColor;
@@ -4894,6 +5198,11 @@
 										child.material.needsUpdate = true;
 									}
 								});
+							}
+
+							// Apply to sky
+							if (window.updateSkyGradient) {
+								window.updateSkyGradient(defaults.skyTopColor, defaults.skyBottomColor, defaults.skyTopPosition, defaults.skyBottomPosition);
 							}
 
 							// Apply to car
@@ -5907,6 +6216,10 @@
 							window.computerChassisColor = c.computerChassisColor || '#282828';
 							window.computerKeyboardColor = c.computerKeyboardColor || '#191919';
 							window.computerFeaturesColor = c.computerFeaturesColor || '#bee17b';
+							window.skyTopColor = c.skyTopColor || '#000000';
+							window.skyBottomColor = c.skyBottomColor || '#000000';
+							window.skyTopPosition = c.skyTopPosition !== undefined ? c.skyTopPosition : 0;
+							window.skyBottomPosition = c.skyBottomPosition !== undefined ? c.skyBottomPosition : 100;
 							window.carDoorColor = c.carDoorColor || '#282828';
 							window.carFrameColor = c.carFrameColor || '#282828';
 							window.carHeadlightsColor = c.carHeadlightsColor || '#282828';
@@ -5948,15 +6261,24 @@
 
 										// Vintage camera zoom removed - spectators are now full characters with regular camera controls
 
-										// Wait a moment, then hide loading screen
-										setTimeout(() => {
-											const spectatorLoading = document.getElementById('spectator-loading');
-											spectatorLoading.style.display = 'none';
-											console.log('👻 Spectator fully loaded and ready');
+										// Wait for BOTH character and camera to be ready before hiding loading screen
+										const checkSpectatorFullyReady = setInterval(() => {
+											if (window.spectatorCharacterReady && window.spectatorCameraReady) {
+												clearInterval(checkSpectatorFullyReady);
 
-											// Show multiplayer chat for spectators
-											showMpChat();
-										}, 1000);
+												loadingStatus.textContent = 'Ready!';
+
+												// Wait a brief moment for final rendering, then hide loading screen
+												setTimeout(() => {
+													const spectatorLoading = document.getElementById('spectator-loading');
+													spectatorLoading.style.display = 'none';
+													console.log('👻 Spectator fully loaded and ready (character + camera)');
+
+													// Show multiplayer chat for spectators
+													showMpChat();
+												}, 500);
+											}
+										}, 100);
 									}
 								}, 100);
 							} else {
@@ -6588,6 +6910,10 @@
 								window.computerChassisColor = c.computerChassisColor;
 								window.computerKeyboardColor = c.computerKeyboardColor;
 								window.computerFeaturesColor = c.computerFeaturesColor;
+								window.skyTopColor = c.skyTopColor;
+								window.skyBottomColor = c.skyBottomColor;
+								window.skyTopPosition = c.skyTopPosition !== undefined ? c.skyTopPosition : 0;
+								window.skyBottomPosition = c.skyBottomPosition !== undefined ? c.skyBottomPosition : 100;
 								window.carDoorColor = c.carDoorColor;
 								window.carFrameColor = c.carFrameColor;
 								window.carHeadlightsColor = c.carHeadlightsColor;
@@ -6676,6 +7002,13 @@
 											child.material.needsUpdate = true;
 										}
 									});
+								}
+
+								// Apply to sky (if function exists)
+								if (c.skyTopColor && c.skyBottomColor && window.updateSkyGradient) {
+									const skyTopPos = c.skyTopPosition !== undefined ? c.skyTopPosition : 0;
+									const skyBottomPos = c.skyBottomPosition !== undefined ? c.skyBottomPosition : 100;
+									window.updateSkyGradient(c.skyTopColor, c.skyBottomColor, skyTopPos, skyBottomPos);
 								}
 
 								// Apply to car (if exists)
@@ -10251,6 +10584,31 @@
 				// Add to world
 				world.graphicsWorld.add(dome);
 
+				// Play dome animation if it exists
+				if (domeModel.animations && domeModel.animations.length > 0) {
+					console.log('🎬 Found dome animations:', domeModel.animations.map(a => a.name));
+
+					const domeMixer = new THREE.AnimationMixer(dome);
+
+					// Find the "rotate" animation or use the first one
+					const rotateAnim = domeModel.animations.find(a => a.name.toLowerCase() === 'rotate') || domeModel.animations[0];
+					const domeAction = domeMixer.clipAction(rotateAnim);
+
+					// Set to loop indefinitely at 0.05x speed
+					domeAction.setLoop(THREE.LoopRepeat, Infinity);
+					domeAction.clampWhenFinished = false;
+					domeAction.timeScale = 0.05;
+					domeAction.play();
+
+					// Store mixer globally so it can be updated in the render loop
+					window.domeMixer = domeMixer;
+					window.domeAction = domeAction;
+
+					console.log('🎬 Dome animation playing:', rotateAnim.name, 'duration:', rotateAnim.duration, 'tracks:', rotateAnim.tracks.length);
+				} else {
+					console.warn('⚠️ No animations found in dome model');
+				}
+
 				// Create hollow sphere collision using multiple planes facing inward
 				const domeRadius = 80; // Collision radius
 				const segments = 12; // More segments for better coverage
@@ -10749,9 +11107,14 @@
 				const distance = charPos.distanceTo(computerPosition);
 
 				if (distance < 3 && !terminalOpen) {
-					nearComputer = true;
-					interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to use computer';
-					interactionPrompt.classList.add('show');
+					// Only show prompt for host, not spectators
+					if (!isSpectatorMode) {
+						nearComputer = true;
+						interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to use computer';
+						interactionPrompt.classList.add('show');
+					} else {
+						nearComputer = false;
+					}
 				} else {
 					nearComputer = false;
 					if (!nearCar) {
@@ -11110,6 +11473,11 @@
 						window.lastHostAnimUpdate = now;
 
 						window.hostAnimationMixer.update(Math.min(animDelta, 0.1)); // Cap at 100ms to prevent huge jumps
+
+						// Update dome animation mixer if it exists
+						if (window.domeMixer) {
+							window.domeMixer.update(animDelta);
+						}
 
 						// SAFETY CHECK: Force an animation if NONE are playing (prevents rigid/frozen host)
 						if (window.hostAnimations) {

@@ -111,6 +111,9 @@ export class Sky extends THREE.Object3D implements IUpdatable
 		this.position.copy(this.world.camera.position);
 		this.refreshSunPosition();
 
+		// Rotate sky dome continuously
+		this.skyMesh.rotation.y += 0.0001 * timeScale;
+
 		this.csm.update(this.world.camera.matrix);
 		this.csm.lightDirection = new THREE.Vector3(-this.sunPosition.x, -this.sunPosition.y, -this.sunPosition.z).normalize();
 	}

@@ -1,0 +1,8 @@
+[build]
+builder = "NIXPACKS"
+
+[build.env]
+NODE_OPTIONS = "--openssl-legacy-provider"
+
+[deploy]
+startCommand = "npm run build && npm start"

@@ -166,6 +166,30 @@
 			pointer-events: auto;
 		}
 
+		/* Customization Crosshair */
+		.customization-crosshair {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			width: 6px;
+			height: 6px;
+			background: #bee17b;
+			border-radius: 50%;
+			box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.8),
+			            0 0 10px rgba(190, 225, 123, 0.6),
+			            inset 0 0 3px rgba(255, 255, 255, 0.8);
+			z-index: 99998;
+			pointer-events: none;
+			opacity: 0;
+			transition: opacity 0.3s ease;
+		}
+
+		.customization-crosshair.active {
+			opacity: 1;
+		}
+
+
 		.character-customization h3 {
 			margin: 0;
 			padding: 12px 16px;
@@ -2471,6 +2495,165 @@
 		</div>
 	</div>
 
+
+	<!-- Stream Info Modal -->
+	<div id="stream-info-modal" class="stream-info-modal">
+		<div class="stream-info-content">
+			<div class="stream-info-header">
+				<h2>DJ STREAM SETUP</h2>
+				<button class="stream-info-close" id="stream-info-close">✕</button>
+			</div>
+			<div class="stream-info-body">
+				<p style="margin-bottom: 20px; color: #bee17b;">Configure your OBS Studio with these settings:</p>
+
+				<div class="stream-info-field">
+					<label>RTMP Server URL:</label>
+					<div class="stream-info-value-container">
+						<code id="stream-rtmp-url">rtmp://localhost:1935/live</code>
+						<button class="copy-btn" onclick="copyToClipboard('stream-rtmp-url')">Copy</button>
+					</div>
+				</div>
+
+				<div class="stream-info-field">
+					<label>Stream Key:</label>
+					<div class="stream-info-value-container">
+						<code id="stream-key-value">Loading...</code>
+						<button class="copy-btn" onclick="copyToClipboard('stream-key-value')">Copy</button>
+					</div>
+				</div>
+
+				<!-- dB Meter for stream audio -->
+				<div class="stream-info-field" style="margin-top: 30px;">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+						<label style="margin: 0;">STREAM AUDIO LEVEL:</label>
+						<span id="stream-status" style="color: #666; font-size: 12px;">WAITING FOR STREAM...</span>
+					</div>
+					<canvas id="stream-db-meter" width="800" height="40" style="width: 100%; height: 40px; background: #000; border: 1px solid #bee17b;"></canvas>
+				</div>
+
+				<div style="margin-top: 30px; padding: 15px; background: rgba(190, 225, 123, 0.1); border: 1px solid #bee17b;">
+					<p style="margin: 0; font-size: 13px; color: #bee17b;">
+						<strong>Note:</strong> Keep your stream key private! Anyone with this key can stream to your session.
+					</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<style>
+		.stream-info-modal {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.9);
+			z-index: 999999;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.stream-info-modal.active {
+			display: flex;
+		}
+
+		.stream-info-content {
+			background: #000;
+			border: 2px solid #bee17b;
+			width: 600px;
+			max-width: 90%;
+			font-family: 'Share', monospace;
+			color: #fff;
+		}
+
+		.stream-info-header {
+			background: #bee17b;
+			color: #000;
+			padding: 20px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.stream-info-header h2 {
+			margin: 0;
+			font-size: 18px;
+			letter-spacing: 2px;
+		}
+
+		.stream-info-close {
+			background: none;
+			border: none;
+			color: #000;
+			font-size: 24px;
+			cursor: pointer;
+			padding: 0;
+			width: 30px;
+			height: 30px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.stream-info-close:hover {
+			background: rgba(0, 0, 0, 0.1);
+		}
+
+		.stream-info-body {
+			padding: 30px;
+		}
+
+		.stream-info-field {
+			margin-bottom: 25px;
+		}
+
+		.stream-info-field label {
+			display: block;
+			margin-bottom: 8px;
+			color: #bee17b;
+			font-size: 14px;
+			letter-spacing: 1px;
+		}
+
+		.stream-info-value-container {
+			display: flex;
+			gap: 10px;
+		}
+
+		.stream-info-value-container code {
+			flex: 1;
+			background: #1a1a1a;
+			color: #fff;
+			padding: 12px 15px;
+			border: 1px solid #333;
+			font-family: 'Courier New', monospace;
+			font-size: 14px;
+			word-break: break-all;
+		}
+
+		.copy-btn {
+			background: #bee17b;
+			color: #000;
+			border: none;
+			padding: 12px 20px;
+			font-family: 'Share', monospace;
+			font-size: 12px;
+			cursor: pointer;
+			letter-spacing: 1px;
+			white-space: nowrap;
+			transition: all 0.2s;
+		}
+
+		.copy-btn:hover {
+			background: #fff;
+			transform: scale(1.05);
+		}
+
+		.copy-btn:active {
+			transform: scale(0.95);
+		}
+	</style>
 	<style>
 		@keyframes spin {
 			from { transform: rotate(0deg); }
@@ -2788,6 +2971,7 @@
 		Engine: <a href="https://github.com/swift502/Sketchbook" target="_blank">Sketchbook 0.4</a>
 	</div>
 
+	<script src="./node_modules/flv.js/dist/flv.min.js"></script>
 	<script src="./build/sketchbook.min.js"></script>
 
 	<script>
@@ -3809,6 +3993,13 @@
 
 				document.body.appendChild(customizationDiv);
 
+				// Create crosshair for customization camera
+				const crosshair = document.createElement('div');
+				crosshair.className = 'customization-crosshair';
+				crosshair.id = 'customization-crosshair';
+				document.body.appendChild(crosshair);
+
+
 				// Tab switching logic
 				const tabs = customizationDiv.querySelectorAll('.customization-tab');
 				tabs.forEach(tab => {
@@ -4243,6 +4434,10 @@
 									// Show menu
 									customizationDiv.classList.add('active');
 									customizeButton.innerHTML = 'Close';
+
+									// Show crosshair
+									const crosshair = document.getElementById('customization-crosshair');
+									if (crosshair) crosshair.classList.add('active');
 								}
 							}, 16); // Check every frame (~60fps)
 						}
@@ -4254,6 +4449,11 @@
 							// Hide menu
 							customizationDiv.classList.remove('active');
 							customizeButton.innerHTML = 'Customize';
+
+							// Hide crosshair
+							const crosshair = document.getElementById('customization-crosshair');
+							if (crosshair) crosshair.classList.remove('active');
+
 
 							// Restore camera position
 							world.cameraOperator.theta = savedCameraTheta;
@@ -6175,6 +6375,8 @@
 					switch (data.type) {
 						case 'session_created':
 							currentSessionCode = data.sessionCode;
+							window.currentStreamKey = data.streamKey; // Store stream key for DJ streaming
+							console.log(`🔑 Stream key received: ${data.streamKey}`);
 							isHosting = true;
 							document.getElementById('generated-code').textContent = data.sessionCode;
 
@@ -7443,6 +7645,140 @@
 								window.eqFilters.highpass.frequency.value = 20;
 							}
 							break;
+
+					case 'dj_stream_live':
+						// DJ stream is now live - use flv.js for HTTP-FLV playback
+						console.log('🎧 DJ stream is now LIVE!');
+
+						if (!flvjs.isSupported()) {
+							console.error('❌ FLV.js is not supported in this browser');
+							break;
+						}
+
+						// Create audio element if it doesn't exist
+						if (!window.djAudioElement) {
+							window.djAudioElement = document.createElement('audio');
+							window.djAudioElement.controls = false; // Set to true for debugging
+							document.body.appendChild(window.djAudioElement);
+							console.log('🎵 Created DJ audio element');
+						}
+
+						// Create FLV player
+						const streamKey = data.streamKey;
+						const streamUrl = `http://localhost:8888/live/${streamKey}.flv`;
+
+						window.djFlvPlayer = flvjs.createPlayer({
+							type: 'flv',
+							isLive: true,
+							url: streamUrl
+						});
+
+						window.djFlvPlayer.attachMediaElement(window.djAudioElement);
+						window.djFlvPlayer.load();
+
+						// Setup Web Audio API for stream analysis
+						if (!window.djAudioContext) {
+							window.djAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+							window.djAudioSource = window.djAudioContext.createMediaElementSource(window.djAudioElement);
+							window.djAudioAnalyser = window.djAudioContext.createAnalyser();
+							window.djAudioAnalyser.fftSize = 2048;
+
+							// Connect: source -> analyser -> destination
+							window.djAudioSource.connect(window.djAudioAnalyser);
+							window.djAudioAnalyser.connect(window.djAudioContext.destination);
+
+							console.log('🎵 DJ stream audio analyser ready');
+						}
+
+						// Update stream status indicator
+						const streamStatus = document.getElementById('stream-status');
+						if (streamStatus) {
+							streamStatus.textContent = 'CONNECTING...';
+							streamStatus.style.color = '#ffa500';
+						}
+
+						// Listen for all FLV events
+						window.djFlvPlayer.on(flvjs.Events.LOADING_COMPLETE, () => {
+							console.log('✅ FLV LOADING_COMPLETE');
+						});
+
+						window.djFlvPlayer.on(flvjs.Events.LOADED_METADATA, () => {
+							console.log('✅ FLV LOADED_METADATA');
+						});
+
+						window.djFlvPlayer.on(flvjs.Events.MEDIA_INFO, (mediaInfo) => {
+							console.log('✅ FLV MEDIA_INFO:', mediaInfo);
+						});
+
+						window.djFlvPlayer.on(flvjs.Events.STATISTICS_INFO, (stats) => {
+							console.log('📊 FLV STATISTICS_INFO:', stats);
+						});
+
+						// Auto-play when audio element can play
+						window.djAudioElement.addEventListener('canplay', () => {
+							console.log('✅ Audio element can play');
+							window.djAudioElement.play()
+								.then(() => {
+									console.log('✅ Audio playing successfully');
+									// Update status to live
+									if (streamStatus) {
+										streamStatus.textContent = 'LIVE';
+										streamStatus.style.color = '#00ff00';
+									}
+								})
+								.catch(e => {
+									console.warn('⚠️ DJ audio autoplay blocked:', e);
+									// Still update to live, but user may need to click
+									if (streamStatus) {
+										streamStatus.textContent = 'LIVE (Click to play)';
+										streamStatus.style.color = '#ffa500';
+									}
+								});
+						});
+
+						window.djFlvPlayer.on(flvjs.Events.ERROR, (errorType, errorDetail, errorInfo) => {
+							console.error('❌ FLV player error:', errorType, errorDetail, errorInfo);
+
+							// Update status to error
+							if (streamStatus) {
+								streamStatus.textContent = 'ERROR';
+								streamStatus.style.color = '#ff0000';
+							}
+						});
+
+						console.log('✅ DJ audio streaming ready:', streamUrl);
+						break;
+
+					case 'dj_audio_chunk':
+						// Not used with direct FLV streaming
+						break;
+
+					case 'dj_stream_ended':
+						// DJ stream has ended
+						console.log('🛑 DJ stream ended');
+
+						// Update stream status indicator
+						const streamStatusEnd = document.getElementById('stream-status');
+						if (streamStatusEnd) {
+							streamStatusEnd.textContent = 'WAITING FOR STREAM...';
+							streamStatusEnd.style.color = '#666';
+						}
+
+						// Stop and cleanup FLV player
+						if (window.djFlvPlayer) {
+							window.djFlvPlayer.pause();
+							window.djFlvPlayer.unload();
+							window.djFlvPlayer.detachMediaElement();
+							window.djFlvPlayer.destroy();
+							window.djFlvPlayer = null;
+						}
+
+						// Cleanup audio element
+						if (window.djAudioElement) {
+							window.djAudioElement.pause();
+							window.djAudioElement.src = '';
+						}
+						break;
 					}
 				};
 
@@ -8969,6 +9305,21 @@
 					});
 
 					console.log('Login successful:', result.data.email);
+
+					// Fetch the absolute latest user data to ensure OM count is up-to-date
+					try {
+						console.log('🔄 Fetching latest user data to ensure fresh OM count...');
+						const userResponse = await fetch(`${API_BASE_URL}/api/v1/users/${result.data.localId}`);
+						const userResult = await userResponse.json();
+						if (userResult.success && userResult.data) {
+							window.authState.user = userResult.data;
+							saveAuth(window.authState);
+							console.log('✅ Updated with fresh user data, OMs:', userResult.data.oms);
+						}
+					} catch (error) {
+						console.warn('⚠️ Could not fetch latest user data after login:', error);
+						// Continue anyway with login response data
+					}
 
 					// Update UI
 					updateUIForAuth();
@@ -11055,6 +11406,63 @@
 				world.physicsWorld.addBody(speakersBody);
 			});
 
+
+			// Load the DJ decks
+			loadingManager.loadGLTF('build/assets/decks.glb', (decksModel) => {
+			// Store decks position for proximity check
+			window.decksPosition = new THREE.Vector3(-7, -0.35, 15);
+				const decks = decksModel.scene;
+				window.decks = decks; // Make globally accessible
+				decks.position.copy(window.decksPosition); // In front of speakers, elevated to table height
+				decks.scale.set(1, 1, 1);
+				decks.rotation.y = 0; // Rotate 90 degrees to face same way as speakers
+
+				// Add to world
+				world.graphicsWorld.add(decks);
+
+			// Debug: Log all children and their userData
+			console.log('🎛️ DECKS GLB loaded, structure:', decks);
+			decks.traverse((child) => {
+				if (child.isMesh) {
+					console.log('  Mesh:', child.name, 'Material:', child.material?.name);
+				}
+				if (child.userData && child.userData.data) {
+					console.log('  UserData:', child.name, 'Data:', child.userData.data, 'Shape:', child.userData.shape);
+				}
+			});
+
+				// Setup materials for shadows and handle collision meshes
+				decks.traverse((child) => {
+					// Check for collision mesh
+					if (child.userData && child.userData.data === 'collision' && child.userData.shape === 'box') {
+						child.visible = false; // Hide collision mesh
+
+						// Create physics collision box
+						const decksShape = new CANNON.Box(new CANNON.Vec3(child.scale.x, child.scale.y, child.scale.z));
+						const decksBody = new CANNON.Body({
+							mass: 0, // Static object (won't move)
+							shape: decksShape,
+							position: new CANNON.Vec3(
+								decks.position.x + child.position.x,
+								decks.position.y + child.position.y,
+								decks.position.z + child.position.z
+							)
+						});
+						world.physicsWorld.addBody(decksBody);
+						console.log('🎛️ DJ decks collision box added');
+					}
+
+					if (child.isMesh) {
+						child.castShadow = true;
+						child.receiveShadow = true;
+						if (child.material) {
+							world.sky.csm.setupMaterial(child.material);
+						}
+					}
+				});
+
+				console.log('🎛️ DJ decks loaded and positioned');
+			});
 			// Load the portal for multiplayer (only when hosting)
 			loadingManager.loadGLTF('build/assets/portal.glb', (portalModel) => {
 				const portal = portalModel.scene;
@@ -11087,6 +11495,9 @@
 			let nearComputer = false;
 			let nearCar = false;
 			let radioPromptDismissed = false;
+let nearDecks = false;
+window.decksMenuOpen = false;
+
 
 			// Vehicle audio transition
 			let vehicleAudioTransition = 0; // 0 = not in vehicle, 1 = fully in vehicle
@@ -11117,7 +11528,31 @@
 					}
 				} else {
 					nearComputer = false;
-					if (!nearCar) {
+					if (!nearCar && !nearDecks) {
+						interactionPrompt.classList.remove('show');
+					}
+				}
+			}
+
+			// Check distance to decks every frame
+			function checkDecksProximity() {
+				if (!character || !window.decks) return;
+
+				const charPos = character.position;
+				const distance = charPos.distanceTo(window.decksPosition);
+
+				if (distance < 3 && !window.decksMenuOpen && !terminalOpen && !customizationOpen) {
+					// Only show prompt for host, not spectators
+					if (!isSpectatorMode) {
+						nearDecks = true;
+						interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to get stream info';
+						interactionPrompt.classList.add('show');
+					} else {
+						nearDecks = false;
+					}
+				} else {
+					nearDecks = false;
+					if (!nearComputer && !nearCar) {
 						interactionPrompt.classList.remove('show');
 					}
 				}
@@ -11823,6 +12258,7 @@
 				if (character) {
 					checkComputerProximity();
 					checkCarProximity();
+				checkDecksProximity();
 
 					// Update vehicle audio transition with time-based animation
 					const inVehicle = character.controlledObject && character.controlledObject.rayCastVehicle;
@@ -12098,6 +12534,37 @@
 								}
 							}
 						}, 16); // Check every frame (~60fps)
+
+						return false;
+					}
+ else if (nearDecks && !window.decksMenuOpen && !terminalOpen && !customizationOpen) {
+						// Prevent default F key behavior
+						e.preventDefault();
+						e.stopPropagation();
+						e.stopImmediatePropagation();
+
+						// Open stream info panel
+						window.decksMenuOpen = true;
+						interactionPrompt.classList.remove('show');
+
+						// Show stream info modal
+						const streamInfoDiv = document.getElementById('stream-info-modal');
+						if (streamInfoDiv) {
+							streamInfoDiv.classList.add('active');
+
+							// Populate with current session's stream key
+							const rtmpUrl = 'rtmp://localhost:1935/live';
+							const streamKey = window.currentStreamKey || 'Not hosting a session';
+							
+							document.getElementById('stream-rtmp-url').textContent = rtmpUrl;
+							document.getElementById('stream-key-value').textContent = streamKey;
+						}
+
+						// Disable character controls
+						world.inputManager.inputReceiver = dummyInputReceiver;
+
+						// Exit pointer lock
+						document.exitPointerLock();
 
 						return false;
 					}
@@ -13457,7 +13924,176 @@
 			console.log('Removed active class and cleared inline styles');
 
 			// Set a flag in localStorage so it doesn't show again
-			localStorage.setItem('welcomeShown', 'true');
+
+		// Stream info modal functions
+		window.copyToClipboard = function(elementId) {
+			const element = document.getElementById(elementId);
+			const text = element.textContent;
+			
+			navigator.clipboard.writeText(text).then(() => {
+				// Show feedback
+				const btn = element.parentElement.querySelector('.copy-btn');
+				const originalText = btn.textContent;
+				btn.textContent = '✓ Copied!';
+				btn.style.background = '#4CAF50';
+				
+				setTimeout(() => {
+					btn.textContent = originalText;
+					btn.style.background = '#bee17b';
+				}, 2000);
+			}).catch(err => {
+				console.error('Failed to copy:', err);
+				alert('Failed to copy to clipboard');
+			});
+		};
+
+		window.closeStreamInfo = function() {
+			window.decksMenuOpen = false;
+			const streamInfoModal = document.getElementById('stream-info-modal');
+			streamInfoModal.classList.remove('active');
+
+			// Re-enable character controls
+			if (character) {
+				character.takeControl();
+			}
+
+			// Re-lock pointer
+			if (world && world.renderer) {
+				world.renderer.domElement.requestPointerLock();
+			}
+		};
+
+		// Stream dB meter render loop
+		function renderStreamDbMeter() {
+			const canvas = document.getElementById('stream-db-meter');
+			const ctx = canvas ? canvas.getContext('2d') : null;
+
+			if (!ctx) {
+				requestAnimationFrame(renderStreamDbMeter);
+				return;
+			}
+
+			// Clear meter
+			ctx.fillStyle = '#000';
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+			// Check if DJ stream audio analyser exists and is active
+			if (window.djAudioAnalyser && window.djAudioElement && !window.djAudioElement.paused) {
+				const bufferLength = window.djAudioAnalyser.frequencyBinCount;
+				const timeDataArray = new Uint8Array(bufferLength);
+				window.djAudioAnalyser.getByteTimeDomainData(timeDataArray);
+
+				// Calculate peak level
+				let peak = 0;
+				for (let i = 0; i < bufferLength; i++) {
+					const normalized = (timeDataArray[i] - 128) / 128.0;
+					const abs = Math.abs(normalized);
+					if (abs > peak) peak = abs;
+				}
+
+				// Calculate dBFS
+				const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -Infinity;
+
+				// Map peakDB from -48dB to +6dB
+				const dbMin = -48;
+				const dbMax = 6;
+				let normalizedPeak = (peakDB - dbMin) / (dbMax - dbMin);
+				normalizedPeak = Math.max(0, Math.min(1, normalizedPeak));
+
+				// Draw segmented meter bars
+				const padding = 4;
+				const meterHeight = canvas.height - (padding * 2);
+				const meterWidth = canvas.width - (padding * 2);
+				const segmentCount = 60;
+				const segmentWidth = (meterWidth / segmentCount) - 2;
+
+				for (let i = 0; i < segmentCount; i++) {
+					const x = padding + (i * (segmentWidth + 2));
+					const segmentLevel = i / segmentCount;
+
+					// Color coding based on dB level
+					let color;
+					const segmentDB = dbMin + (segmentLevel * (dbMax - dbMin));
+
+					if (segmentDB < -12) {
+						color = '#00ff00'; // Green zone (-48dB to -12dB)
+					} else if (segmentDB < -6) {
+						color = '#7fff00'; // Yellow-green zone (-12dB to -6dB)
+					} else if (segmentDB < -3) {
+						color = '#ffff00'; // Yellow zone (-6dB to -3dB)
+					} else if (segmentDB < 0) {
+						color = '#ff9900'; // Orange zone (-3dB to 0dB)
+					} else {
+						color = '#ff0000'; // Red zone (0dB to +6dB) - CLIPPING!
+					}
+
+					// Draw segment if below peak level
+					if (segmentLevel <= normalizedPeak) {
+						ctx.fillStyle = color;
+						ctx.fillRect(x, padding, segmentWidth, meterHeight);
+					} else {
+						// Draw dim background segments
+						ctx.fillStyle = '#1a1a1a';
+						ctx.fillRect(x, padding, segmentWidth, meterHeight);
+					}
+				}
+
+				// Draw dB scale labels
+				ctx.fillStyle = '#bee17b';
+				ctx.font = '9px Share';
+
+				const labelPositions = [
+					{ db: -48, label: '-48' },
+					{ db: -24, label: '-24' },
+					{ db: -12, label: '-12' },
+					{ db: -6, label: '-6' },
+					{ db: 0, label: '0' },
+					{ db: 6, label: '+6' }
+				];
+
+				labelPositions.forEach(pos => {
+					const normPos = (pos.db - dbMin) / (dbMax - dbMin);
+					const xPos = padding + (normPos * meterWidth);
+					ctx.fillText(pos.label, xPos - 8, 12);
+				});
+			}
+
+			requestAnimationFrame(renderStreamDbMeter);
+		}
+
+		// Start stream dB meter render loop
+		renderStreamDbMeter();
+
+		// Setup stream info modal event listeners after DOM is ready
+		setTimeout(() => {
+			const closeBtn = document.getElementById('stream-info-close');
+			if (closeBtn) {
+				closeBtn.addEventListener('click', closeStreamInfo);
+				console.log('✅ Stream info close button listener attached');
+			} else {
+				console.error('❌ stream-info-close button not found');
+			}
+		}, 100);
+
+		// ESC key to close stream info
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && window.decksMenuOpen) {
+				closeStreamInfo();
+			}
+		});
+
+		// Click outside to close stream info modal
+		document.addEventListener('click', (e) => {
+			if (window.decksMenuOpen) {
+				const streamModal = document.getElementById('stream-info-modal');
+				const streamContent = document.querySelector('.stream-info-content');
+				
+				// Check if click is outside the modal content
+				if (streamModal && streamContent && !streamContent.contains(e.target)) {
+					closeStreamInfo();
+				}
+			}
+		});
 		};
 
 		// Click outside to close

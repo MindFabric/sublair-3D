@@ -1065,6 +1065,175 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ==========================================
+// OBS AUDIO STREAMING VIA RTMP + WEBSOCKET
+// ==========================================
+const NodeMediaServer = require('node-media-server');
+
+const nmsConfig = {
+  rtmp: {
+    port: 1935,
+    chunk_size: 60000,
+    gop_cache: true,
+    ping: 30,
+    ping_timeout: 60
+  },
+  http: {
+    port: 8888,
+    allow_origin: '*'
+  }
+};
+
+const nms = new NodeMediaServer(nmsConfig);
+nms.run();
+
+console.log('📹 RTMP Server running on port 1935');
+console.log('🔑 OBS Stream URL: rtmp://YOUR_IP:1935/live');
+console.log('🔑 Stream Key: Use your session code (e.g., ABC123)');
+
+// Store active DJ streams
+const activeDJStreams = new Map(); // { sessionCode: { active: true, listeners: [] } }
+
+// Handle RTMP stream events
+nms.on('prePublish', (id, StreamPath, args) => {
+  // Extract streamPath from session object
+  const streamPath = id.streamPath;
+
+  if (!streamPath) {
+    console.log('⚠️ prePublish event received without streamPath');
+    return;
+  }
+
+  const streamKey = streamPath.split('/').pop();
+  console.log('📹 OBS stream starting with key:', streamKey);
+
+  // Verify stream key matches active session
+  if (streamKeyToSession.has(streamKey)) {
+    const sessionCode = streamKeyToSession.get(streamKey);
+    const session = sessions.get(sessionCode);
+
+    if (session) {
+      console.log(`✅ Valid stream key - mapped to session: ${sessionCode}`);
+      activeDJStreams.set(streamKey, { active: true, startTime: Date.now(), sessionCode: sessionCode });
+
+      // Notify all players that DJ stream is live
+      const liveMessage = JSON.stringify({
+        type: 'dj_stream_live',
+        sessionCode: sessionCode,
+        streamKey: streamKey // Include stream key for FLV URL
+      });
+
+      // Notify host
+      if (session.host.readyState === WebSocket.OPEN) {
+        session.host.send(liveMessage);
+      }
+
+      // Notify all spectators
+      session.players.forEach(player => {
+        if (player.readyState === WebSocket.OPEN) {
+          player.send(liveMessage);
+        }
+      });
+
+      console.log('🎧 Notified session about DJ stream');
+    } else {
+      console.log('❌ Session not found for stream key - rejecting stream');
+      id.reject();
+    }
+  } else {
+    console.log('❌ Invalid stream key - rejecting stream');
+    id.reject();
+  }
+});
+
+// postPublish fires AFTER stream is established (has StreamPath)
+nms.on('postPublish', (id, StreamPath, args) => {
+  // Extract streamPath from session object
+  const streamPath = id.streamPath;
+
+  if (!streamPath) {
+    console.log('⚠️ postPublish event received without streamPath');
+    return;
+  }
+
+  const streamKey = streamPath.split('/').pop();
+  console.log('📹 OBS stream connected with key:', streamKey);
+
+  // Verify stream key matches active session
+  if (streamKeyToSession.has(streamKey)) {
+    const sessionCode = streamKeyToSession.get(streamKey);
+    const session = sessions.get(sessionCode);
+
+    if (session) {
+      console.log(`✅ Valid stream key - mapped to session: ${sessionCode}`);
+      activeDJStreams.set(streamKey, { active: true, startTime: Date.now(), sessionCode: sessionCode });
+
+      // Notify all players that DJ stream is live
+      const liveMessage = JSON.stringify({
+        type: 'dj_stream_live',
+        sessionCode: sessionCode,
+        streamKey: streamKey // Include stream key for FLV URL
+      });
+
+      // Notify host
+      if (session.host.readyState === WebSocket.OPEN) {
+        session.host.send(liveMessage);
+      }
+
+      // Notify all spectators
+      session.players.forEach(player => {
+        if (player.readyState === WebSocket.OPEN) {
+          player.send(liveMessage);
+        }
+      });
+
+      console.log('🎧 Notified session about DJ stream');
+    }
+  }
+});
+
+nms.on('donePublish', (id, StreamPath, args) => {
+  // Extract streamPath from session object
+  const streamPath = id.streamPath;
+
+  if (!streamPath) {
+    console.log('⚠️ donePublish event received without streamPath');
+    return;
+  }
+
+  const streamKey = streamPath.split('/').pop();
+  console.log('📹 OBS stream ended:', streamKey);
+
+  // Get session code from stream key
+  const sessionCode = streamKeyToSession.get(streamKey);
+  activeDJStreams.delete(streamKey);
+
+  // Notify session that stream ended
+  if (sessionCode && sessions.has(sessionCode)) {
+    const session = sessions.get(sessionCode);
+    const endMessage = JSON.stringify({
+      type: 'dj_stream_ended',
+      sessionCode: sessionCode
+    });
+
+    if (session.host.readyState === WebSocket.OPEN) {
+      session.host.send(endMessage);
+    }
+
+    session.players.forEach(player => {
+      if (player.readyState === WebSocket.OPEN) {
+        player.send(endMessage);
+      }
+    });
+
+    console.log(`🛑 Notified session ${sessionCode} that DJ stream ended`);
+  }
+});
+
+// Note: HTTP-FLV streaming handled by node-media-server on port 8888
+// Clients will connect directly to http://localhost:8888/live/{streamKey}.flv
+// WebSocket only used for signaling (stream start/end notifications)
+
 // Start server (only in development, not on Vercel)
 // Create HTTP server
 const server = http.createServer(app);
@@ -1084,6 +1253,19 @@ function generateSessionCode() {
   }
   return code;
 }
+
+// Generate random stream key (longer and more secure than session code)
+function generateStreamKey() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let key = '';
+  for (let i = 0; i < 32; i++) {
+    key += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return key;
+}
+
+// Map stream keys to session codes
+const streamKeyToSession = new Map();
 
 wss.on('connection', (ws, req) => {
   const clientIp = req.socket.remoteAddress;
@@ -1110,22 +1292,35 @@ wss.on('connection', (ws, req) => {
             sessionCode = generateSessionCode();
           } while (sessions.has(sessionCode));
 
+          // Generate unique stream key
+          let streamKey;
+          do {
+            streamKey = generateStreamKey();
+          } while (streamKeyToSession.has(streamKey));
+
           ws.sessionCode = sessionCode;
           ws.isHost = true;
           ws.playerData = data.playerData || {};
           ws.customization = data.customization || {}; // Store host customization
 
+          // Store session with stream key
           sessions.set(sessionCode, {
             host: ws,
             players: [],
             hostData: ws.playerData,
-            customization: ws.customization // Include in session data
+            customization: ws.customization, // Include in session data
+            streamKey: streamKey // Store stream key in session
           });
 
+          // Map stream key to session code
+          streamKeyToSession.set(streamKey, sessionCode);
+
           console.log(`🎮 Session created: ${sessionCode}`);
+          console.log(`🔑 Stream key generated: ${streamKey}`);
           ws.send(JSON.stringify({
             type: 'session_created',
-            sessionCode: sessionCode
+            sessionCode: sessionCode,
+            streamKey: streamKey // Send stream key to host
           }));
           break;
 
@@ -1643,6 +1838,13 @@ function handleDisconnect(ws) {
         player.close();
       }
     });
+
+    // Clean up stream key mapping
+    if (session.streamKey) {
+      streamKeyToSession.delete(session.streamKey);
+      console.log(`🔑 Cleaned up stream key mapping for session: ${ws.sessionCode}`);
+    }
+
     sessions.delete(ws.sessionCode);
   } else {
     // Player disconnected

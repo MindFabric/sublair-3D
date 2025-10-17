@@ -2531,6 +2531,14 @@
 					<canvas id="stream-db-meter" width="800" height="40" style="width: 100%; height: 40px; background: #000; border: 1px solid #bee17b;"></canvas>
 				</div>
 
+				<!-- Mute Stream Audio Checkbox -->
+				<div class="stream-info-field" style="margin-top: 20px;">
+					<label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+						<input type="checkbox" id="mute-stream-audio" onchange="toggleStreamAudioMute()" style="cursor: pointer; width: 18px; height: 18px;">
+						<span style="color: #bee17b; font-size: 14px;">MUTE STREAM AUDIO (prevents feedback loop)</span>
+					</label>
+				</div>
+
 				<div style="margin-top: 30px; padding: 15px; background: rgba(190, 225, 123, 0.1); border: 1px solid #bee17b;">
 					<p style="margin: 0; font-size: 13px; color: #bee17b;">
 						<strong>Note:</strong> Keep your stream key private! Anyone with this key can stream to your session.
@@ -2685,6 +2693,7 @@
 				<div class="now-playing-label">NOW PLAYING</div>
 				<div class="now-playing-title" id="now-playing-title">Track Title</div>
 				<div class="now-playing-artist" id="now-playing-artist">Artist Name</div>
+				<canvas id="now-playing-db-meter" width="200" height="12" style="display: none; margin-top: 5px; border-radius: 2px; border: 1px solid #bee17b;"></canvas>
 			</div>
 			<div class="now-playing-pulse"></div>
 		</div>
@@ -6343,18 +6352,50 @@
 				const loadingStatus = document.getElementById('spectator-loading-status');
 				spectatorLoading.style.display = 'flex';
 
-				// Update status messages
-				loadingStatus.textContent = 'Establishing connection...';
+				// Show "Click to Join" button instead of auto-joining
+				// This provides the required user gesture for AudioContext
+				loadingStatus.innerHTML = `
+					<div style="text-align: center;">
+						<div style="margin-bottom: 20px; font-size: 18px;">Ready to join session:</div>
+						<div style="font-size: 32px; font-weight: bold; color: #bee17b; margin-bottom: 30px;">${spectatorSessionCode}</div>
+						<button id="spectator-join-btn" style="
+							background: #bee17b;
+							color: #000;
+							border: none;
+							padding: 20px 40px;
+							font-family: 'Share', monospace;
+							font-size: 18px;
+							font-weight: bold;
+							cursor: pointer;
+							border-radius: 4px;
+							transition: all 0.3s;
+						" onmouseover="this.style.background='#d4f098'" onmouseout="this.style.background='#bee17b'">
+							CLICK TO JOIN
+						</button>
+					</div>
+				`;
 
+				// Wait for user click (valid user gesture for AudioContext)
 				setTimeout(() => {
-					loadingStatus.textContent = 'Verifying session code...';
-				}, 500);
+					const spectatorJoinBtn = document.getElementById('spectator-join-btn');
+					if (spectatorJoinBtn) {
+						spectatorJoinBtn.addEventListener('click', () => {
+							// Create AudioContext during user gesture
+							if (!window.djAudioContext) {
+								window.djAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+								console.log('🎵 Pre-created AudioContext for DJ streaming (spectator link join)');
+								console.log(`🎵 AudioContext state: ${window.djAudioContext.state}`);
+							}
 
-				setTimeout(() => {
-					loadingStatus.textContent = 'Joining session...';
-					document.getElementById('session-code').value = spectatorSessionCode.toUpperCase();
-					document.getElementById('join-session-btn').click();
-				}, 1500);
+							// Show loading message
+							loadingStatus.textContent = 'Joining session...';
+
+							// Join the session
+							document.getElementById('session-code').value = spectatorSessionCode.toUpperCase();
+							document.getElementById('join-session-btn').click();
+						});
+					}
+				}, 100);
 			}
 
 			function connectMultiplayer() {
@@ -7649,6 +7690,10 @@
 					case 'dj_stream_live':
 						// DJ stream is now live - use flv.js for HTTP-FLV playback
 						console.log('🎧 DJ stream is now LIVE!');
+						console.log('📡 Received dj_stream_live message:', data);
+
+						// Show "HOST IS LIVE STREAMING" notification for everyone
+						showDJStreamLiveNotification();
 
 						if (!flvjs.isSupported()) {
 							console.error('❌ FLV.js is not supported in this browser');
@@ -7679,17 +7724,30 @@
 						window.djFlvPlayer.load();
 
 						// Setup Web Audio API for stream analysis
+						// Create AudioContext if it doesn't exist (fallback for hosts)
 						if (!window.djAudioContext) {
 							window.djAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+							console.log('🎵 Created AudioContext (fallback)');
+						}
+
+						// Only create source/analyser/gain once
+						if (!window.djAudioSource) {
 							window.djAudioSource = window.djAudioContext.createMediaElementSource(window.djAudioElement);
 							window.djAudioAnalyser = window.djAudioContext.createAnalyser();
 							window.djAudioAnalyser.fftSize = 2048;
 
-							// Connect: source -> analyser -> destination
+							// Create gain node for muting (keeps analyser working)
+							window.djGainNode = window.djAudioContext.createGain();
+							window.djGainNode.gain.value = 1.0; // Unmuted by default
+
+							// Connect: source -> analyser -> gainNode -> destination
+							// This way analyser always receives signal, but output can be muted
 							window.djAudioSource.connect(window.djAudioAnalyser);
-							window.djAudioAnalyser.connect(window.djAudioContext.destination);
+							window.djAudioAnalyser.connect(window.djGainNode);
+							window.djGainNode.connect(window.djAudioContext.destination);
 
 							console.log('🎵 DJ stream audio analyser ready');
+							console.log(`🎵 AudioContext state after setup: ${window.djAudioContext.state}`);
 						}
 
 						// Update stream status indicator
@@ -7716,12 +7774,40 @@
 							console.log('📊 FLV STATISTICS_INFO:', stats);
 						});
 
+						// Auto-mute stream audio for host to prevent feedback loop
+						// (Spectators will still hear it)
+						// Use GainNode instead of audio element mute so analyser still works
+						if (window.djGainNode) {
+							if (!isSpectatorMode) {
+								// Host: mute to prevent feedback
+								window.djGainNode.gain.value = 0.0;
+								const muteCheckbox = document.getElementById('mute-stream-audio');
+								if (muteCheckbox) {
+									muteCheckbox.checked = true;
+								}
+								console.log('🔇 Stream audio auto-muted for host (dB meter still active)');
+							} else {
+								// Spectator: ensure unmuted
+								window.djGainNode.gain.value = 1.0;
+								console.log('🔊 Stream audio unmuted for spectator');
+							}
+						}
+
 						// Auto-play when audio element can play
-						window.djAudioElement.addEventListener('canplay', () => {
+						window.djAudioElement.addEventListener('canplay', async () => {
 							console.log('✅ Audio element can play');
+
+							// Resume audio context if suspended (required for autoplay)
+							if (window.djAudioContext && window.djAudioContext.state === 'suspended') {
+								console.log('🔊 Resuming audio context...');
+								await window.djAudioContext.resume();
+							}
+
 							window.djAudioElement.play()
 								.then(() => {
 									console.log('✅ Audio playing successfully');
+									console.log(`🎵 Audio context state: ${window.djAudioContext?.state}`);
+									console.log(`🔊 Current gain: ${window.djGainNode?.gain.value}`);
 									// Update status to live
 									if (streamStatus) {
 										streamStatus.textContent = 'LIVE';
@@ -7736,7 +7822,7 @@
 										streamStatus.style.color = '#ffa500';
 									}
 								});
-						});
+						}, { once: true }); // Only attach once to prevent multiple listeners
 
 						window.djFlvPlayer.on(flvjs.Events.ERROR, (errorType, errorDetail, errorInfo) => {
 							console.error('❌ FLV player error:', errorType, errorDetail, errorInfo);
@@ -7758,6 +7844,9 @@
 					case 'dj_stream_ended':
 						// DJ stream has ended
 						console.log('🛑 DJ stream ended');
+
+						// Hide "HOST IS LIVE STREAMING" notification
+						hideDJStreamNotification();
 
 						// Update stream status indicator
 						const streamStatusEnd = document.getElementById('stream-status');
@@ -8204,6 +8293,14 @@
 				}
 
 				console.log(`🔗 Joining session: ${code}`);
+
+				// Pre-create AudioContext during user gesture (required for autoplay)
+				if (!window.djAudioContext) {
+					window.djAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+					console.log('🎵 Pre-created AudioContext for DJ streaming');
+					console.log(`🎵 AudioContext state: ${window.djAudioContext.state}`);
+				}
+
 				connectMultiplayer();
 
 				// Wait for connection then send join message
@@ -9808,6 +9905,63 @@
 			function hideNowPlayingDisplay() {
 				const display = document.getElementById('now-playing-display');
 				display.classList.remove('show');
+			}
+
+			// Helper function to show DJ stream live notification
+			function showDJStreamLiveNotification() {
+				const display = document.getElementById('now-playing-display');
+				const titleEl = document.getElementById('now-playing-title');
+				const artistEl = document.getElementById('now-playing-artist');
+				const artworkImg = document.getElementById('now-playing-artwork-img');
+				const labelEl = document.querySelector('.now-playing-label');
+				const dbMeter = document.getElementById('now-playing-db-meter');
+
+				// Update label to show LIVE status
+				if (labelEl) {
+					labelEl.innerHTML = '<span style="color: #ff0000; font-weight: bold; animation: pulse 1s infinite;">● LIVE</span>';
+				}
+
+				// Set title and artist
+				titleEl.textContent = 'HOST IS LIVE STREAMING';
+				artistEl.textContent = 'DJ audio stream active';
+
+				// Hide artwork for live stream
+				artworkImg.style.display = 'none';
+
+				// Show dB meter for live stream
+				if (dbMeter) {
+					dbMeter.style.display = 'block';
+					console.log('📊 dB meter display set to block');
+					console.log('📊 dB meter element:', dbMeter);
+					console.log('📊 dB meter computed display:', window.getComputedStyle(dbMeter).display);
+				} else {
+					console.error('❌ dB meter element not found!');
+				}
+
+				// Show the display
+				display.classList.add('show');
+
+				console.log('📡 Showing DJ stream live notification');
+			}
+
+			// Helper function to hide DJ stream notification
+			function hideDJStreamNotification() {
+				const display = document.getElementById('now-playing-display');
+				const labelEl = document.querySelector('.now-playing-label');
+				const dbMeter = document.getElementById('now-playing-db-meter');
+
+				// Reset label back to NOW PLAYING
+				if (labelEl) {
+					labelEl.textContent = 'NOW PLAYING';
+				}
+
+				// Hide dB meter
+				if (dbMeter) {
+					dbMeter.style.display = 'none';
+				}
+
+				display.classList.remove('show');
+				console.log('📡 Hiding DJ stream notification');
 			}
 
 			function playTrack(url, title, artworkUrl, trackId, trackUserId, artistName, artistUsername) {
@@ -13951,6 +14105,17 @@ window.decksMenuOpen = false;
 			});
 		};
 
+		window.toggleStreamAudioMute = function() {
+			const muteCheckbox = document.getElementById('mute-stream-audio');
+			const isMuted = muteCheckbox.checked;
+
+			// Use GainNode instead of audio element mute so analyser keeps working
+			if (window.djGainNode) {
+				window.djGainNode.gain.value = isMuted ? 0.0 : 1.0;
+				console.log(isMuted ? '🔇 Stream audio muted (dB meter still active)' : '🔊 Stream audio unmuted');
+			}
+		};
+
 		window.closeStreamInfo = function() {
 			window.decksMenuOpen = false;
 			const streamInfoModal = document.getElementById('stream-info-modal');
@@ -14067,6 +14232,100 @@ window.decksMenuOpen = false;
 
 		// Start stream dB meter render loop
 		renderStreamDbMeter();
+
+		// Render now-playing dB meter (small version for spectators)
+		let nowPlayingDbMeterDebugCount = 0;
+		function renderNowPlayingDbMeter() {
+			const canvas = document.getElementById('now-playing-db-meter');
+			const ctx = canvas ? canvas.getContext('2d') : null;
+
+			if (!ctx) {
+				if (nowPlayingDbMeterDebugCount === 0) {
+					console.log('⚠️ now-playing-db-meter canvas not found or no context!', { canvas: !!canvas, ctx: !!ctx });
+				}
+				nowPlayingDbMeterDebugCount++;
+				requestAnimationFrame(renderNowPlayingDbMeter);
+				return;
+			}
+
+			// Canvas found! Log once
+			if (nowPlayingDbMeterDebugCount === 0) {
+				console.log('✅ now-playing-db-meter canvas found and rendering!');
+			}
+
+			// Clear canvas
+			ctx.fillStyle = '#000';
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+			// Debug logging every 100 frames
+			if (nowPlayingDbMeterDebugCount % 100 === 0) {
+				console.log('🎚️ Now Playing dB meter check:', {
+					hasAnalyser: !!window.djAudioAnalyser,
+					hasElement: !!window.djAudioElement,
+					isPaused: window.djAudioElement?.paused,
+					canvasVisible: canvas?.style.display !== 'none'
+				});
+			}
+			nowPlayingDbMeterDebugCount++;
+
+			// Setup meter dimensions
+			const padding = 2;
+			const meterHeight = canvas.height - (padding * 2);
+			const meterWidth = canvas.width - (padding * 2);
+			const segmentCount = 40;
+			const segmentWidth = (meterWidth / segmentCount) - 1;
+			const dbMin = -48;
+			const dbMax = 6;
+
+			// Calculate peak level if analyser is available
+			let normalizedPeak = 0;
+			if (window.djAudioAnalyser && window.djAudioElement && !window.djAudioElement.paused) {
+				const bufferLength = window.djAudioAnalyser.frequencyBinCount;
+				const timeDataArray = new Uint8Array(bufferLength);
+				window.djAudioAnalyser.getByteTimeDomainData(timeDataArray);
+
+				// Calculate peak level
+				let peak = 0;
+				for (let i = 0; i < bufferLength; i++) {
+					const normalized = (timeDataArray[i] - 128) / 128.0;
+					const abs = Math.abs(normalized);
+					if (abs > peak) peak = abs;
+				}
+
+				// Convert to dB
+				const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -Infinity;
+				normalizedPeak = (peakDB - dbMin) / (dbMax - dbMin);
+				normalizedPeak = Math.max(0, Math.min(1, normalizedPeak));
+			}
+
+			// Always draw meter bars (even when no signal - shows dim bars for visual confirmation)
+			for (let i = 0; i < segmentCount; i++) {
+				const x = padding + (i * (segmentWidth + 1));
+				const segmentLevel = i / segmentCount;
+				const segmentDB = dbMin + (segmentLevel * (dbMax - dbMin));
+
+				let color;
+				if (segmentDB < -12) color = '#00ff00';
+				else if (segmentDB < -6) color = '#7fff00';
+				else if (segmentDB < -3) color = '#ffff00';
+				else if (segmentDB < 0) color = '#ff9900';
+				else color = '#ff0000';
+
+				if (segmentLevel <= normalizedPeak) {
+					// Active segment - full brightness
+					ctx.fillStyle = color;
+					ctx.fillRect(x, padding, segmentWidth, meterHeight);
+				} else {
+					// Inactive segment - dim background
+					ctx.fillStyle = '#1a1a1a';
+					ctx.fillRect(x, padding, segmentWidth, meterHeight);
+				}
+			}
+
+			requestAnimationFrame(renderNowPlayingDbMeter);
+		}
+
+		renderNowPlayingDbMeter();
 
 		// Setup stream info modal event listeners after DOM is ready
 		setTimeout(() => {

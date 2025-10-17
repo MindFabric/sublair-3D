@@ -1365,6 +1365,23 @@ wss.on('connection', (ws, req) => {
             }));
           }
 
+          // Check if there's an active DJ stream for this session
+          // If so, notify the late joiner
+          if (session.streamKey) {
+            // Check if this stream key has an active stream
+            if (activeDJStreams.has(session.streamKey)) {
+              const streamInfo = activeDJStreams.get(session.streamKey);
+              if (streamInfo.active) {
+                console.log(`🎧 Late joiner detected - sending DJ stream info to ${ws.spectatorId}`);
+                ws.send(JSON.stringify({
+                  type: 'dj_stream_live',
+                  sessionCode: joinCode,
+                  streamKey: session.streamKey
+                }));
+              }
+            }
+          }
+
           // Broadcast complete player list to everyone (host + all spectators)
           broadcastPlayerList(session);
           break;

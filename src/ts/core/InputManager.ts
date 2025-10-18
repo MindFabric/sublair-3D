@@ -50,7 +50,10 @@ export class InputManager implements IUpdatable
 		document.addEventListener('wheel', this.boundOnMouseWheelMove, false);
 		document.addEventListener('pointerlockchange', this.boundOnPointerlockChange, false);
 		document.addEventListener('pointerlockerror', this.boundOnPointerlockError, false);
-		
+
+		// Prevent context menu on right click
+		this.domElement.addEventListener('contextmenu', (e) => e.preventDefault(), false);
+
 		// Keys
 		document.addEventListener('keydown', this.boundOnKeyDown, false);
 		document.addEventListener('keyup', this.boundOnKeyUp, false);
@@ -104,7 +107,19 @@ export class InputManager implements IUpdatable
 	{
 		if (this.pointerLock)
 		{
-			this.domElement.requestPointerLock();
+			// Right click (button 2) unlocks pointer when locked
+			if (event.button === 2 && document.pointerLockElement === this.domElement)
+			{
+				document.exitPointerLock();
+				event.preventDefault();
+				return; // Don't pass this event to input receiver
+			}
+
+			// Any other click requests pointer lock if not already locked
+			if (!document.pointerLockElement)
+			{
+				this.domElement.requestPointerLock();
+			}
 		}
 		else
 		{
@@ -112,6 +127,7 @@ export class InputManager implements IUpdatable
 			this.domElement.addEventListener('mouseup', this.boundOnMouseUp, false);
 		}
 
+		// Pass button event to input receiver (for left click, middle click, etc.)
 		if (this.inputReceiver !== undefined)
 		{
 			this.inputReceiver.handleMouseButton(event, 'mouse' + event.button, true);

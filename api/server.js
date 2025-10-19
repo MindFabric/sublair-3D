@@ -1070,26 +1070,44 @@ app.use((err, req, res, next) => {
 // ==========================================
 const NodeMediaServer = require('node-media-server');
 
+// Determine if we're in production (Railway) or development (localhost)
+const isProduction = process.env.NODE_ENV === 'production';
+const RTMP_PORT = isProduction ? (parseInt(process.env.RTMP_PORT) || 1935) : 1935;
+const HTTP_FLV_PORT = isProduction ? PORT : 8888; // Use main port in production
+
 const nmsConfig = {
   rtmp: {
-    port: 1935,
+    port: RTMP_PORT,
     chunk_size: 60000,
     gop_cache: true,
     ping: 30,
     ping_timeout: 60
   },
   http: {
-    port: 8888,
-    allow_origin: '*'
+    port: isProduction ? (HTTP_FLV_PORT + 1) : 8888, // Use different port in production to avoid conflict
+    allow_origin: '*',
+    mediaroot: './media' // Store temporary media files
+  },
+  trans: {
+    ffmpeg: '/usr/bin/ffmpeg', // Path to ffmpeg (Railway should have this)
+    tasks: [
+      {
+        app: 'live',
+        hls: true,
+        hlsFlags: '[hls_time=2:hls_list_size=3:hls_flags=delete_segments]',
+        dash: false
+      }
+    ]
   }
 };
 
 const nms = new NodeMediaServer(nmsConfig);
 nms.run();
 
-console.log('📹 RTMP Server running on port 1935');
-console.log('🔑 OBS Stream URL: rtmp://YOUR_IP:1935/live');
+console.log(`📹 RTMP Server running on port ${RTMP_PORT}`);
+console.log(`🔑 OBS Stream URL: rtmp://${isProduction ? '3d.sublair.com' : 'localhost'}:${RTMP_PORT}/live`);
 console.log('🔑 Stream Key: Use your session code (e.g., ABC123)');
+console.log(`🎥 HTTP-FLV available on port ${isProduction ? (HTTP_FLV_PORT + 1) : 8888}`);
 
 // Store active DJ streams
 const activeDJStreams = new Map(); // { sessionCode: { active: true, listeners: [] } }

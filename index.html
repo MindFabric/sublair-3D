@@ -3663,17 +3663,19 @@
 					console.log(`📏 Preview scale: ${newScale.toFixed(1)}x ${adjustmentType}`);
 				}, { passive: false });
 
-				// Rotation control with R key + mouse
-				let rKeyPressed = false;
+				// Free-form rotation control with R key + mouse (all 3 axes)
+				let rotationMode = false;
 				let rotationStartX = 0;
+				let rotationStartY = 0;
 
 				document.addEventListener('keydown', (e) => {
-					// R key - rotation mode
+					// R key - free rotation mode (mouse controls all axes)
 					if ((e.key === 'r' || e.key === 'R') && window.placementCursorActive && window.objectPreview) {
-						if (!rKeyPressed) {
-							rKeyPressed = true;
+						if (!rotationMode) {
+							rotationMode = true;
 							rotationStartX = currentMouseX;
-							console.log('🔄 Rotation mode enabled - object locked in place, move mouse to rotate');
+							rotationStartY = currentMouseY;
+							console.log('🔄 Free rotation mode - move mouse to rotate on all axes');
 						}
 					}
 
@@ -3692,23 +3694,42 @@
 
 				document.addEventListener('keyup', (e) => {
 					if (e.key === 'r' || e.key === 'R') {
-						rKeyPressed = false;
-						console.log('🔄 Rotation mode disabled');
+						if (rotationMode) {
+							console.log('🔄 Rotation mode disabled');
+							rotationMode = false;
+						}
 					}
 				});
 
 				document.addEventListener('mousemove', (e) => {
-					if (rKeyPressed && window.objectPreview && window.placementCursorActive) {
-						const deltaX = e.clientX - rotationStartX;
+					if (rotationMode && window.objectPreview && window.placementCursorActive) {
 						const rotationSpeed = 0.01;
-						const newRotation = deltaX * rotationSpeed;
 
-						// Store the rotation on the preview
-						if (!window.objectPreview.userData.userRotation) {
-							window.objectPreview.userData.userRotation = 0;
+						// Initialize rotation storage if not exists
+						if (!window.objectPreview.userData.userRotationX) {
+							window.objectPreview.userData.userRotationX = 0;
 						}
-						window.objectPreview.userData.userRotation = newRotation;
-						window.objectPreview.rotation.y = newRotation;
+						if (!window.objectPreview.userData.userRotationY) {
+							window.objectPreview.userData.userRotationY = 0;
+						}
+						if (!window.objectPreview.userData.userRotationZ) {
+							window.objectPreview.userData.userRotationZ = 0;
+						}
+
+						// Mouse X controls Y-axis (yaw - left/right spin)
+						const deltaX = e.clientX - rotationStartX;
+						const rotationY = deltaX * rotationSpeed;
+
+						// Mouse Y controls X-axis (pitch - up/down tilt)
+						const deltaY = e.clientY - rotationStartY;
+						const rotationX = -deltaY * rotationSpeed; // Negative for natural up=up
+
+						// Apply both rotations
+						window.objectPreview.userData.userRotationX = rotationX;
+						window.objectPreview.userData.userRotationY = rotationY;
+
+						window.objectPreview.rotation.x = rotationX;
+						window.objectPreview.rotation.y = rotationY;
 					}
 				});
 
@@ -4232,8 +4253,8 @@
 
 					if (placementCursor && placementCursor.visible) {
 						preview.visible = true;
-						// Only update position if NOT in rotation mode (R key not pressed)
-						if (!rKeyPressed) {
+						// Only update position if NOT in rotation mode
+						if (!rotationMode) {
 							// Recalculate bounding box based on current scale
 							const bbox = new THREE.Box3().setFromObject(preview);
 							const height = bbox.max.y - bbox.min.y;
@@ -4405,10 +4426,20 @@
 					// Simply copy the preview's exact position - it's already correct!
 					placedObject.position.copy(placementPosition);
 
-					// Apply rotation from preview
-					if (preview && preview.userData.userRotation !== undefined) {
-						placedObject.rotation.y = preview.userData.userRotation;
-						placedObject.userData.rotation = preview.userData.userRotation;
+					// Apply rotation from preview (all three axes)
+					if (preview) {
+						if (preview.userData.userRotationX !== undefined) {
+							placedObject.rotation.x = preview.userData.userRotationX;
+							placedObject.userData.rotationX = preview.userData.userRotationX;
+						}
+						if (preview.userData.userRotationY !== undefined) {
+							placedObject.rotation.y = preview.userData.userRotationY;
+							placedObject.userData.rotationY = preview.userData.userRotationY;
+						}
+						if (preview.userData.userRotationZ !== undefined) {
+							placedObject.rotation.z = preview.userData.userRotationZ;
+							placedObject.userData.rotationZ = preview.userData.userRotationZ;
+						}
 					}
 
 					placedObject.userData.isPlacedObject = true;
@@ -4418,8 +4449,13 @@
 					if (preview && preview.userData.previewScale) {
 						console.log(`   Scale: ${preview.userData.previewScale.toFixed(2)}x`);
 					}
-					if (preview && preview.userData.userRotation !== undefined) {
-						console.log(`   Rotation: ${(preview.userData.userRotation * 180 / Math.PI).toFixed(1)}°`);
+					if (preview) {
+						if (preview.userData.userRotationX !== undefined || preview.userData.userRotationY !== undefined || preview.userData.userRotationZ !== undefined) {
+							const rotX = (preview.userData.userRotationX || 0) * 180 / Math.PI;
+							const rotY = (preview.userData.userRotationY || 0) * 180 / Math.PI;
+							const rotZ = (preview.userData.userRotationZ || 0) * 180 / Math.PI;
+							console.log(`   Rotation: X=${rotX.toFixed(1)}° Y=${rotY.toFixed(1)}° Z=${rotZ.toFixed(1)}°`);
+						}
 					}
 
 					console.log(`📦 About to add placedObject:`, placedObject);
@@ -4532,12 +4568,14 @@
 						physicsBody.angularDamping = 0.0;
 						physicsBody.type = CANNON.Body.STATIC; // Explicitly mark as static
 
-						// Apply rotation
-						if (placedObject.rotation.y !== 0) {
-							physicsBody.quaternion.setFromAxisAngle(
-								new CANNON.Vec3(0, 1, 0),
-								placedObject.rotation.y
-							);
+						// Apply rotation (convert Euler angles to quaternion)
+						if (placedObject.rotation.x !== 0 || placedObject.rotation.y !== 0 || placedObject.rotation.z !== 0) {
+							// Create THREE quaternion from Euler angles
+							const threeQuat = new THREE.Quaternion();
+							threeQuat.setFromEuler(placedObject.rotation);
+
+							// Convert to CANNON quaternion
+							physicsBody.quaternion.set(threeQuat.x, threeQuat.y, threeQuat.z, threeQuat.w);
 						}
 
 						world.physicsWorld.addBody(physicsBody);
@@ -5054,15 +5092,24 @@
 							world.graphicsWorld.add(loadedObject);
 
 							// Add physics
-							if (primData.type === 'cube' || primData.type === 'sphere') {
-								const physicsMass = 0; // Static body
-								const shape = primData.type === 'cube'
-									? new CANNON.Box(new CANNON.Vec3(primData.scale * 0.49, primData.scale * 0.49, primData.scale * 0.49))
-									: new CANNON.Sphere(primData.scale * 0.5);
+							let physicsShape;
+							const scale = primData.scale;
 
+							switch (primData.type) {
+								case 'cube':
+									physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.49, scale * 0.49, scale * 0.49));
+									break;
+								case 'sphere':
+									physicsShape = new CANNON.Sphere(scale * 0.5);
+									break;
+								default:
+									physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.5, scale * 0.5, scale * 0.5));
+							}
+
+							if (physicsShape) {
 								const body = new CANNON.Body({
-									mass: physicsMass,
-									shape: shape,
+									mass: 0, // Static body
+									shape: physicsShape,
 									position: new CANNON.Vec3(loadedObject.position.x, loadedObject.position.y, loadedObject.position.z),
 									material: new CANNON.Material({
 										friction: 0.3,

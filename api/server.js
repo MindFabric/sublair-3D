@@ -1073,7 +1073,7 @@ const NodeMediaServer = require('node-media-server');
 // Determine if we're in production (Railway) or development (localhost)
 const isProduction = process.env.NODE_ENV === 'production';
 const RTMP_PORT = isProduction ? (parseInt(process.env.RTMP_PORT) || 1935) : 1935;
-const HTTP_FLV_PORT = isProduction ? PORT : 8888; // Use main port in production
+const HTTP_FLV_PORT = isProduction ? parseInt(PORT) + 1 : 8888; // Parse PORT as int before adding
 
 const nmsConfig = {
   rtmp: {
@@ -1084,7 +1084,7 @@ const nmsConfig = {
     ping_timeout: 60
   },
   http: {
-    port: isProduction ? (HTTP_FLV_PORT + 1) : 8888, // Use different port in production to avoid conflict
+    port: HTTP_FLV_PORT,
     allow_origin: '*',
     mediaroot: './media' // Store temporary media files
   },

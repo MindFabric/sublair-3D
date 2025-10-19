@@ -20,6 +20,10 @@
     "api": "node api/server.js",
     "api:dev": "nodemon api/server.js"
   },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/swift502/Sketchbook.git"

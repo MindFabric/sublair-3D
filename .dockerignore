@@ -1,0 +1,86 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# package-lock.json - KEEP THIS for npm ci to work
+
+# Build output (will be generated during build)
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+DEPLOYMENT.md
+CLAUDE.md
+*.md
+docs/
+
+# CI/CD
+.github/
+.travis.yml
+.circleci/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Railway/Vercel/Nixpacks config
+railway.toml
+vercel.json
+nixpacks.toml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Media files (will be mounted as volume)
+media/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Backup files
+*.backup
+*.bak
+index.html.backup
+
+# Testing
+coverage/
+.nyc_output/
+__tests__/
+test/
+*.test.js
+*.spec.js
+
+# Certificate files
+certbot/
+*.pem
+*.key
+*.crt
+
+# Nginx config (will be mounted separately)
+nginx/

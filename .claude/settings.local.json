@@ -36,7 +36,8 @@
       "Bash(awk 'NR>=2936 && NR<=2944' /mnt/c/Users/User/Documents/GitHub/sublair-3D/index.html)",
       "Bash(awk 'NR>=8095 && NR<=8112' /mnt/c/Users/User/Documents/GitHub/sublair-3D/index.html)",
       "Bash(awk:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

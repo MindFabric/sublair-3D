@@ -15063,8 +15063,10 @@ window.decksMenuOpen = false;
 							streamInfoDiv.classList.add('active');
 
 							// Populate with current session's stream key
-							// Use current hostname for RTMP URL (works for both localhost and production)
-							const hostname = window.location.hostname;
+							// Use rtmp.sublair.com for production (Cloudflare doesn't proxy RTMP)
+							const hostname = window.location.hostname === 'localhost'
+								? 'localhost'
+								: 'rtmp.sublair.com';
 							const rtmpUrl = `rtmp://${hostname}:1935/live`;
 							const streamKey = window.currentStreamKey || 'Not hosting a session';
 

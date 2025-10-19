@@ -6,3 +6,7 @@ node_modules
 
 # SSL certificates (contains private keys)
 ssl/
+
+# DigitalOcean SSH scripts (contain password)
+digitalocean.bat
+digitalocean.ps1

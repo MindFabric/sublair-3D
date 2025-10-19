@@ -5064,7 +5064,17 @@
 
 							// Apply saved properties
 							loadedObject.position.set(primData.position.x, primData.position.y, primData.position.z);
-							loadedObject.rotation.y = primData.rotation || 0;
+
+							// Apply rotation - handle both old (single value) and new (object with x,y,z) formats
+							if (typeof primData.rotation === 'object') {
+								loadedObject.rotation.x = primData.rotation.x || 0;
+								loadedObject.rotation.y = primData.rotation.y || 0;
+								loadedObject.rotation.z = primData.rotation.z || 0;
+							} else {
+								// Legacy format: single rotation value for Y axis
+								loadedObject.rotation.y = primData.rotation || 0;
+							}
+
 							loadedObject.scale.set(primData.scale, primData.scale, primData.scale);
 
 							// Apply saved color and texture
@@ -5083,7 +5093,7 @@
 							loadedObject.userData.isPlacedObject = true;
 							loadedObject.userData.objectType = primData.type;
 							loadedObject.userData.scale = primData.scale;
-							loadedObject.userData.rotation = primData.rotation || 0;
+							loadedObject.userData.rotation = primData.rotation;
 
 							loadedObject.castShadow = true;
 							loadedObject.receiveShadow = true;
@@ -5125,8 +5135,19 @@
 								body.angularDamping = 0.0;
 								body.type = CANNON.Body.STATIC; // Explicitly mark as static
 
-								// Apply rotation
-								if (primData.rotation !== 0) {
+								// Apply rotation - handle both old (single value) and new (object with x,y,z) formats
+								if (typeof primData.rotation === 'object') {
+									// New format: full 3-axis rotation
+									if (primData.rotation.x !== 0 || primData.rotation.y !== 0 || primData.rotation.z !== 0) {
+										// Create THREE quaternion from Euler angles
+										const threeQuat = new THREE.Quaternion();
+										threeQuat.setFromEuler(new THREE.Euler(primData.rotation.x, primData.rotation.y, primData.rotation.z));
+
+										// Convert to CANNON quaternion
+										body.quaternion.set(threeQuat.x, threeQuat.y, threeQuat.z, threeQuat.w);
+									}
+								} else if (primData.rotation !== 0) {
+									// Legacy format: Y-axis only rotation
 									body.quaternion.setFromAxisAngle(
 										new CANNON.Vec3(0, 1, 0),
 										primData.rotation
@@ -5160,6 +5181,8 @@
 				window.createObjectThumbnail = createObjectThumbnail;
 				window.setupPrimitiveColorSelection = setupPrimitiveColorSelection;
 				window.clearAllPlacedObjects = clearAllPlacedObjects;
+				window.generateScratchTexture = generateScratchTexture;
+				window.generateNoiseTexture = generateNoiseTexture;
 
 				console.log('🎨 Object Selection System initialized (will be activated when customization menu loads)');
 
@@ -6335,7 +6358,11 @@
 										y: child.position.y,
 										z: child.position.z
 									},
-									rotation: child.rotation.y,
+									rotation: {
+										x: child.rotation.x,
+										y: child.rotation.y,
+										z: child.rotation.z
+									},
 									scale: child.scale.x, // Uniform scale
 									color: '#' + child.material.color.getHexString()
 								});
@@ -8677,6 +8704,136 @@
 
 												loadingStatus.textContent = 'Ready!';
 
+												// 🆕 Load primitives from host's initial customization
+												if (window.hostCustomization && window.hostCustomization.placedPrimitives) {
+													console.log(`📦 Loading ${window.hostCustomization.placedPrimitives.length} primitives from host on join`);
+
+													if (!window.spectatorPrimitiveBodies) {
+														window.spectatorPrimitiveBodies = [];
+													}
+
+													window.hostCustomization.placedPrimitives.forEach((primData, index) => {
+														loadObjectModel(primData.type).then((gltf) => {
+															const loadedObject = gltf.scene.clone();
+
+															// Apply saved properties
+															loadedObject.position.set(primData.position.x, primData.position.y, primData.position.z);
+
+															// Apply rotation - handle both old (single value) and new (object with x,y,z) formats
+															if (typeof primData.rotation === 'object') {
+																loadedObject.rotation.x = primData.rotation.x || 0;
+																loadedObject.rotation.y = primData.rotation.y || 0;
+																loadedObject.rotation.z = primData.rotation.z || 0;
+															} else {
+																// Legacy format: single rotation value for Y axis
+																loadedObject.rotation.y = primData.rotation || 0;
+															}
+
+															loadedObject.scale.set(primData.scale, primData.scale, primData.scale);
+
+															// Apply saved color and texture
+															if (primData.color) {
+																loadedObject.traverse((child) => {
+																	if (child.isMesh && child.material) {
+																		child.material = child.material.clone();
+																		child.material.color.setStyle(primData.color);
+																		const scratchTexture = generateScratchTexture(512, 150, primData.color);
+																		child.material.map = scratchTexture;
+																		child.material.transparent = false;
+																		child.material.opacity = 1.0;
+																		child.material.emissive = new THREE.Color(0x000000);
+																		child.material.emissiveIntensity = 0;
+																		child.material.needsUpdate = true;
+																	}
+																});
+															}
+
+															// Mark as spectator-loaded and placed object
+															loadedObject.userData.isPlacedObject = true;
+															loadedObject.userData.isSpectatorLoadedPrimitive = true;
+															loadedObject.userData.objectType = primData.type;
+															loadedObject.userData.primitiveType = primData.type;
+
+															world.graphicsWorld.add(loadedObject);
+
+															// Add physics
+															let physicsShape;
+															const scale = primData.scale;
+
+															switch (primData.type) {
+																case 'cube':
+																	physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.49, scale * 0.49, scale * 0.49));
+																	break;
+																case 'sphere':
+																	physicsShape = new CANNON.Sphere(scale * 0.5);
+																	break;
+																case 'cylinder':
+																	physicsShape = new CANNON.Cylinder(scale * 0.5, scale * 0.5, scale * 1.0, 32);
+																	break;
+																case 'cone':
+																	physicsShape = new CANNON.Cylinder(scale * 0.01, scale * 0.5, scale * 1.0, 32);
+																	break;
+																case 'plane':
+																	physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.5, scale * 0.01, scale * 0.5));
+																	break;
+																case 'torus':
+																	physicsShape = new CANNON.Sphere(scale * 0.55);
+																	break;
+																case 'wedge':
+																	physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.49, scale * 0.49, scale * 0.49));
+																	break;
+																default:
+																	physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.5, scale * 0.5, scale * 0.5));
+															}
+
+															if (physicsShape) {
+																const body = new CANNON.Body({
+																	mass: 0,
+																	shape: physicsShape,
+																	position: new CANNON.Vec3(loadedObject.position.x, loadedObject.position.y, loadedObject.position.z),
+																	material: new CANNON.Material({
+																		friction: 0.3,
+																		restitution: 0.0
+																	})
+																});
+
+																body.collisionFilterGroup = 1;
+																body.collisionFilterMask = -1;
+																body.allowSleep = false;
+																body.linearDamping = 0.0;
+																body.angularDamping = 0.0;
+																body.type = CANNON.Body.STATIC;
+
+																// Apply rotation - handle both old (single value) and new (object with x,y,z) formats
+																if (typeof primData.rotation === 'object') {
+																	// New format: full 3-axis rotation
+																	if (primData.rotation.x !== 0 || primData.rotation.y !== 0 || primData.rotation.z !== 0) {
+																		// Create THREE quaternion from Euler angles
+																		const threeQuat = new THREE.Quaternion();
+																		threeQuat.setFromEuler(new THREE.Euler(primData.rotation.x, primData.rotation.y, primData.rotation.z));
+
+																		// Convert to CANNON quaternion
+																		body.quaternion.set(threeQuat.x, threeQuat.y, threeQuat.z, threeQuat.w);
+																	}
+																} else if (primData.rotation !== 0) {
+																	// Legacy format: Y-axis only rotation
+																	body.quaternion.setFromAxisAngle(
+																		new CANNON.Vec3(0, 1, 0),
+																		primData.rotation
+																	);
+																}
+
+																world.physicsWorld.addBody(body);
+																window.spectatorPrimitiveBodies.push(body);
+															}
+
+															console.log(`✅ Spectator loaded primitive on join ${index + 1}/${window.hostCustomization.placedPrimitives.length}: ${primData.type}`);
+														}).catch(err => {
+															console.error(`❌ Failed to load primitive ${primData.type}:`, err);
+														});
+													});
+												}
+
 												// Wait a brief moment for final rendering, then hide loading screen
 												setTimeout(() => {
 													const spectatorLoading = document.getElementById('spectator-loading');
@@ -9333,6 +9490,149 @@
 								window.carTaillightsColor = c.carTaillightsColor;
 								window.carTireColor = c.carTireColor;
 								window.carTrimColor = c.carTrimColor;
+
+								// 🆕 Load placed primitives from customization update
+								if (c.placedPrimitives && Array.isArray(c.placedPrimitives)) {
+									console.log(`📦 Received ${c.placedPrimitives.length} primitives from host`);
+
+									// Clear existing spectator-loaded primitives to prevent duplicates
+									if (world && world.graphicsWorld && world.physicsWorld) {
+										// Remove previous primitives that were loaded by spectator
+										world.graphicsWorld.children.filter(child => child.userData.isSpectatorLoadedPrimitive).forEach(obj => {
+											world.graphicsWorld.remove(obj);
+										});
+
+										// Remove previous physics bodies
+										if (window.spectatorPrimitiveBodies) {
+											window.spectatorPrimitiveBodies.forEach(body => {
+												world.physicsWorld.removeBody(body);
+											});
+										}
+										window.spectatorPrimitiveBodies = [];
+
+										// Load new primitives
+										c.placedPrimitives.forEach((primData, index) => {
+											loadObjectModel(primData.type).then((gltf) => {
+												const loadedObject = gltf.scene.clone();
+
+												// Apply saved properties
+												loadedObject.position.set(primData.position.x, primData.position.y, primData.position.z);
+
+												// Apply rotation - handle both old (single value) and new (object with x,y,z) formats
+												if (typeof primData.rotation === 'object') {
+													loadedObject.rotation.x = primData.rotation.x || 0;
+													loadedObject.rotation.y = primData.rotation.y || 0;
+													loadedObject.rotation.z = primData.rotation.z || 0;
+												} else {
+													// Legacy format: single rotation value for Y axis
+													loadedObject.rotation.y = primData.rotation || 0;
+												}
+
+												loadedObject.scale.set(primData.scale, primData.scale, primData.scale);
+
+												// Apply saved color and texture
+												if (primData.color) {
+													loadedObject.traverse((child) => {
+														if (child.isMesh && child.material) {
+															child.material = child.material.clone();
+															child.material.color.setStyle(primData.color);
+															const scratchTexture = generateScratchTexture(512, 150, primData.color);
+															child.material.map = scratchTexture;
+															child.material.transparent = false;
+															child.material.opacity = 1.0;
+															child.material.emissive = new THREE.Color(0x000000);
+															child.material.emissiveIntensity = 0;
+															child.material.needsUpdate = true;
+														}
+													});
+												}
+
+												// Mark as spectator-loaded and placed object
+												loadedObject.userData.isPlacedObject = true;
+												loadedObject.userData.isSpectatorLoadedPrimitive = true;
+												loadedObject.userData.objectType = primData.type;
+												loadedObject.userData.primitiveType = primData.type;
+
+												world.graphicsWorld.add(loadedObject);
+
+												// Add physics
+												let physicsShape;
+												const scale = primData.scale;
+
+												switch (primData.type) {
+													case 'cube':
+														physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.49, scale * 0.49, scale * 0.49));
+														break;
+													case 'sphere':
+														physicsShape = new CANNON.Sphere(scale * 0.5);
+														break;
+													case 'cylinder':
+														physicsShape = new CANNON.Cylinder(scale * 0.5, scale * 0.5, scale * 1.0, 32);
+														break;
+													case 'cone':
+														physicsShape = new CANNON.Cylinder(scale * 0.01, scale * 0.5, scale * 1.0, 32);
+														break;
+													case 'plane':
+														physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.5, scale * 0.01, scale * 0.5));
+														break;
+													case 'torus':
+														physicsShape = new CANNON.Sphere(scale * 0.55);
+														break;
+													case 'wedge':
+														physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.49, scale * 0.49, scale * 0.49));
+														break;
+													default:
+														physicsShape = new CANNON.Box(new CANNON.Vec3(scale * 0.5, scale * 0.5, scale * 0.5));
+												}
+
+												if (physicsShape) {
+													const body = new CANNON.Body({
+														mass: 0,
+														shape: physicsShape,
+														position: new CANNON.Vec3(loadedObject.position.x, loadedObject.position.y, loadedObject.position.z),
+														material: new CANNON.Material({
+															friction: 0.3,
+															restitution: 0.0
+														})
+													});
+
+													body.collisionFilterGroup = 1;
+													body.collisionFilterMask = -1;
+													body.allowSleep = false;
+													body.linearDamping = 0.0;
+													body.angularDamping = 0.0;
+													body.type = CANNON.Body.STATIC;
+
+													// Apply rotation - handle both old (single value) and new (object with x,y,z) formats
+													if (typeof primData.rotation === 'object') {
+														// New format: full 3-axis rotation
+														if (primData.rotation.x !== 0 || primData.rotation.y !== 0 || primData.rotation.z !== 0) {
+															// Create THREE quaternion from Euler angles
+															const threeQuat = new THREE.Quaternion();
+															threeQuat.setFromEuler(new THREE.Euler(primData.rotation.x, primData.rotation.y, primData.rotation.z));
+
+															// Convert to CANNON quaternion
+															body.quaternion.set(threeQuat.x, threeQuat.y, threeQuat.z, threeQuat.w);
+														}
+													} else if (primData.rotation !== 0) {
+														// Legacy format: Y-axis only rotation
+														body.quaternion.setFromAxisAngle(
+															new CANNON.Vec3(0, 1, 0),
+															primData.rotation
+														);
+													}
+
+													world.physicsWorld.addBody(body);
+													window.spectatorPrimitiveBodies.push(body);
+												}
+
+												console.log(`✅ Spectator loaded primitive ${index + 1}/${c.placedPrimitives.length}: ${primData.type}`);
+											}).catch(err => {
+												console.error(`❌ Failed to load primitive ${primData.type}:`, err);
+											});
+										});
+									}
+								}
 
 								console.log('🔍 Checking object availability:');
 								console.log('   window.car:', !!window.car);

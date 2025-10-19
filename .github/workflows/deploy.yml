@@ -1,0 +1,57 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - docker      # Trigger on pushes to docker branch
+      - master      # Also trigger on master branch
+  workflow_dispatch:  # Allow manual triggers from GitHub UI
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to DigitalOcean
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            echo "🚀 Starting deployment..."
+
+            # Navigate to project directory
+            cd /opt/sublair-3D
+
+            # Pull latest changes
+            echo "📥 Pulling latest code..."
+            git pull origin docker
+
+            # Rebuild and restart containers
+            echo "🔨 Building Docker containers..."
+            docker-compose down
+            docker-compose up -d --build
+
+            # Wait for services to start
+            echo "⏳ Waiting for services to start..."
+            sleep 10
+
+            # Check container status
+            echo "✅ Checking container status..."
+            docker-compose ps
+
+            # Verify health endpoint
+            echo "🏥 Checking health endpoint..."
+            curl -f http://localhost/health || exit 1
+
+            # Clean up old images
+            echo "🧹 Cleaning up old Docker images..."
+            docker image prune -af
+
+            echo "✅ Deployment complete!"
+            echo "🌐 Application available at https://3d.sublair.com"

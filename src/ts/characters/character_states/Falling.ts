@@ -1,6 +1,7 @@
 import
 {
 	CharacterStateBase,
+	JumpIdle,
 } from './_stateLibrary';
 import { ICharacterState } from '../../interfaces/ICharacterState';
 import { Character } from '../Character';
@@ -18,6 +19,23 @@ export class Falling extends CharacterStateBase implements ICharacterState
 		this.character.setArcadeVelocityInfluence(0.05, 0, 0.05);
 
 		this.playAnimation('falling', 0.3);
+	}
+
+	public onInputChange(): void
+	{
+		super.onInputChange();
+
+		// Allow wall jumping while falling in the air
+		if (this.character.actions.jump.justPressed)
+		{
+			// If we can wall jump, transition to JumpIdle state to play jump animation
+			if (this.character.canWallJump)
+			{
+				this.character.setState(new JumpIdle(this.character));
+			}
+
+			this.character.jump();
+		}
 	}
 
 	public update(timeStep: number): void

@@ -534,6 +534,86 @@
 			text-align: right;
 		}
 
+		/* Object Grid Styles */
+		.object-grid {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.object-item {
+			background: rgba(0, 0, 0, 0.4);
+			border: 2px solid rgba(190, 225, 123, 0.2);
+			border-radius: 8px;
+			padding: 12px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			gap: 12px;
+		}
+
+		.object-item:hover {
+			background: rgba(190, 225, 123, 0.1);
+			border-color: rgba(190, 225, 123, 0.5);
+			transform: translateY(-2px);
+		}
+
+		.object-item.selected {
+			background: rgba(190, 225, 123, 0.15);
+			border-color: #bee17b;
+			box-shadow: 0 0 12px rgba(190, 225, 123, 0.3);
+		}
+
+		.object-preview-canvas {
+			width: 100px;
+			height: 100px;
+			border-radius: 6px;
+			background: rgba(20, 20, 20, 1);
+			border: 1px solid rgba(190, 225, 123, 0.3);
+			flex-shrink: 0;
+		}
+
+		.object-name {
+			font-size: 14px;
+			font-family: 'Share Tech Mono', monospace;
+			color: #bee17b;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			font-weight: bold;
+			flex: 1;
+		}
+
+		.color-grid {
+			display: grid;
+			grid-template-columns: repeat(6, 1fr);
+			gap: 8px;
+			margin-top: 8px;
+		}
+
+		.color-swatch {
+			width: 40px;
+			height: 40px;
+			border-radius: 6px;
+			cursor: pointer;
+			border: 2px solid rgba(190, 225, 123, 0.2);
+			transition: all 0.2s ease;
+			position: relative;
+		}
+
+		.color-swatch:hover {
+			border-color: rgba(190, 225, 123, 0.5);
+			transform: scale(1.1);
+		}
+
+		.color-swatch.selected {
+			border-color: #bee17b;
+			border-width: 3px;
+			box-shadow: 0 0 12px rgba(190, 225, 123, 0.5);
+			transform: scale(1.15);
+		}
+
 		.texture-grid {
 			display: grid;
 			grid-template-columns: repeat(4, 1fr);
@@ -2806,7 +2886,7 @@
 		<!-- Chat input (shown when T is pressed) -->
 		<div id="chat-input-container" style="display: none; background: rgba(0, 0, 0, 0.85); border: 2px solid #bee17b; padding: 10px;">
 			<div style="display: flex; gap: 10px; align-items: center;">
-				<input type="text" id="chat-input" placeholder="Type message... (ESC to close)" maxlength="200" style="flex: 1; background: #000; border: 1px solid #bee17b; color: #bee17b; font-family: 'Share Tech Mono', monospace; font-size: 13px; padding: 8px; outline: none;" />
+				<input type="text" id="chat-input" placeholder="Type message... (Enter to send)" maxlength="200" style="flex: 1; background: #000; border: 1px solid #bee17b; color: #bee17b; font-family: 'Share Tech Mono', monospace; font-size: 13px; padding: 8px; outline: none;" />
 			</div>
 		</div>
 	</div>
@@ -3298,6 +3378,9 @@
 				Sketchbook.UIManager.setUserInterfaceVisible(false);
 				Sketchbook.UIManager.setLoadingScreenVisible(false);
 
+				// Set flag that world is ready for loading primitives
+				window.worldReady = true;
+
 				// Apply sky gradient after world is fully loaded
 				const finalSkyTop = window.skyTopColor || '#FFFFFF';
 				const finalSkyBottom = window.skyBottomColor || '#87CEEB';
@@ -3361,6 +3444,1691 @@
 							console.log('🌌 Sky gradient initialized after loading:', finalSkyTop, '@', finalSkyTopPos + '%', '->', finalSkyBottom, '@', finalSkyBottomPos + '%');
 						}
 					});
+				}
+
+				// ===== 3D PLACEMENT CURSOR SYSTEM =====
+				let placementCursor = null;
+				let placementCursorActive = false;
+				const raycaster = new THREE.Raycaster();
+				const mouse = new THREE.Vector2();
+
+				// Create 3D cursor mesh (circle on ground)
+				function createPlacementCursor() {
+					const geometry = new THREE.RingGeometry(0.4, 0.5, 32);
+					const material = new THREE.MeshBasicMaterial({
+						color: 0xbee17b,
+						side: THREE.DoubleSide,
+						transparent: true,
+						opacity: 0.8,
+						depthTest: false
+					});
+					const cursor = new THREE.Mesh(geometry, material);
+					cursor.rotation.x = -Math.PI / 2; // Lay flat on ground
+					cursor.visible = false;
+					world.graphicsWorld.add(cursor);
+
+					// Add inner circle for better visibility
+					const innerGeometry = new THREE.CircleGeometry(0.3, 32);
+					const innerMaterial = new THREE.MeshBasicMaterial({
+						color: 0xbee17b,
+						side: THREE.DoubleSide,
+						transparent: true,
+						opacity: 0.3,
+						depthTest: false
+					});
+					const innerCircle = new THREE.Mesh(innerGeometry, innerMaterial);
+					innerCircle.rotation.x = -Math.PI / 2;
+					cursor.add(innerCircle);
+
+					return cursor;
+				}
+
+				placementCursor = createPlacementCursor();
+
+				// Create visual grid helper
+				let gridHelper = null;
+				function createGridHelper() {
+					const size = 100; // Grid size (100x100)
+					const divisions = 200; // 200 divisions = 0.5 unit per division (matches GRID_SIZE!)
+					const colorCenterLine = 0xbee17b;
+					const colorGrid = 0x444444;
+
+					const grid = new THREE.GridHelper(size, divisions, colorCenterLine, colorGrid);
+					grid.position.y = 0.02; // Slightly above ground
+					grid.material.opacity = 0.3;
+					grid.material.transparent = true;
+					grid.visible = false; // Hidden by default
+					world.graphicsWorld.add(grid);
+					return grid;
+				}
+
+				gridHelper = createGridHelper();
+				window.gridHelper = gridHelper;
+
+				// Store mouse position for cursor updates
+				let currentMouseX = 0;
+				let currentMouseY = 0;
+
+				// Update cursor position based on mouse
+				function updatePlacementCursor(event) {
+					if (!placementCursorActive || !placementCursor) return;
+
+					// Only update mouse position if pointer is NOT locked (freecam is off)
+					// When pointer is locked, we can't get accurate screen coordinates
+					if (!document.pointerLockElement) {
+						currentMouseX = event.clientX;
+						currentMouseY = event.clientY;
+					}
+				}
+
+				// Grid snapping settings
+				let gridSnapEnabled = true;
+				const GRID_SIZE = 0.5; // 0.5 unit grid (matches our scale increments!)
+				let verticalOffset = 0; // Vertical offset for E/Q keys
+
+				// Helper function to snap to grid
+				function snapToGrid(value, gridSize) {
+					return Math.round(value / gridSize) * gridSize;
+				}
+
+				// Separate function to update cursor in render loop
+				function updatePlacementCursorPosition() {
+					if (!placementCursorActive || !placementCursor) {
+						if (placementCursor) placementCursor.visible = false;
+						return;
+					}
+
+					// Don't show cursor when pointer is locked (in freecam mode)
+					if (document.pointerLockElement) {
+						placementCursor.visible = false;
+						return;
+					}
+
+					// Calculate mouse position in normalized device coordinates
+					mouse.x = (currentMouseX / window.innerWidth) * 2 - 1;
+					mouse.y = -(currentMouseY / window.innerHeight) * 2 + 1;
+
+					// Update raycaster
+					raycaster.setFromCamera(mouse, world.camera);
+
+					// SURFACE-TO-SURFACE SNAPPING: Raycast against terrain AND placed objects
+					const validObjects = world.graphicsWorld.children.filter(obj => {
+						// Skip placement cursor
+						if (obj === placementCursor || obj.userData?.isPlacementCursor) return false;
+						// Skip preview objects
+						if (obj.userData?.isPreview) return false;
+						// INCLUDE placed objects for surface snapping!
+						return true;
+					});
+
+					const intersects = raycaster.intersectObjects(validObjects, true);
+
+					if (intersects.length > 0) {
+						const intersect = intersects[0]; // First hit (could be terrain or placed object)
+
+						// Get the intersection point
+						let x = intersect.point.x;
+						let y = intersect.point.y;
+						let z = intersect.point.z;
+
+						// Check if we hit a placed object for better visual feedback
+						let hitPlacedObject = false;
+						let hitObject = intersect.object;
+						while (hitObject) {
+							if (hitObject.userData?.isPlacedObject) {
+								hitPlacedObject = true;
+								break;
+							}
+							hitObject = hitObject.parent;
+						}
+
+						// Apply grid snapping if enabled
+						if (gridSnapEnabled) {
+							x = snapToGrid(x, GRID_SIZE);
+							z = snapToGrid(z, GRID_SIZE);
+							// Snap Y to grid for surface-to-surface alignment!
+							y = snapToGrid(y, GRID_SIZE);
+						}
+
+						// Apply vertical offset from E/Q keys
+						y += verticalOffset;
+
+						placementCursor.position.set(x, y + 0.01, z);
+						placementCursor.visible = true;
+						// Change color based on what we're snapping to
+						placementCursor.material.color.setHex(hitPlacedObject ? 0x17e1ff : 0xbee17b);
+					} else {
+						placementCursor.visible = false;
+					}
+				}
+
+				// Toggle placement cursor mode
+				window.togglePlacementCursor = function(active) {
+					placementCursorActive = active;
+					if (placementCursor) {
+						placementCursor.visible = active;
+					}
+					// Show/hide grid helper based on placement mode and grid snap setting
+					if (gridHelper) {
+						gridHelper.visible = active && gridSnapEnabled;
+					}
+					// Reset vertical offset when exiting placement mode
+					if (!active) {
+						verticalOffset = 0;
+					}
+				};
+
+				// Listen for mouse movement
+				document.addEventListener('mousemove', updatePlacementCursor, false);
+
+				// Listen for mouse wheel to scale preview
+				document.addEventListener('wheel', (event) => {
+					// Only handle scroll when placement is active and preview exists
+					if (!window.placementCursorActive || !window.objectPreview) return;
+
+					// Prevent default scroll behavior when placing objects
+					event.preventDefault();
+
+					const preview = window.objectPreview;
+					const currentScale = preview.userData.previewScale || 1.0;
+
+					// Grid-based scaling: increment by 0.5 units (half-grid) for neat alignment
+					// Hold Shift for fine adjustments (0.1 units - tenth of grid)
+					const scaleIncrement = event.shiftKey ? 0.1 : 0.5;
+
+					// Scroll down = larger, scroll up = smaller
+					const direction = event.deltaY < 0 ? 1 : -1;
+					let newScale = currentScale + (direction * scaleIncrement);
+
+					// Snap to grid-friendly increments
+					if (event.shiftKey) {
+						// Fine mode: snap to 0.1 increments (0.1, 0.2, 0.3, etc.)
+						newScale = Math.round(newScale * 10) / 10;
+					} else {
+						// Normal mode: snap to 0.5 increments (0.5, 1.0, 1.5, 2.0, etc.)
+						newScale = Math.round(newScale * 2) / 2;
+					}
+
+					// Clamp between 0.1x and 10x
+					newScale = Math.max(0.1, Math.min(10, newScale));
+
+					preview.scale.set(newScale, newScale, newScale);
+					preview.userData.previewScale = newScale;
+
+					// Recalculate ground offset when scale changes
+					const scaledBbox = new THREE.Box3().setFromObject(preview);
+					preview.userData.groundOffset = scaledBbox.min.y;
+
+					const adjustmentType = event.shiftKey ? '(fine: 0.1)' : '(0.5 grid)';
+					console.log(`📏 Preview scale: ${newScale.toFixed(1)}x ${adjustmentType}`);
+				}, { passive: false });
+
+				// Rotation control with R key + mouse
+				let rKeyPressed = false;
+				let rotationStartX = 0;
+
+				document.addEventListener('keydown', (e) => {
+					// R key - rotation mode
+					if ((e.key === 'r' || e.key === 'R') && window.placementCursorActive && window.objectPreview) {
+						if (!rKeyPressed) {
+							rKeyPressed = true;
+							rotationStartX = currentMouseX;
+							console.log('🔄 Rotation mode enabled - object locked in place, move mouse to rotate');
+						}
+					}
+
+					// E key - move up (only when placement cursor is active)
+					if ((e.key === 'e' || e.key === 'E') && window.placementCursorActive) {
+						verticalOffset += GRID_SIZE;
+						console.log(`⬆️ Vertical offset: ${verticalOffset.toFixed(1)} units`);
+					}
+
+					// Q key - move down (only when placement cursor is active)
+					if ((e.key === 'q' || e.key === 'Q') && window.placementCursorActive) {
+						verticalOffset -= GRID_SIZE;
+						console.log(`⬇️ Vertical offset: ${verticalOffset.toFixed(1)} units`);
+					}
+				});
+
+				document.addEventListener('keyup', (e) => {
+					if (e.key === 'r' || e.key === 'R') {
+						rKeyPressed = false;
+						console.log('🔄 Rotation mode disabled');
+					}
+				});
+
+				document.addEventListener('mousemove', (e) => {
+					if (rKeyPressed && window.objectPreview && window.placementCursorActive) {
+						const deltaX = e.clientX - rotationStartX;
+						const rotationSpeed = 0.01;
+						const newRotation = deltaX * rotationSpeed;
+
+						// Store the rotation on the preview
+						if (!window.objectPreview.userData.userRotation) {
+							window.objectPreview.userData.userRotation = 0;
+						}
+						window.objectPreview.userData.userRotation = newRotation;
+						window.objectPreview.rotation.y = newRotation;
+					}
+				});
+
+				// Store globally for access
+				window.placementCursor = placementCursor;
+				window.placementCursorActive = placementCursorActive;
+				window.updatePlacementCursorPosition = updatePlacementCursorPosition;
+
+				// Hook into world render loop
+				const originalWorldRender = world.render.bind(world);
+				world.render = function(w) {
+					originalWorldRender(w);
+					updatePlacementCursorPosition();
+					updateDebugHitboxes(); // Update collision visualization every frame when enabled
+				};
+
+				console.log('✨ 3D Placement Cursor System initialized');
+
+				// ===== DEBUG HITBOX VISUALIZATION SYSTEM =====
+				let debugHitboxesVisible = false;
+				const debugHitboxMeshes = [];
+
+				function updateDebugHitboxes() {
+					if (!debugHitboxesVisible) return;
+
+					// Clear old meshes
+					debugHitboxMeshes.forEach(mesh => world.graphicsWorld.remove(mesh));
+					debugHitboxMeshes.length = 0;
+
+					// Iterate through ALL physics bodies in the world
+					const allBodies = world.physicsWorld.bodies;
+
+					allBodies.forEach((body, index) => {
+						// Skip bodies with no shapes
+						if (!body.shapes || body.shapes.length === 0) return;
+
+						// Process each shape in the body
+						body.shapes.forEach((shape, shapeIndex) => {
+							let debugGeometry;
+							let shapeType = 'unknown';
+
+							// Determine shape type and create appropriate geometry
+							if (shape.type === CANNON.Shape.types.BOX) {
+								shapeType = 'Box';
+								const halfExtents = shape.halfExtents;
+								debugGeometry = new THREE.BoxGeometry(
+									halfExtents.x * 2,
+									halfExtents.y * 2,
+									halfExtents.z * 2
+								);
+							} else if (shape.type === CANNON.Shape.types.SPHERE) {
+								shapeType = 'Sphere';
+								debugGeometry = new THREE.SphereGeometry(shape.radius, 16, 16);
+							} else if (shape.type === CANNON.Shape.types.CYLINDER) {
+								shapeType = 'Cylinder';
+								const height = shape.height || 1;
+								const radiusTop = shape.radiusTop || 0.5;
+								const radiusBottom = shape.radiusBottom || 0.5;
+								debugGeometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 16);
+							} else if (shape.type === CANNON.Shape.types.PLANE) {
+								shapeType = 'Plane';
+								// Planes are infinite, show a large quad
+								debugGeometry = new THREE.PlaneGeometry(100, 100);
+							} else if (shape.type === CANNON.Shape.types.CONVEXPOLYHEDRON) {
+								shapeType = 'ConvexPolyhedron';
+								// Approximate with a box for now
+								debugGeometry = new THREE.BoxGeometry(1, 1, 1);
+							} else {
+								// Unknown shape type, skip
+								return;
+							}
+
+							// Color code by body type
+							let color = 0x00ff00; // Green for static
+							if (body.mass > 0) {
+								color = 0xff0000; // Red for dynamic
+							}
+							if (body.type === CANNON.Body.KINEMATIC) {
+								color = 0x0000ff; // Blue for kinematic
+							}
+
+							const debugMaterial = new THREE.MeshBasicMaterial({
+								color: color,
+								wireframe: true,
+								transparent: true,
+								opacity: 0.5
+							});
+
+							const debugMesh = new THREE.Mesh(debugGeometry, debugMaterial);
+
+							// Position and rotate to match physics body
+							debugMesh.position.copy(body.position);
+							debugMesh.quaternion.copy(body.quaternion);
+							debugMesh.userData.isDebugHitbox = true;
+
+							world.graphicsWorld.add(debugMesh);
+							debugHitboxMeshes.push(debugMesh);
+						});
+					});
+				}
+
+				function toggleDebugHitboxes() {
+					debugHitboxesVisible = !debugHitboxesVisible;
+
+					if (debugHitboxesVisible) {
+						console.log('🔍 Debug collision meshes ENABLED - Showing ALL physics bodies in world');
+						updateDebugHitboxes();
+						console.log(`✅ Visualizing ${debugHitboxMeshes.length} collision shapes`);
+						console.log(`   🟢 Green = Static bodies (mass = 0)`);
+						console.log(`   🔴 Red = Dynamic bodies (mass > 0)`);
+						console.log(`   🔵 Blue = Kinematic bodies`);
+					} else {
+						console.log('🔍 Debug collision meshes DISABLED');
+						// Remove all debug meshes
+						debugHitboxMeshes.forEach(mesh => world.graphicsWorld.remove(mesh));
+						debugHitboxMeshes.length = 0;
+					}
+				}
+
+				// Backtick key (`) to toggle debug hitboxes
+				document.addEventListener('keydown', (e) => {
+					if (e.key === '`') {
+						toggleDebugHitboxes();
+					}
+				});
+
+				// G key to toggle grid snapping and visibility
+				document.addEventListener('keydown', (e) => {
+					if (e.key === 'g' || e.key === 'G') {
+						// Don't toggle if typing in an input field
+						if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+						gridSnapEnabled = !gridSnapEnabled;
+
+						// Toggle grid visibility when in placement mode
+						if (window.placementCursorActive && gridHelper) {
+							gridHelper.visible = gridSnapEnabled;
+						}
+
+						console.log(`🔲 Grid snap: ${gridSnapEnabled ? 'ON' : 'OFF'}`);
+					}
+				});
+
+				window.toggleDebugHitboxes = toggleDebugHitboxes;
+				console.log('✨ Debug Hitbox Visualization System initialized (press ` to toggle)');
+
+
+				// ===== OBJECT SELECTION AND LOADING SYSTEM =====
+				let selectedObject = null;
+				let selectedObjectModel = null;
+				let objectPreview = null;
+				// ========================================
+				// PRIMITIVE FACTORY - Create 3D shapes procedurally
+				// ========================================
+
+				const primitiveCache = {};
+
+				// Define primitive types and their properties
+				const PRIMITIVES = {
+					'cube': { name: 'Cube', color: 0x282828 },
+					'sphere': { name: 'Sphere', color: 0x282828 },
+					'cylinder': { name: 'Cylinder', color: 0x282828 },
+					'cone': { name: 'Cone', color: 0x282828 },
+					'plane': { name: 'Plane', color: 0x282828 },
+					'torus': { name: 'Torus', color: 0x282828 },
+					'wedge': { name: 'Wedge', color: 0x282828 }
+				};
+
+				// ===== PROCEDURAL TEXTURE GENERATION =====
+
+				// Generate a subtle grid texture for primitives
+				function generateGridTexture(size = 512, gridSize = 32, color = '#ffffff') {
+					const canvas = document.createElement('canvas');
+					canvas.width = size;
+					canvas.height = size;
+					const ctx = canvas.getContext('2d');
+
+					// Fill with base color (slightly darker)
+					ctx.fillStyle = color;
+					ctx.fillRect(0, 0, size, size);
+
+					// Draw subtle grid lines
+					ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)'; // Very subtle black lines
+					ctx.lineWidth = 1;
+
+					for (let i = 0; i <= size; i += gridSize) {
+						// Vertical lines
+						ctx.beginPath();
+						ctx.moveTo(i, 0);
+						ctx.lineTo(i, size);
+						ctx.stroke();
+
+						// Horizontal lines
+						ctx.beginPath();
+						ctx.moveTo(0, i);
+						ctx.lineTo(size, i);
+						ctx.stroke();
+					}
+
+					// Add very subtle noise for variation
+					const imageData = ctx.getImageData(0, 0, size, size);
+					const data = imageData.data;
+					for (let i = 0; i < data.length; i += 4) {
+						const noise = (Math.random() - 0.5) * 5; // Very subtle noise
+						data[i] += noise;     // R
+						data[i + 1] += noise; // G
+						data[i + 2] += noise; // B
+					}
+					ctx.putImageData(imageData, 0, 0);
+
+					const texture = new THREE.CanvasTexture(canvas);
+					texture.wrapS = THREE.RepeatWrapping;
+					texture.wrapT = THREE.RepeatWrapping;
+					texture.repeat.set(2, 2); // Tile the texture
+					return texture;
+				}
+
+				// Generate brushed/scratched metal texture with organic feel
+				function generateScratchTexture(size = 512, scratchCount = 150, color = '#ffffff') {
+					const canvas = document.createElement('canvas');
+					canvas.width = size;
+					canvas.height = size;
+					const ctx = canvas.getContext('2d');
+
+					// Fill with base color
+					ctx.fillStyle = color;
+					ctx.fillRect(0, 0, size, size);
+
+					// Get base color for variation
+					const imageData = ctx.getImageData(0, 0, size, size);
+					const data = imageData.data;
+
+					// Add heavy noise for organic metal texture
+					for (let i = 0; i < data.length; i += 4) {
+						const noise = (Math.random() - 0.5) * 25; // Much heavier noise
+						data[i] += noise;
+						data[i + 1] += noise;
+						data[i + 2] += noise;
+					}
+					ctx.putImageData(imageData, 0, 0);
+
+					// Add directional brushed metal effect (mostly horizontal)
+					ctx.globalCompositeOperation = 'multiply';
+					for (let i = 0; i < 200; i++) {
+						const y = Math.random() * size;
+						const opacity = 0.02 + Math.random() * 0.03;
+						const gradient = ctx.createLinearGradient(0, y, size, y);
+						gradient.addColorStop(0, `rgba(0, 0, 0, ${opacity})`);
+						gradient.addColorStop(0.5, `rgba(255, 255, 255, ${opacity})`);
+						gradient.addColorStop(1, `rgba(0, 0, 0, ${opacity})`);
+						ctx.strokeStyle = gradient;
+						ctx.lineWidth = 0.5 + Math.random() * 1.5;
+						ctx.beginPath();
+						ctx.moveTo(0, y);
+						ctx.lineTo(size, y + (Math.random() - 0.5) * 3);
+						ctx.stroke();
+					}
+
+					ctx.globalCompositeOperation = 'source-over';
+
+					// Add random deep scratches (darker, more visible)
+					for (let i = 0; i < scratchCount; i++) {
+						const x1 = Math.random() * size;
+						const y1 = Math.random() * size;
+						const length = 30 + Math.random() * 200;
+						const angle = (Math.random() - 0.5) * 0.4; // Mostly horizontal with slight variation
+						const x2 = x1 + Math.cos(angle) * length;
+						const y2 = y1 + Math.sin(angle) * length;
+
+						const isDark = Math.random() > 0.5;
+						const opacity = 0.05 + Math.random() * 0.15;
+						ctx.strokeStyle = isDark ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity * 0.5})`;
+						ctx.lineWidth = 0.3 + Math.random() * 1.2;
+						ctx.beginPath();
+						ctx.moveTo(x1, y1);
+						ctx.lineTo(x2, y2);
+						ctx.stroke();
+					}
+
+					// Add some random deeper scratches for character
+					for (let i = 0; i < 15; i++) {
+						const x1 = Math.random() * size;
+						const y1 = Math.random() * size;
+						const length = 50 + Math.random() * 250;
+						const angle = Math.random() * Math.PI * 2; // Random angles
+						const x2 = x1 + Math.cos(angle) * length;
+						const y2 = y1 + Math.sin(angle) * length;
+
+						ctx.strokeStyle = `rgba(0, 0, 0, ${0.15 + Math.random() * 0.15})`;
+						ctx.lineWidth = 1 + Math.random() * 2;
+						ctx.beginPath();
+						ctx.moveTo(x1, y1);
+						ctx.lineTo(x2, y2);
+						ctx.stroke();
+					}
+
+					const texture = new THREE.CanvasTexture(canvas);
+					texture.wrapS = THREE.RepeatWrapping;
+					texture.wrapT = THREE.RepeatWrapping;
+					texture.repeat.set(1, 1);
+					return texture;
+				}
+
+				// Generate noise/concrete texture
+				function generateNoiseTexture(size = 512, intensity = 15, color = '#ffffff') {
+					const canvas = document.createElement('canvas');
+					canvas.width = size;
+					canvas.height = size;
+					const ctx = canvas.getContext('2d');
+
+					// Fill with base color
+					ctx.fillStyle = color;
+					ctx.fillRect(0, 0, size, size);
+
+					// Add noise
+					const imageData = ctx.getImageData(0, 0, size, size);
+					const data = imageData.data;
+					for (let i = 0; i < data.length; i += 4) {
+						const noise = (Math.random() - 0.5) * intensity;
+						data[i] += noise;
+						data[i + 1] += noise;
+						data[i + 2] += noise;
+					}
+					ctx.putImageData(imageData, 0, 0);
+
+					const texture = new THREE.CanvasTexture(canvas);
+					texture.wrapS = THREE.RepeatWrapping;
+					texture.wrapT = THREE.RepeatWrapping;
+					texture.repeat.set(2, 2);
+					return texture;
+				}
+
+				// Create a primitive mesh
+				function createPrimitiveMesh(primitiveType) {
+					let geometry;
+
+					switch (primitiveType) {
+						case 'cube':
+							geometry = new THREE.BoxGeometry(1, 1, 1);
+							break;
+						case 'sphere':
+							geometry = new THREE.SphereGeometry(0.5, 32, 32);
+							break;
+						case 'cylinder':
+							geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+							break;
+						case 'cone':
+							geometry = new THREE.ConeGeometry(0.5, 1, 32);
+							break;
+						case 'plane':
+							geometry = new THREE.PlaneGeometry(1, 1);
+							break;
+						case 'torus':
+							geometry = new THREE.TorusGeometry(0.4, 0.15, 16, 100);
+							break;
+						case 'wedge':
+							// Create a wedge/ramp shape using custom geometry
+							// Wedge is 1 unit wide (X), 1 unit tall (Y), 1 unit deep (Z)
+							// Ramp goes from back (low) to front (high)
+							const wedgeGeometry = new THREE.BufferGeometry();
+							const vertices = new Float32Array([
+								// Bottom face (4 vertices)
+								-0.5, 0, -0.5,  // bottom-back-left
+								 0.5, 0, -0.5,  // bottom-back-right
+								 0.5, 0,  0.5,  // bottom-front-right
+								-0.5, 0,  0.5,  // bottom-front-left
+
+								// Top edge (2 vertices - the high end of the ramp)
+								-0.5, 1,  0.5,  // top-front-left
+								 0.5, 1,  0.5,  // top-front-right
+							]);
+
+							const indices = [
+								// Bottom face
+								0, 2, 1,  0, 3, 2,
+
+								// Back face (low end - triangle)
+								0, 1, 4,  1, 5, 4,
+
+								// Front face (high end - rectangle)
+								3, 4, 5,  3, 5, 2,
+
+								// Left face (triangle)
+								0, 4, 3,
+
+								// Right face (triangle)
+								1, 2, 5,
+							];
+
+							wedgeGeometry.setIndex(indices);
+							wedgeGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+							wedgeGeometry.computeVertexNormals();
+							geometry = wedgeGeometry;
+							break;
+						default:
+							console.error(`Unknown primitive type: ${primitiveType}`);
+							geometry = new THREE.BoxGeometry(1, 1, 1);
+					}
+
+					// Use MeshLambertMaterial for better integration with scene lighting
+					// (matches the matte, non-reflective aesthetic of the game world)
+					// Use the selected primitive color if available, otherwise use default
+					const selectedColor = window.currentPrimitiveColor || '#bee17b';
+
+					// Generate procedural texture with organic scratched metal look
+					const scratchTexture = generateScratchTexture(512, 150, selectedColor);
+
+					const material = new THREE.MeshLambertMaterial({
+						color: selectedColor,
+						map: scratchTexture, // Apply the brushed metal texture
+						emissive: 0x000000,
+						emissiveIntensity: 0,
+						transparent: false,
+						opacity: 1.0
+					});
+
+					const mesh = new THREE.Mesh(geometry, material);
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+
+					// Setup CSM (Cascaded Shadow Maps) for proper shadow integration
+					if (world && world.sky && world.sky.csm) {
+						world.sky.csm.setupMaterial(material);
+					}
+
+					return mesh;
+				}
+
+				// Load primitive "model" (instant creation, no async needed but keeping Promise for compatibility)
+				function loadObjectModel(primitiveType) {
+					console.log(`🔄 Creating primitive: ${primitiveType}`);
+
+					// Check if already cached
+					if (primitiveCache[primitiveType]) {
+						console.log(`📦 Primitive ${primitiveType} already cached`);
+						return Promise.resolve(primitiveCache[primitiveType]);
+					}
+
+					// Create the primitive mesh
+					const mesh = createPrimitiveMesh(primitiveType);
+
+					// Wrap in object to match GLTF structure
+					const primitiveObject = {
+						scene: mesh,
+						primitiveType: primitiveType,
+						isPrimitive: true
+					};
+
+					primitiveCache[primitiveType] = primitiveObject;
+					console.log(`✅ Created primitive ${primitiveType}:`, primitiveObject);
+
+					return Promise.resolve(primitiveObject);
+				}
+
+				// Function to create object preview at cursor
+				function createObjectPreview(primitiveType) {
+					console.log(`🔮 createObjectPreview called with: ${primitiveType}`);
+
+					// Remove existing preview
+					if (objectPreview) {
+						world.graphicsWorld.remove(objectPreview);
+						objectPreview = null;
+						window.objectPreview = null;
+					}
+
+					if (!primitiveType) {
+						console.warn('⚠️ No primitive type provided');
+						return;
+					}
+
+					if (!primitiveCache[primitiveType]) {
+						console.warn(`⚠️ Primitive ${primitiveType} not created yet`);
+						return;
+					}
+
+					// Clone the primitive mesh
+					const primitiveObj = primitiveCache[primitiveType];
+					objectPreview = primitiveObj.scene.clone();
+					window.objectPreview = objectPreview; // Store globally
+
+					// Make it semi-transparent to show it's a preview
+					if (objectPreview.isMesh) {
+						objectPreview.material = objectPreview.material.clone();
+						objectPreview.material.transparent = true;
+						objectPreview.material.opacity = 0.6;
+						objectPreview.material.emissive = new THREE.Color(0xbee17b);
+						objectPreview.material.emissiveIntensity = 0.5;
+					}
+
+					objectPreview.userData.isPreview = true;
+					objectPreview.userData.primitiveType = primitiveType;
+					objectPreview.userData.previewScale = 0.5; // Default to 0.5 scale (jumpable height!)
+					objectPreview.userData.userRotation = 0; // Initialize rotation
+
+					// Apply the default scale to the preview mesh
+					objectPreview.scale.set(0.5, 0.5, 0.5);
+
+					// Calculate ground offset AFTER scaling
+					const initialBbox = new THREE.Box3().setFromObject(objectPreview);
+					objectPreview.userData.groundOffset = initialBbox.min.y;
+					world.graphicsWorld.add(objectPreview);
+
+					console.log(`✅ Created preview for ${primitiveType} at 0.5x scale (jumpable height!)`);
+					console.log(`📏 Scale Guide: 0.5x = jumpable platform, 1.0x = character height, 2.0x = double height`);
+					console.log(`⚠️  Max jump height: ~0.8 units (80% of character height)`);
+				}
+
+				// Track rotation state
+				let isRotating = false;
+				let lastMouseX = 0;
+
+				// Update preview position to follow cursor
+				function updateObjectPreview() {
+					const preview = objectPreview || window.objectPreview;
+					const cursorActive = placementCursorActive || window.placementCursorActive;
+
+					if (!preview || !cursorActive) {
+						if (preview) preview.visible = false;
+						return;
+					}
+
+					if (placementCursor && placementCursor.visible) {
+						preview.visible = true;
+						// Only update position if NOT in rotation mode (R key not pressed)
+						if (!rKeyPressed) {
+							// Recalculate bounding box based on current scale
+							const bbox = new THREE.Box3().setFromObject(preview);
+							const height = bbox.max.y - bbox.min.y;
+							const objectBottom = bbox.min.y - preview.position.y; // Offset from object origin to bottom
+
+							// Copy cursor position (which already has grid snapping and vertical offset applied)
+							preview.position.x = placementCursor.position.x;
+							preview.position.z = placementCursor.position.z;
+
+							// Position Y so the bottom of the object sits exactly on the cursor surface
+							// Cursor position.y is the ground surface, so add half height minus bottom offset
+							preview.position.y = placementCursor.position.y - objectBottom;
+						}
+						// No auto-rotation anymore - controlled by user with R key
+					} else {
+						preview.visible = false;
+					}
+				}
+
+				// Hook preview updates into render loop
+				const originalWorldRender2 = world.render.bind(world);
+				world.render = function(w) {
+					originalWorldRender2(w);
+					updateObjectPreview();
+				};
+
+				// Handle object selection clicks
+				function setupObjectSelection() {
+					console.log('🔍 setupObjectSelection called!');
+					const objectItems = document.querySelectorAll('.object-item');
+					console.log('📦 Found object items:', objectItems.length, objectItems);
+
+					if (objectItems.length === 0) {
+						console.error('❌ No .object-item elements found in DOM!');
+						return;
+					}
+
+					objectItems.forEach(item => {
+						console.log('🔗 Adding click listener to:', item);
+						item.addEventListener('click', async () => {
+							const objectType = item.getAttribute('data-object');
+							console.log(`🖱️ Clicked on object: ${objectType}`);
+
+							// Check if clicking on already selected item (deselect)
+							if (item.classList.contains('selected')) {
+								console.log(`❌ Deselecting ${objectType}`);
+
+								// Remove selection state
+								item.classList.remove('selected');
+								selectedObject = null;
+								window.selectedObject = null;
+								selectedObjectModel = null;
+								window.selectedObjectModel = null;
+
+								// Hide and remove preview
+								if (objectPreview || window.objectPreview) {
+									const preview = objectPreview || window.objectPreview;
+									world.graphicsWorld.remove(preview);
+									objectPreview = null;
+									window.objectPreview = null;
+								}
+
+								// Disable placement mode
+								if (window.placementCursorActive) {
+									window.placementCursorActive = false;
+									window.togglePlacementCursor(false);
+								}
+
+								console.log(`✅ Deselected and cleared placement mode`);
+								return;
+							}
+
+							// Update UI selection state
+							objectItems.forEach(i => i.classList.remove('selected'));
+							item.classList.add('selected');
+
+							// Load model if not already loaded
+							selectedObject = objectType;
+							window.selectedObject = objectType; // Update global reference
+
+							try {
+								selectedObjectModel = await loadObjectModel(objectType);
+								window.selectedObjectModel = selectedObjectModel; // Update global reference
+								console.log(`🎯 Selected object: ${objectType}`, selectedObjectModel);
+
+								// Automatically enable placement mode when object is selected
+								if (!window.placementCursorActive) {
+									console.log(`🔄 Auto-enabling placement mode for ${objectType}`);
+									window.placementCursorActive = true;
+									window.togglePlacementCursor(true);
+								}
+
+								// Create preview for the selected object
+								console.log(`🔮 Creating preview for ${objectType}...`);
+								createObjectPreview(objectType);
+							} catch (error) {
+								console.error(`❌ Failed to load ${objectType}:`, error);
+							}
+						});
+					});
+				}
+
+				// Function to place object in world
+				window.placeObject = function() {
+					console.log('🎯 placeObject called');
+					console.log('  selectedObject:', selectedObject);
+					console.log('  selectedObjectModel:', selectedObjectModel);
+					console.log('  placementCursor:', placementCursor);
+					console.log('  placementCursor.visible:', placementCursor?.visible);
+					console.log('  window.selectedObject:', window.selectedObject);
+					console.log('  window.selectedObjectModel:', window.selectedObjectModel);
+
+					const objModel = selectedObjectModel || window.selectedObjectModel;
+					const cursor = placementCursor || window.placementCursor;
+
+					if (!selectedObject && !window.selectedObject) {
+						console.error('❌ No object selected!');
+						return;
+					}
+					if (!objModel) {
+						console.error('❌ No object model loaded!');
+						return;
+					}
+					if (!cursor) {
+						console.error('❌ No placement cursor!');
+						return;
+					}
+					if (!cursor.visible) {
+						console.error('❌ Placement cursor not visible!');
+						return;
+					}
+
+					// Use preview position if available (important for rotation mode), otherwise use cursor
+					const preview = objectPreview || window.objectPreview;
+
+					// IMPORTANT: The preview is already positioned correctly with all snapping and surface detection
+					// We should just copy its exact position instead of recalculating
+					const placementPosition = (preview && preview.visible) ? preview.position.clone() : cursor.position.clone();
+
+					console.log(`📍 Placing object at preview position: (${placementPosition.x.toFixed(2)}, ${placementPosition.y.toFixed(2)}, ${placementPosition.z.toFixed(2)})`);
+
+					const gltf = objModel;
+					const placedObject = gltf.scene.clone();
+
+					// Apply the preview's color to the placed object (for primitives)
+					if (preview && preview.material && window.currentPrimitiveColor) {
+						placedObject.material = preview.material.clone();
+						placedObject.material.color.setStyle(window.currentPrimitiveColor);
+
+						// Regenerate texture with current color (brushed metal look)
+						const scratchTexture = generateScratchTexture(512, 150, window.currentPrimitiveColor);
+						placedObject.material.map = scratchTexture;
+
+						placedObject.material.transparent = false;
+						placedObject.material.opacity = 1.0;
+						placedObject.material.emissive = new THREE.Color(0x000000);
+						placedObject.material.emissiveIntensity = 0;
+						placedObject.material.needsUpdate = true;
+						console.log(`🎨 Applied color ${window.currentPrimitiveColor} to placed primitive with scratched metal texture (opacity: ${placedObject.material.opacity}, transparent: ${placedObject.material.transparent})`);
+					}
+
+					// Apply the preview's scale to the placed object
+					if (preview && preview.userData.previewScale) {
+						const scale = preview.userData.previewScale;
+						placedObject.scale.set(scale, scale, scale);
+						placedObject.userData.scale = scale;
+					}
+
+					// Simply copy the preview's exact position - it's already correct!
+					placedObject.position.copy(placementPosition);
+
+					// Apply rotation from preview
+					if (preview && preview.userData.userRotation !== undefined) {
+						placedObject.rotation.y = preview.userData.userRotation;
+						placedObject.userData.rotation = preview.userData.userRotation;
+					}
+
+					placedObject.userData.isPlacedObject = true;
+					placedObject.userData.objectType = selectedObject || window.selectedObject;
+
+					console.log(`✅ Placed ${selectedObject || window.selectedObject} at position: (${placedObject.position.x.toFixed(2)}, ${placedObject.position.y.toFixed(2)}, ${placedObject.position.z.toFixed(2)})`);
+					if (preview && preview.userData.previewScale) {
+						console.log(`   Scale: ${preview.userData.previewScale.toFixed(2)}x`);
+					}
+					if (preview && preview.userData.userRotation !== undefined) {
+						console.log(`   Rotation: ${(preview.userData.userRotation * 180 / Math.PI).toFixed(1)}°`);
+					}
+
+					console.log(`📦 About to add placedObject:`, placedObject);
+					console.log(`📦 placedObject.position:`, placedObject.position);
+					console.log(`📦 placedObject.scale:`, placedObject.scale);
+					console.log(`📦 placedObject.visible:`, placedObject.visible);
+					console.log(`📦 placedObject children:`, placedObject.children.length);
+
+					// Traverse and log all meshes
+					placedObject.traverse((child) => {
+						if (child.isMesh) {
+							console.log(`  🔹 Mesh: ${child.name}, visible: ${child.visible}, material:`, child.material);
+						}
+					});
+
+					world.graphicsWorld.add(placedObject);
+					console.log(`🌍 Object added to world.graphicsWorld, total objects:`, world.graphicsWorld.children.length);
+
+					// IMPORTANT: Update world matrix after adding to scene so getWorldPosition works correctly
+					world.graphicsWorld.updateMatrixWorld(true);
+
+					// Add physics collision for primitives
+					const primitiveType = placedObject.userData.primitiveType || preview?.userData.primitiveType;
+					if (primitiveType) {
+						console.log(`🔶 Adding physics for primitive: ${primitiveType}`);
+
+						let physicsShape;
+						const scale = placedObject.scale.x; // Uniform scale
+						const position = placedObject.position;
+
+						switch (primitiveType) {
+							case 'cube':
+								// Box collision - CANNON uses half-extents
+								// Slightly reduce size (0.49 instead of 0.5) to prevent edge-catching
+								physicsShape = new CANNON.Box(new CANNON.Vec3(
+									0.49 * scale,  // Slightly smaller to prevent getting stuck on edges
+									0.49 * scale,
+									0.49 * scale
+								));
+								console.log(`  📦 Box collision: ${(0.49 * scale).toFixed(2)} half-extents (reduced for smooth collision)`);
+								break;
+							case 'sphere':
+								physicsShape = new CANNON.Sphere(0.5 * scale);
+								console.log(`  ⚫ Sphere collision: radius ${(0.5 * scale).toFixed(2)}`);
+								break;
+							case 'cylinder':
+								physicsShape = new CANNON.Cylinder(
+									0.5 * scale,  // radiusTop
+									0.5 * scale,  // radiusBottom
+									1.0 * scale,  // height
+									32            // segments
+								);
+								console.log(`  🛢️ Cylinder collision: radius ${(0.5 * scale).toFixed(2)}, height ${scale.toFixed(2)}`);
+								break;
+							case 'cone':
+								// Approximate cone with cylinder (CANNON doesn't have cone shape)
+								physicsShape = new CANNON.Cylinder(
+									0.01 * scale,  // radiusTop (nearly zero)
+									0.5 * scale,   // radiusBottom
+									1.0 * scale,   // height
+									32
+								);
+								console.log(`  🔺 Cone collision (approx): base radius ${(0.5 * scale).toFixed(2)}`);
+								break;
+							case 'plane':
+								// Plane as thin box
+								physicsShape = new CANNON.Box(new CANNON.Vec3(
+									0.5 * scale,
+									0.01 * scale,  // Very thin
+									0.5 * scale
+								));
+								console.log(`  📄 Plane collision: ${(0.5 * scale).toFixed(2)} x 0.01 x ${(0.5 * scale).toFixed(2)}`);
+								break;
+							case 'torus':
+								// Approximate torus with sphere (simplified)
+								physicsShape = new CANNON.Sphere(0.55 * scale); // Slightly larger than visual
+								console.log(`  🍩 Torus collision (approx sphere): radius ${(0.55 * scale).toFixed(2)}`);
+								break;
+							case 'wedge':
+								// Wedge/ramp collision - use a box oriented as a ramp
+								// Box positioned at center of mass (shifted up and back)
+								physicsShape = new CANNON.Box(new CANNON.Vec3(
+									0.49 * scale,  // Width (X)
+									0.49 * scale,  // Height (Y) - half of full height
+									0.49 * scale   // Depth (Z)
+								));
+								console.log(`  🔺 Wedge/ramp collision: ${(0.49 * scale).toFixed(2)} half-extents`);
+								break;
+							default:
+								console.warn(`  ⚠️ Unknown primitive type: ${primitiveType}, using box`);
+								physicsShape = new CANNON.Box(new CANNON.Vec3(0.5 * scale, 0.5 * scale, 0.5 * scale));
+						}
+
+						// Create static physics body
+						const physicsBody = new CANNON.Body({
+							mass: 0, // Static object (won't move)
+							shape: physicsShape,
+							position: new CANNON.Vec3(position.x, position.y, position.z),
+							material: new CANNON.Material({
+								friction: 0.3,
+								restitution: 0.0 // No bounce
+							})
+						});
+
+						// Set collision properties for proper character interaction
+						physicsBody.collisionFilterGroup = 1; // CollisionGroups.Default
+						physicsBody.collisionFilterMask = -1; // Collide with everything
+						physicsBody.allowSleep = false; // Never sleep (prevents physics glitches)
+						physicsBody.linearDamping = 0.0; // No damping for static objects
+						physicsBody.angularDamping = 0.0;
+						physicsBody.type = CANNON.Body.STATIC; // Explicitly mark as static
+
+						// Apply rotation
+						if (placedObject.rotation.y !== 0) {
+							physicsBody.quaternion.setFromAxisAngle(
+								new CANNON.Vec3(0, 1, 0),
+								placedObject.rotation.y
+							);
+						}
+
+						world.physicsWorld.addBody(physicsBody);
+						console.log(`  ✅ Added physics body at (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`);
+
+						// Store physics body for debug visualization
+						if (!window.debugPhysicsBodies) window.debugPhysicsBodies = [];
+						window.debugPhysicsBodies.push({
+							body: physicsBody,
+							shape: primitiveType,
+							size: scale,
+							primitiveType: primitiveType
+						});
+					}
+
+					// Verify it's actually in the scene
+					const isInScene = world.graphicsWorld.children.includes(placedObject);
+					console.log(`✅ Verified in scene:`, isInScene);
+
+					// Save world state after placing object
+					if (window.saveCustomization && typeof window.saveCustomization === 'function') {
+						window.saveCustomization();
+					}
+				};
+
+				// ========================================
+				// PRIMITIVE THUMBNAIL RENDERER
+				// ========================================
+				const primitivePreviewRenderers = {};
+
+				function createPrimitiveThumbnail(canvasId, primitiveType) {
+					console.log(`🖼️ Creating primitive thumbnail for ${primitiveType} on canvas ${canvasId}`);
+
+					const canvas = document.getElementById(canvasId);
+					if (!canvas) {
+						console.error(`❌ Canvas ${canvasId} not found!`);
+						return;
+					}
+
+					// Create scene, camera, renderer
+					const scene = new THREE.Scene();
+					const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+
+					const renderer = new THREE.WebGLRenderer({
+						canvas: canvas,
+						alpha: true,
+						antialias: true
+					});
+					renderer.setSize(100, 100);
+					renderer.setClearColor(0x1a1a1a, 1);
+
+					// Lighting
+					const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+					scene.add(ambientLight);
+
+					const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+					keyLight.position.set(5, 5, 5);
+					scene.add(keyLight);
+
+					// Create the primitive
+					const primitive = createPrimitiveMesh(primitiveType);
+					scene.add(primitive);
+
+					// Position camera
+					camera.position.set(2, 1.5, 2);
+					camera.lookAt(0, 0, 0);
+
+					// Animation loop
+					function animate() {
+						if (!primitivePreviewRenderers[canvasId]?.active) return;
+						primitive.rotation.y += 0.01;
+						primitive.rotation.x += 0.005;
+						renderer.render(scene, camera);
+						requestAnimationFrame(animate);
+					}
+
+					// Store and start
+					primitivePreviewRenderers[canvasId] = {
+						renderer,
+						scene,
+						camera,
+						object: primitive,
+						active: true
+					};
+
+					animate();
+					console.log(`✅ Thumbnail created for ${primitiveType}`);
+				}
+
+				window.createPrimitiveThumbnail = createPrimitiveThumbnail;
+
+				// Legacy GLTF thumbnail function (kept for compatibility)
+				const objectPreviewRenderers = {};
+
+				function createObjectThumbnail(canvasId, objectType) {
+					console.log(`🖼️ Creating thumbnail for ${objectType} on canvas ${canvasId}`);
+
+					const canvas = document.getElementById(canvasId);
+					if (!canvas) {
+						console.error(`❌ Canvas ${canvasId} not found in DOM!`);
+						return;
+					}
+
+					console.log(`✅ Canvas found:`, canvas, `Dimensions: ${canvas.width}x${canvas.height}`);
+
+					// Create separate scene, camera, and renderer for this thumbnail
+					const scene = new THREE.Scene();
+					const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+
+					let renderer;
+					try {
+						renderer = new THREE.WebGLRenderer({
+							canvas: canvas,
+							alpha: true,
+							antialias: true
+						});
+						console.log(`✅ WebGL renderer created for ${canvasId}`);
+					} catch (error) {
+						console.error(`❌ Failed to create WebGL renderer:`, error);
+						return;
+					}
+
+					renderer.setSize(120, 120);
+					renderer.setClearColor(0x1a1a1a, 1); // Dark gray background instead of transparent
+
+					// Add strong lighting to make object clearly visible
+					const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+					scene.add(ambientLight);
+
+					const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+					keyLight.position.set(5, 5, 5);
+					scene.add(keyLight);
+
+					const fillLight = new THREE.DirectionalLight(0xbee17b, 1.0);
+					fillLight.position.set(-5, 3, -5);
+					scene.add(fillLight);
+
+					const backLight = new THREE.DirectionalLight(0xffffff, 0.8);
+					backLight.position.set(0, -5, -5);
+					scene.add(backLight);
+
+					console.log(`⬇️ Loading model for thumbnail: ${objectType}`);
+
+					// Load and add the object
+					loadObjectModel(objectType).then((gltf) => {
+						console.log(`📦 Model loaded for thumbnail:`, gltf);
+						const object = gltf.scene.clone();
+
+						// Log all meshes and materials in the tree
+						console.log('🔍 Inspecting tree model structure:');
+						object.traverse((child) => {
+						// Hide collision meshes in thumbnail
+						if (child.userData && child.userData.data === "collision") {
+							child.visible = false;
+							console.log(`  👻 Hiding collision mesh: ${child.name}`);
+							return;
+						}
+						
+							if (child.isMesh) {
+								console.log(`  🌲 Mesh: ${child.name}`, child);
+								console.log(`    Material:`, child.material);
+								console.log(`    Geometry:`, child.geometry);
+
+								// Ensure material is visible
+								if (child.material) {
+									child.material.needsUpdate = true;
+									// If it's a dark material, make it green for visibility
+									if (child.material.color && child.material.color.getHex() < 0x333333) {
+										console.log(`    ⚠️ Dark material detected, changing to green`);
+										child.material.color.setHex(0x2d5016);
+									}
+								}
+							}
+						});
+
+						// Create a group to hold the object for proper centering
+						const group = new THREE.Group();
+						group.add(object);
+
+						// Calculate bounding box
+						const box = new THREE.Box3().setFromObject(object);
+						const center = box.getCenter(new THREE.Vector3());
+						const size = box.getSize(new THREE.Vector3());
+
+						console.log(`📏 BEFORE centering - Object position:`, object.position);
+						console.log(`📏 Bounding box - Center:`, center, `Size:`, size);
+
+						// Offset the object within the group so group's origin is at object's center
+						object.position.set(-center.x, -center.y, -center.z);
+
+						console.log(`📏 AFTER centering - Object position:`, object.position);
+
+						// Scale the group to fit in view
+						const maxDim = Math.max(size.x, size.y, size.z);
+						const targetSize = 1.8; // Size in world units (increased from 1.2)
+						const scale = targetSize / maxDim;
+						group.scale.set(scale, scale, scale);
+
+						// Add group at world origin
+						group.position.set(0, 0, 0);
+						scene.add(group);
+
+						console.log(`✅ Group added at origin (0,0,0) with scale: ${scale.toFixed(3)}`);
+						console.log(`📦 Group position:`, group.position);
+						console.log(`📦 Group children:`, group.children.length);
+
+						// Position camera to look at origin (where group center is)
+						camera.position.set(3, 2, 3);
+						camera.lookAt(0, 0, 0);
+						camera.updateProjectionMatrix();
+						console.log(`📷 Camera at (3, 2, 3) looking at (0, 0, 0)`);
+
+						// Animation loop
+						let frameCount = 0;
+						function animate() {
+							if (!objectPreviewRenderers[canvasId]?.active) {
+								console.log(`⏹️ Stopping animation for ${canvasId}`);
+								return;
+							}
+
+							group.rotation.y += 0.01; // Rotate the group, not the object
+							renderer.render(scene, camera);
+
+							if (frameCount === 0) {
+								console.log(`🎬 First frame rendered for ${canvasId}`);
+								console.log(`🎬 Rendering scene with ${scene.children.length} children`);
+							}
+							frameCount++;
+
+							requestAnimationFrame(animate);
+						}
+
+						// Store renderer info
+						objectPreviewRenderers[canvasId] = {
+							renderer,
+							scene,
+							camera,
+							object: group, // Store the group instead
+							active: true
+						};
+
+						console.log(`🎬 Starting animation for ${canvasId}`);
+						animate();
+						console.log(`✅ Thumbnail fully initialized for ${objectType}`);
+					}).catch((error) => {
+						console.error(`❌ Failed to create thumbnail for ${objectType}:`, error);
+					});
+				}
+
+				// Primitive color selection
+				let currentPrimitiveColor = '#bee17b'; // Default green
+				window.currentPrimitiveColor = currentPrimitiveColor;
+
+				function setupPrimitiveColorSelection() {
+					console.log('🎨 Setting up primitive color picker');
+					const colorPicker = document.getElementById('primitive-color-picker');
+					const colorHexDisplay = document.getElementById('primitive-color-hex');
+
+					if (!colorPicker) {
+						console.warn('⚠️ Color picker not found');
+						return;
+					}
+
+					// Listen for color changes
+					colorPicker.addEventListener('input', (e) => {
+						const color = e.target.value;
+						console.log('🎨 Selected primitive color:', color);
+
+						// Update current color
+						currentPrimitiveColor = color;
+						window.currentPrimitiveColor = color;
+
+						// Update hex display
+						if (colorHexDisplay) {
+							colorHexDisplay.textContent = color.toUpperCase();
+							colorHexDisplay.style.color = color;
+						}
+
+						// Update picker border color
+						colorPicker.style.borderColor = color;
+
+						// If there's a preview, update its color
+						if (window.objectPreview && window.objectPreview.material) {
+							window.objectPreview.material.color.setStyle(color);
+							console.log('✅ Updated preview color to:', color);
+						}
+					});
+
+					console.log('✅ Primitive color picker setup complete');
+				}
+
+				// Clear all placed objects function
+				// Raycast to find placed object under cursor
+				window.raycastObjectUnderCursor = function(event) {
+					// Calculate mouse position in normalized device coordinates
+					const mouseX = event.clientX;
+					const mouseY = event.clientY;
+					const mouse = new THREE.Vector2();
+					mouse.x = (mouseX / window.innerWidth) * 2 - 1;
+					mouse.y = -(mouseY / window.innerHeight) * 2 + 1;
+
+					// Create raycaster from mouse position
+					const raycaster = new THREE.Raycaster();
+					raycaster.setFromCamera(mouse, world.camera);
+
+					// Raycast against all objects in the scene
+					const intersects = raycaster.intersectObjects(world.graphicsWorld.children, true);
+
+					// Find the first placed object hit
+					for (let intersect of intersects) {
+						let obj = intersect.object;
+
+						// Walk up the hierarchy to find if this is a placed object
+						while (obj) {
+							if (obj.userData && obj.userData.isPlacedObject) {
+								return obj; // Return the placed object
+							}
+							obj = obj.parent;
+						}
+					}
+
+					return null; // No placed object found
+				};
+
+				// Paint an object with a new color
+				window.paintObject = function(obj, color) {
+					if (!obj || !obj.material) return;
+
+					console.log(`🎨 Painting ${obj.userData.objectType} with color ${color}`);
+
+					// Update material color
+					obj.material.color.setStyle(color);
+
+					// Regenerate texture with new color
+					const scratchTexture = generateScratchTexture(512, 150, color);
+
+					// Dispose old texture to free memory
+					if (obj.material.map) {
+						obj.material.map.dispose();
+					}
+
+					obj.material.map = scratchTexture;
+					obj.material.map.needsUpdate = true;
+					obj.material.needsUpdate = true;
+
+					console.log(`✅ Repainted ${obj.userData.objectType} - Color: ${color}`);
+
+					// Save world state after painting
+					if (window.saveCustomization && typeof window.saveCustomization === 'function') {
+						window.saveCustomization();
+					}
+				};
+
+				// Delete individual object under cursor with right-click
+				window.deleteObjectUnderCursor = function(event) {
+					console.log('🗑️ Right-click delete triggered');
+
+					// Calculate mouse position in normalized device coordinates
+					const mouseX = event.clientX;
+					const mouseY = event.clientY;
+					const mouse = new THREE.Vector2();
+					mouse.x = (mouseX / window.innerWidth) * 2 - 1;
+					mouse.y = -(mouseY / window.innerHeight) * 2 + 1;
+
+					// Create raycaster from mouse position
+					const raycaster = new THREE.Raycaster();
+					raycaster.setFromCamera(mouse, world.camera);
+
+					// Raycast against all objects in the scene
+					const intersects = raycaster.intersectObjects(world.graphicsWorld.children, true);
+
+					// Find the first placed object hit
+					for (let intersect of intersects) {
+						let obj = intersect.object;
+
+						// Walk up the hierarchy to find if this is a placed object
+						while (obj) {
+							if (obj.userData && obj.userData.isPlacedObject) {
+								console.log(`🎯 Found placed object to delete: ${obj.userData.objectType}`);
+
+								// Remove from scene
+								world.graphicsWorld.remove(obj);
+
+								// Remove physics body
+								if (window.debugPhysicsBodies) {
+									const bodyIndex = window.debugPhysicsBodies.findIndex(bodyInfo => {
+										// Match by position (physics body should be at same position as mesh)
+										const pos = bodyInfo.body.position;
+										const meshPos = obj.position;
+										const threshold = 0.01; // Tolerance for floating point comparison
+										return Math.abs(pos.x - meshPos.x) < threshold &&
+											   Math.abs(pos.y - meshPos.y) < threshold &&
+											   Math.abs(pos.z - meshPos.z) < threshold;
+									});
+
+									if (bodyIndex !== -1) {
+										const bodyInfo = window.debugPhysicsBodies[bodyIndex];
+										world.physicsWorld.remove(bodyInfo.body);
+										window.debugPhysicsBodies.splice(bodyIndex, 1);
+										console.log('🔧 Removed physics body');
+									}
+								}
+
+								console.log(`✅ Deleted ${obj.userData.objectType}`);
+
+								// Save world state after deleting
+								if (window.saveCustomization && typeof window.saveCustomization === 'function') {
+									window.saveCustomization();
+								}
+
+								return; // Exit after deleting first object
+							}
+							obj = obj.parent;
+						}
+					}
+
+					console.log('ℹ️ No placed object under cursor');
+				};
+
+				function clearAllPlacedObjects() {
+					console.log('🗑️ Clearing all placed objects...');
+
+					let clearedCount = 0;
+					const objectsToRemove = [];
+
+					// Find all placed objects
+					world.graphicsWorld.traverse((child) => {
+						if (child.userData && child.userData.isPlacedObject) {
+							objectsToRemove.push(child);
+						}
+					});
+
+					// Remove objects from scene
+					objectsToRemove.forEach((obj) => {
+						world.graphicsWorld.remove(obj);
+						clearedCount++;
+					});
+
+					// Remove physics bodies
+					if (window.debugPhysicsBodies) {
+						const bodiesToRemove = [...window.debugPhysicsBodies];
+						bodiesToRemove.forEach((bodyInfo) => {
+							world.physicsWorld.remove(bodyInfo.body);
+						});
+						window.debugPhysicsBodies = [];
+						console.log(`🔧 Removed ${bodiesToRemove.length} physics bodies`);
+					}
+
+					console.log(`✅ Cleared ${clearedCount} placed objects`);
+
+					// Show feedback to user
+					if (clearedCount > 0) {
+						console.log(`🧹 Removed ${clearedCount} object${clearedCount > 1 ? 's' : ''} from the scene`);
+					} else {
+						console.log('ℹ️ No objects to clear');
+					}
+
+					// Save world state after clearing
+					if (window.saveCustomization && typeof window.saveCustomization === 'function') {
+						window.saveCustomization();
+					}
+				}
+
+				// Load saved primitives from localStorage
+				window.loadSavedPrimitives = function() {
+					const savedCustomization = localStorage.getItem('characterCustomization');
+					if (!savedCustomization) {
+						console.log('ℹ️ No saved primitives to load');
+						return;
+					}
+
+					const data = JSON.parse(savedCustomization);
+					const placedPrimitives = data.placedPrimitives || [];
+
+					if (placedPrimitives.length === 0) {
+						console.log('ℹ️ No primitives in save data');
+						return;
+					}
+
+					console.log(`📦 Loading ${placedPrimitives.length} saved primitives...`);
+
+					placedPrimitives.forEach((primData, index) => {
+						// Load the primitive model
+						loadObjectModel(primData.type).then((gltf) => {
+							const loadedObject = gltf.scene.clone();
+
+							// Apply saved properties
+							loadedObject.position.set(primData.position.x, primData.position.y, primData.position.z);
+							loadedObject.rotation.y = primData.rotation || 0;
+							loadedObject.scale.set(primData.scale, primData.scale, primData.scale);
+
+							// Apply saved color and texture
+							if (loadedObject.material) {
+								loadedObject.material = loadedObject.material.clone();
+								loadedObject.material.color.setStyle(primData.color);
+
+								// Generate texture with saved color
+								const scratchTexture = generateScratchTexture(512, 150, primData.color);
+								loadedObject.material.map = scratchTexture;
+								loadedObject.material.map.needsUpdate = true;
+								loadedObject.material.needsUpdate = true;
+							}
+
+							// Mark as placed object
+							loadedObject.userData.isPlacedObject = true;
+							loadedObject.userData.objectType = primData.type;
+							loadedObject.userData.scale = primData.scale;
+							loadedObject.userData.rotation = primData.rotation || 0;
+
+							loadedObject.castShadow = true;
+							loadedObject.receiveShadow = true;
+
+							// Add to scene
+							world.graphicsWorld.add(loadedObject);
+
+							// Add physics
+							if (primData.type === 'cube' || primData.type === 'sphere') {
+								const physicsMass = 0; // Static body
+								const shape = primData.type === 'cube'
+									? new CANNON.Box(new CANNON.Vec3(primData.scale * 0.49, primData.scale * 0.49, primData.scale * 0.49))
+									: new CANNON.Sphere(primData.scale * 0.5);
+
+								const body = new CANNON.Body({
+									mass: physicsMass,
+									shape: shape,
+									position: new CANNON.Vec3(loadedObject.position.x, loadedObject.position.y, loadedObject.position.z),
+									material: new CANNON.Material({
+										friction: 0.3,
+										restitution: 0.0 // No bounce
+									})
+								});
+
+								// Set collision properties for proper character interaction
+								body.collisionFilterGroup = 1; // CollisionGroups.Default
+								body.collisionFilterMask = -1; // Collide with everything
+								body.allowSleep = false; // Never sleep (prevents physics glitches)
+								body.linearDamping = 0.0; // No damping for static objects
+								body.angularDamping = 0.0;
+								body.type = CANNON.Body.STATIC; // Explicitly mark as static
+
+								// Apply rotation
+								if (primData.rotation !== 0) {
+									body.quaternion.setFromAxisAngle(
+										new CANNON.Vec3(0, 1, 0),
+										primData.rotation
+									);
+								}
+
+								world.physicsWorld.addBody(body);
+
+								if (!window.debugPhysicsBodies) {
+									window.debugPhysicsBodies = [];
+								}
+								window.debugPhysicsBodies.push({
+									body: body,
+									mesh: loadedObject,
+									primitiveType: primData.type
+								});
+							}
+
+							console.log(`✅ Loaded ${primData.type} at (${primData.position.x.toFixed(2)}, ${primData.position.y.toFixed(2)}, ${primData.position.z.toFixed(2)})`);
+						});
+					});
+
+					console.log(`✅ Finished loading primitives`);
+				};
+
+				// Store globally
+				window.selectedObject = selectedObject;
+				window.loadObjectModel = loadObjectModel;
+				window.createObjectPreview = createObjectPreview;
+				window.setupObjectSelection = setupObjectSelection;
+				window.createObjectThumbnail = createObjectThumbnail;
+				window.setupPrimitiveColorSelection = setupPrimitiveColorSelection;
+				window.clearAllPlacedObjects = clearAllPlacedObjects;
+
+				console.log('🎨 Object Selection System initialized (will be activated when customization menu loads)');
+
+				// Load saved primitives if world is ready
+				if (window.worldReady) {
+					console.log('🌍 World already ready, loading primitives now');
+					window.loadSavedPrimitives();
+				} else {
+					// Wait for world to be ready
+					const checkWorldReady = setInterval(() => {
+						if (window.worldReady) {
+							console.log('🌍 World ready, loading primitives');
+							clearInterval(checkWorldReady);
+							window.loadSavedPrimitives();
+						}
+					}, 100);
 				}
 
 				// CRT overlay removed - spectators are now full characters, not cameras
@@ -4096,11 +5864,51 @@
 						</div>
 					</div>
 					<div class="customization-content" id="objects-tab" style="display: none;">
-						<!-- Objects tab content - placeholder for now -->
+						<!-- Primitive Selection Section -->
 						<div class="customization-section">
-							<div class="section-label">Objects</div>
-							<p style="color: rgba(190, 225, 123, 0.6); font-size: 11px; text-align: center; padding: 20px;">
-								Object controls will be added here
+							<div class="section-label">Select Primitive</div>
+							<div class="object-grid" id="object-grid">
+								<div class="object-item" data-object="cube">
+									<canvas class="object-preview-canvas" id="cube-preview" width="100" height="100"></canvas>
+									<div class="object-name">Cube</div>
+								</div>
+								<div class="object-item" data-object="sphere">
+									<canvas class="object-preview-canvas" id="sphere-preview" width="100" height="100"></canvas>
+									<div class="object-name">Sphere</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Primitive Color Section -->
+						<div class="customization-section">
+							<div class="section-label">Primitive Color</div>
+							<div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+								<input type="color" id="primitive-color-picker" value="#bee17b" style="width: 60px; height: 60px; border: 3px solid #bee17b; border-radius: 8px; cursor: pointer; background: transparent;">
+								<div style="flex: 1;">
+									<div style="font-size: 12px; color: rgba(190, 225, 123, 0.7); margin-bottom: 4px;">Current Color</div>
+									<div id="primitive-color-hex" style="font-family: 'Share Tech Mono', monospace; font-size: 16px; color: #bee17b; font-weight: bold;">#BEE17B</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Clear Objects Section -->
+						<div class="customization-section">
+							<button id="clear-objects-btn" style="width: 100%; padding: 12px; background: rgba(231, 76, 60, 0.2); border: 2px solid #e74c3c; border-radius: 8px; color: #e74c3c; font-family: 'Share Tech Mono', monospace; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1px;">
+								Clear All Objects
+							</button>
+						</div>
+
+						<div class="customization-section">
+							<div class="section-label">Instructions</div>
+							<p style="color: rgba(190, 225, 123, 0.6); font-size: 10px; line-height: 1.5; margin: 0;">
+								• Click any primitive to start placing<br>
+								• Move mouse to position preview<br>
+								• Press G to toggle grid snap ON/OFF<br>
+								• Scroll wheel to scale up/down<br>
+								• Hold Shift for fine adjustments<br>
+								• Hold R + move mouse to rotate<br>
+								• Left-click to place in world<br>
+								• Close menu when done (C key)
 							</p>
 						</div>
 					</div>
@@ -4118,6 +5926,7 @@
 				document.body.appendChild(crosshair);
 
 				// Tab switching logic
+				let objectThumbnailsCreated = false;
 				const tabs = customizationDiv.querySelectorAll('.customization-tab');
 				tabs.forEach(tab => {
 					tab.addEventListener('click', () => {
@@ -4127,8 +5936,61 @@
 						const tabName = tab.getAttribute('data-tab');
 						document.getElementById('colors-tab').style.display = tabName === 'colors' ? 'block' : 'none';
 						document.getElementById('objects-tab').style.display = tabName === 'objects' ? 'block' : 'none';
+
+						// Create thumbnails when Objects tab is first opened
+						if (tabName === 'objects' && !objectThumbnailsCreated) {
+							setTimeout(() => {
+								if (window.createPrimitiveThumbnail) {
+									console.log('🖼️ Creating primitive thumbnails (tab opened)...');
+									window.createPrimitiveThumbnail('cube-preview', 'cube');
+									window.createPrimitiveThumbnail('sphere-preview', 'sphere');
+									objectThumbnailsCreated = true;
+								}
+							}, 50);
+						}
 					});
 				});
+
+				// Setup object selection system now that DOM is ready
+				if (window.setupObjectSelection) {
+					console.log('🎯 Calling setupObjectSelection from customization menu setup...');
+					window.setupObjectSelection();
+				} else {
+					console.warn('⚠️ setupObjectSelection not available yet, will be called later');
+				}
+
+				if (window.setupPrimitiveColorSelection) {
+					console.log('🎨 Calling setupPrimitiveColorSelection from customization menu setup...');
+					window.setupPrimitiveColorSelection();
+				} else {
+					console.warn('⚠️ setupPrimitiveColorSelection not available yet, will be called later');
+				}
+
+				// Setup clear objects button
+				const clearObjectsBtn = document.getElementById('clear-objects-btn');
+				if (clearObjectsBtn) {
+					clearObjectsBtn.addEventListener('click', () => {
+						if (window.clearAllPlacedObjects) {
+							window.clearAllPlacedObjects();
+						}
+					});
+
+					// Add hover effect
+					clearObjectsBtn.addEventListener('mouseenter', () => {
+						clearObjectsBtn.style.background = 'rgba(231, 76, 60, 0.4)';
+						clearObjectsBtn.style.borderColor = '#ff6b6b';
+						clearObjectsBtn.style.transform = 'translateY(-2px)';
+					});
+					clearObjectsBtn.addEventListener('mouseleave', () => {
+						clearObjectsBtn.style.background = 'rgba(231, 76, 60, 0.2)';
+						clearObjectsBtn.style.borderColor = '#e74c3c';
+						clearObjectsBtn.style.transform = 'translateY(0)';
+					});
+					console.log('✅ Clear objects button setup complete');
+				}
+
+				// Note: 3D thumbnails are created lazily when Objects tab is first opened
+				// (see tab switching logic above)
 
 				// Collapsible section logic
 				const collapsibleHeaders = customizationDiv.querySelectorAll('.collapsible-header');
@@ -4413,7 +6275,27 @@
 				window.carTrimColor = carTrimColor;
 
 				// Function to save customization to localStorage
-				function saveCustomization() {
+				window.saveCustomization = function saveCustomization() {
+					// Collect all placed primitives data
+					const placedPrimitives = [];
+					if (world && world.graphicsWorld) {
+						world.graphicsWorld.traverse((child) => {
+							if (child.userData && child.userData.isPlacedObject) {
+								placedPrimitives.push({
+									type: child.userData.objectType,
+									position: {
+										x: child.position.x,
+										y: child.position.y,
+										z: child.position.z
+									},
+									rotation: child.rotation.y,
+									scale: child.scale.x, // Uniform scale
+									color: '#' + child.material.color.getHexString()
+								});
+							}
+						});
+					}
+
 					const data = {
 						skinColor,
 						shirtColor,
@@ -4447,10 +6329,12 @@
 						textureRotation: parseFloat(document.getElementById('texture-rotation')?.value || 0),
 						textureDensity: parseFloat(document.getElementById('texture-density')?.value || 1.0),
 						username: window.authState?.user?.username || window.authState?.user?.displayName || window.authState?.email?.split('@')[0] || 'USER',
-						photoURL: window.authState?.user?.photoURL || null
+						photoURL: window.authState?.user?.photoURL || null,
+						placedPrimitives: placedPrimitives // Add primitives array
 					};
 					localStorage.setItem('characterCustomization', JSON.stringify(data));
 					console.log('💾 Customization saved:', data);
+					console.log(`💾 Saved ${placedPrimitives.length} placed primitives`);
 
 					// Broadcast customization changes LIVE to all spectators
 					if (isHosting && multiplayerWs && multiplayerWs.readyState === WebSocket.OPEN) {
@@ -4571,6 +6455,25 @@
 							const crosshair = document.getElementById('customization-crosshair');
 							if (crosshair) crosshair.classList.remove('active');
 
+							// Disable placement cursor when closing customization
+							if (window.placementCursorActive) {
+								window.placementCursorActive = false;
+								window.togglePlacementCursor(false);
+
+								// Remove object preview
+								if (window.objectPreview && world && world.graphicsWorld) {
+									world.graphicsWorld.remove(window.objectPreview);
+									window.objectPreview = null;
+								}
+							}
+
+							// Reset selected object when closing menu
+							window.selectedObject = null;
+							window.selectedObjectModel = null;
+
+							// Remove visual selection from all object items
+							const objectItems = document.querySelectorAll('.object-item');
+							objectItems.forEach(item => item.classList.remove('selected'));
 
 							// Restore camera position
 							world.cameraOperator.theta = savedCameraTheta;
@@ -4626,19 +6529,117 @@
 
 						// Click outside to lock camera and enable free look (like normal gameplay)
 						let cameraLocked = false;
+						let justPainted = false; // Flag to prevent pointer lock immediately after painting
+
 						// Right-click to unlock camera in customization mode
+						// Disable context menu when customization is open
+						document.addEventListener('contextmenu', (e) => {
+							if (customizationOpen && window.placementCursorActive) {
+								e.preventDefault();
+								return false;
+							}
+						});
+
 						document.addEventListener('mousedown', (e) => {
 							if (customizationOpen) {
 								// Check if click is outside the customization menu and customize button
 								if (!customizationDiv.contains(e.target) && !customizeButton.contains(e.target)) {
 									if (!cameraLocked && e.button === 0) {
-										// Left-click: Lock pointer and enable camera control
-										cameraLocked = true;
-										world.inputManager.inputReceiver = world.cameraOperator;
-										world.renderer.domElement.requestPointerLock();
+										// Left-click behavior depends on mode
+										if (!window.placementCursorActive) {
+											// NO PLACEMENT MODE: Paint objects with current color (DON'T lock camera)
+											const clickedObject = window.raycastObjectUnderCursor(e);
+											console.log('🔍 Raycast result:', clickedObject);
+											if (clickedObject) {
+												console.log('🎨 Painting object with color:', window.currentPrimitiveColor);
+
+												// PREVENT event from bubbling to other handlers
+												e.preventDefault();
+												e.stopPropagation();
+												e.stopImmediatePropagation();
+
+												window.paintObject(clickedObject, window.currentPrimitiveColor);
+
+												// Set flag to prevent pointer lock
+												justPainted = true;
+
+												// Make SURE mouse stays unlocked
+												if (document.pointerLockElement) {
+													document.exitPointerLock();
+												}
+												cameraLocked = false;
+												world.inputManager.inputReceiver = window.dummyInputReceiver;
+
+												// Temporarily block pointer lock requests
+												const originalRequestPointerLock = world.renderer.domElement.requestPointerLock;
+												world.renderer.domElement.requestPointerLock = function() {
+													console.log('🚫 Blocked pointer lock request (painting mode)');
+												};
+
+												// Restore after 200ms and clear the flag
+												setTimeout(() => {
+													world.renderer.domElement.requestPointerLock = originalRequestPointerLock;
+													justPainted = false;
+													console.log('✅ Pointer lock re-enabled');
+												}, 200);
+
+												console.log('✅ Mouse kept unlocked for painting');
+												return false;
+											} else {
+												// No object clicked - only lock camera if we didn't just paint
+												if (!justPainted) {
+													console.log('📷 No object found, locking camera');
+
+													// Reset camera velocities AND key states to prevent momentum
+													if (world.cameraOperator) {
+														world.cameraOperator.upVelocity = 0;
+														world.cameraOperator.forwardVelocity = 0;
+														world.cameraOperator.rightVelocity = 0;
+
+														// Reset all action key states
+														for (const action in world.cameraOperator.actions) {
+															if (world.cameraOperator.actions.hasOwnProperty(action)) {
+																world.cameraOperator.actions[action].isPressed = false;
+															}
+														}
+													}
+
+													cameraLocked = true;
+													world.inputManager.inputReceiver = world.cameraOperator;
+													world.renderer.domElement.requestPointerLock();
+												} else {
+													console.log('⏭️ Skipping camera lock (just painted)');
+												}
+											}
+										} else {
+											// PLACEMENT MODE ACTIVE: Place objects normally (can stack on other objects)
+											console.log('🎯 Placement click at cursor position:', window.placementCursor?.position);
+											window.placeObject();
+										}
+									} else if (!cameraLocked && e.button === 2) {
+										// Right-click while NOT camera locked: Delete object under cursor (if placement mode active)
+										if (window.placementCursorActive) {
+											e.preventDefault();
+											window.deleteObjectUnderCursor(e);
+										}
 									} else if (cameraLocked && e.button === 2) {
-										// Right-click: Unlock pointer
+										// Right-click while camera locked: Unlock pointer
 										cameraLocked = false;
+
+										// Reset camera velocities AND key states to prevent momentum
+										if (world.cameraOperator) {
+											world.cameraOperator.upVelocity = 0;
+											world.cameraOperator.forwardVelocity = 0;
+											world.cameraOperator.rightVelocity = 0;
+
+											// Reset all action key states
+											for (const action in world.cameraOperator.actions) {
+												if (world.cameraOperator.actions.hasOwnProperty(action)) {
+													world.cameraOperator.actions[action].isPressed = false;
+												}
+											}
+										}
+
 										world.inputManager.inputReceiver = window.dummyInputReceiver;
 										if (document.pointerLockElement) {
 											document.exitPointerLock();
@@ -8062,7 +10063,13 @@
 			// ========================================
 			// MULTIPLAYER CHAT SYSTEM
 			// ========================================
+			// SUPER SIMPLE:
+			// - Press T to open chat
+			// - Type your message
+			// - Press Enter to send and close
+			// ========================================
 			let mpChatOpen = false;
+			let mpChatClosing = false; // Prevent race conditions
 			const mpChatContainer = document.getElementById('multiplayer-chat');
 			const mpChatMessages = document.getElementById('chat-messages');
 			const mpChatInputContainer = document.getElementById('chat-input-container');
@@ -8088,46 +10095,63 @@
 
 			function openMpChatInput() {
 				if (!isHosting && !isSpectatorMode) return;
+				if (mpChatOpen || mpChatClosing) return; // Prevent double-open or open during close
 
+				console.log('💬 Opening multiplayer chat');
 				mpChatOpen = true;
 				mpChatInputContainer.style.display = 'block';
 				mpChatMessages.style.display = 'block';
-				mpChatInput.focus();
 
-				// Disable game controls
+				// Disable game controls FIRST
 				if (world && world.inputManager) {
 					world.inputManager.inputReceiver = window.dummyInputReceiver;
 				}
 
-				// Exit pointer lock
+				// Exit pointer lock BEFORE focusing input
 				if (document.pointerLockElement) {
 					document.exitPointerLock();
 				}
+
+				// Focus input after pointer lock is released (next frame)
+				requestAnimationFrame(() => {
+					mpChatInput.focus();
+				});
 			}
 
 			function closeMpChatInput() {
+				if (!mpChatOpen || mpChatClosing) return; // Already closed or closing
+
+				console.log('💬 Closing multiplayer chat');
+				mpChatClosing = true;
 				mpChatOpen = false;
+
+				// Blur input FIRST to prevent focus issues
+				mpChatInput.blur();
+
+				// Hide input container
 				mpChatInputContainer.style.display = 'none';
 
 				// Clear input field
 				mpChatInput.value = '';
 
-				// If no messages, hide the whole chat
-				if (mpChatMessages.children.length === 0) {
-					mpChatMessages.style.display = 'none';
-				}
+				// Keep messages visible - don't hide them!
 
-				// Re-enable game controls (works for both host and spectators)
+				// Re-enable game controls IMMEDIATELY
 				if (character) {
 					character.takeControl();
+				} else if (world && world.inputManager) {
+					// Fallback if character not available
+					world.inputManager.inputReceiver = world.cameraOperator;
 				}
 
-				// Re-lock pointer after a small delay
-				setTimeout(() => {
+				// Request pointer lock on next frame (prevents focus conflicts)
+				requestAnimationFrame(() => {
 					if (world && world.renderer && world.renderer.domElement) {
 						world.renderer.domElement.requestPointerLock();
 					}
-				}, 100);
+					// Reset closing flag after pointer lock requested
+					mpChatClosing = false;
+				});
 			}
 
 			function addMpChatMessage(username, message, isSystem = false) {
@@ -8145,29 +10169,17 @@
 				}
 
 				mpChatMessages.appendChild(messageEl);
+
+				// Limit to last 50 messages to keep feed clean
+				const MAX_MESSAGES = 50;
+				while (mpChatMessages.children.length > MAX_MESSAGES) {
+					mpChatMessages.removeChild(mpChatMessages.firstChild);
+				}
+
 				mpChatMessages.scrollTop = mpChatMessages.scrollHeight;
 
-				// Show messages container
+				// Show messages container - keep it visible!
 				mpChatMessages.style.display = 'block';
-
-				// Auto-hide messages after 10 seconds if chat is closed
-				if (!mpChatOpen) {
-					setTimeout(() => {
-						if (!mpChatOpen && mpChatMessages.children.length > 0) {
-							messageEl.style.transition = 'opacity 1s';
-							messageEl.style.opacity = '0';
-							setTimeout(() => {
-								if (messageEl.parentNode) {
-									messageEl.remove();
-								}
-								// Hide container if no messages left
-								if (mpChatMessages.children.length === 0) {
-									mpChatMessages.style.display = 'none';
-								}
-							}, 1000);
-						}
-					}, 10000);
-				}
 			}
 
 			function sendMpChatMessage() {
@@ -8224,25 +10236,32 @@
 				// Update last message time
 				lastMessageTime = now;
 
-				// Clear input but keep chat open for conversation
+				// Clear input (will be closed by Enter handler)
 				mpChatInput.value = '';
-				mpChatInput.focus();
 			}
 
-			// Chat input enter key
+			// Chat input keyboard handling - SIMPLE: Enter sends and closes
 			mpChatInput.addEventListener('keydown', (e) => {
+				// Stop all key events from propagating to game
+				e.stopPropagation();
+
 				if (e.key === 'Enter') {
 					e.preventDefault();
-					e.stopPropagation();
 					sendMpChatMessage();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					e.stopPropagation();
+					// ALWAYS close after enter (send or not)
 					closeMpChatInput();
 				}
 			});
 
-			// T key to open chat
+			// Prevent input events from propagating to game
+			mpChatInput.addEventListener('keyup', (e) => {
+				e.stopPropagation();
+			});
+			mpChatInput.addEventListener('keypress', (e) => {
+				e.stopPropagation();
+			});
+
+			// T key to open chat - SUPER SIMPLE
 			document.addEventListener('keydown', (e) => {
 				// Don't open chat if already typing or in other UI
 				if (mpChatOpen || window.terminalOpen || window.customizationOpen) return;
@@ -8250,9 +10269,10 @@
 
 				if (e.key === 't' || e.key === 'T') {
 					e.preventDefault();
+					e.stopPropagation();
 					openMpChatInput();
 				}
-			});
+			}, true); // Use capture phase to catch before other handlers
 
 			// ========================================
 			// MULTIPLAYER PLAYER VIEWER
@@ -11571,72 +13591,7 @@
 				window.debugSpeakerArrow.visible = false;
 				world.graphicsWorld.add(window.debugSpeakerArrow);
 
-				// Create cone visualizations - simpler and more visible
-				// Inner cone (145°)
-				const innerConeAngle = 145 * Math.PI / 180;
-				const innerConeRadius = Math.tan(innerConeAngle / 2) * 15;
-				const innerConeGeometry = new THREE.ConeGeometry(innerConeRadius, 15, 32, 1, false);
-				const innerConeMaterial = new THREE.MeshBasicMaterial({
-					color: 0x00ff00,
-					transparent: true,
-					opacity: 0.2,
-					side: THREE.DoubleSide
-				});
-				window.debugInnerCone = new THREE.Mesh(innerConeGeometry, innerConeMaterial);
-
-				// Outer cone (230°)
-				const outerConeAngle = 230 * Math.PI / 180;
-				const outerConeRadius = Math.tan(outerConeAngle / 2) * 15;
-				const outerConeGeometry = new THREE.ConeGeometry(outerConeRadius, 15, 32, 1, false);
-				const outerConeMaterial = new THREE.MeshBasicMaterial({
-					color: 0xffff00,
-					transparent: true,
-					opacity: 0.15,
-					side: THREE.DoubleSide
-				});
-				window.debugOuterCone = new THREE.Mesh(outerConeGeometry, outerConeMaterial);
-
-				// Back cone (90° to 180° behind - distortion zone)
-				// This is a 180° cone (full hemisphere) pointing backwards
-				const backConeAngle = 180 * Math.PI / 180; // 180° cone for full rear hemisphere
-				const backConeRadius = Math.tan(backConeAngle / 2) * 20; // Massive radius for 180°
-				const backConeGeometry = new THREE.ConeGeometry(backConeRadius, 20, 32, 1, false);
-				const backConeMaterial = new THREE.MeshBasicMaterial({
-					color: 0xff0000,
-					transparent: true,
-					opacity: 0.25,
-					side: THREE.DoubleSide
-				});
-				window.debugBackCone = new THREE.Mesh(backConeGeometry, backConeMaterial);
-
-				// Position and rotate cones - point from speaker position in positive X direction
-				// Cone geometry points down -Y by default, so we rotate to point along +X
-				const coneRotation = new THREE.Euler(-Math.PI / 2, 0, Math.PI / 2, 'XYZ');
-				window.debugInnerCone.rotation.copy(coneRotation);
-				window.debugOuterCone.rotation.copy(coneRotation);
-
-				// Back cone points opposite direction (rotate 180° more on Y)
-				const backConeRotation = new THREE.Euler(-Math.PI / 2, 0, -Math.PI / 2, 'XYZ');
-				window.debugBackCone.rotation.copy(backConeRotation);
-
-				// Position cones at speaker position, offset along direction
-				const coneOffset = new THREE.Vector3(7.5, 0, 0); // Half the cone height along X axis
-				window.debugInnerCone.position.copy(window.speakerPosition).add(coneOffset);
-				window.debugOuterCone.position.copy(window.speakerPosition).add(coneOffset);
-
-				// Back cone offset in opposite direction (longer cone needs bigger offset)
-				const backConeOffset = new THREE.Vector3(-10, 0, 0); // Negative X (backwards)
-				window.debugBackCone.position.copy(window.speakerPosition).add(backConeOffset);
-
-				// Add to scene but hide by default
-				window.debugInnerCone.visible = false;
-				window.debugOuterCone.visible = false;
-				window.debugBackCone.visible = false;
-				world.graphicsWorld.add(window.debugInnerCone);
-				world.graphicsWorld.add(window.debugOuterCone);
-				world.graphicsWorld.add(window.debugBackCone);
-
-				console.log('🔍 Debug speaker cones created (press Q to toggle)');
+				// Debug speaker cone visualization removed - use ` for collision visualization instead
 
 				// Setup materials for shadows and apply saved colors
 				speakers.traverse((child) => {
@@ -12684,73 +14639,7 @@ window.decksMenuOpen = false;
 				}
 			}, 100);
 
-			// Handle ` (backtick) key for debug mode toggle
-			document.addEventListener('keydown', (e) => {
-				if (e.key === '`') {
-					let isVisible = false;
-
-					// Toggle speaker cones
-					if (window.debugInnerCone && window.debugOuterCone && window.debugBackCone) {
-						window.debugInnerCone.visible = !window.debugInnerCone.visible;
-						window.debugOuterCone.visible = !window.debugOuterCone.visible;
-						window.debugBackCone.visible = !window.debugBackCone.visible;
-						isVisible = window.debugInnerCone.visible;
-					}
-
-					// Toggle speaker marker and arrow
-					if (window.debugSpeakerMarker) {
-						window.debugSpeakerMarker.visible = !window.debugSpeakerMarker.visible;
-					}
-					if (window.debugSpeakerArrow) {
-						window.debugSpeakerArrow.visible = !window.debugSpeakerArrow.visible;
-					}
-
-					// Toggle car visualizations
-					if (window.debugCarMarker) {
-						window.debugCarMarker.visible = !window.debugCarMarker.visible;
-					}
-					if (window.debugCarArrow) {
-						window.debugCarArrow.visible = !window.debugCarArrow.visible;
-					}
-					if (window.debugCarFrontCone) {
-						window.debugCarFrontCone.visible = !window.debugCarFrontCone.visible;
-					}
-
-					console.log('🔍 Debug cones:', isVisible ? 'VISIBLE' : 'HIDDEN');
-
-					// Show detailed debug info when toggling on
-					if (isVisible && window.speakerPosition && window.world && window.positionalAudio) {
-						const speakerDir = new THREE.Vector3();
-						window.positionalAudio.getWorldDirection(speakerDir);
-
-						console.log('═══════════════════════════════════');
-						console.log('🔊 SPEAKER DEBUG INFO:');
-						console.log('Speaker Position:', window.speakerPosition);
-						console.log('Speaker Direction:', speakerDir);
-						console.log('Inner Cone: 120° (Green)');
-						console.log('Outer Cone: 230° (Yellow)');
-
-						const camera = window.world.camera;
-						const toListener = new THREE.Vector3().subVectors(camera.position, window.speakerPosition).normalize();
-						const angle = speakerDir.angleTo(toListener) * (180 / Math.PI);
-
-						console.log('═══════════════════════════════════');
-						console.log('📍 YOUR POSITION:');
-						console.log('Camera Position:', camera.position);
-						console.log('Direction from Speaker:', toListener);
-						console.log('Angle from Speaker Front:', angle.toFixed(1) + '°');
-
-						if (angle < 120) {
-							console.log('🟢 STATUS: FRONT of speaker (clear audio)');
-						} else {
-							console.log('🔴 STATUS: BEHIND speaker (muffled + bass boost)');
-							const factor = (angle - 120) / 60;
-							console.log('Muffling Factor:', (factor * 100).toFixed(1) + '%');
-						}
-						console.log('═══════════════════════════════════');
-					}
-				}
-			});
+			// Backtick key (`) handler removed - now handled by collision visualization system above
 
 			// Handle F key press
 			document.addEventListener('keydown', (e) => {

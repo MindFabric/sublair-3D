@@ -116,9 +116,14 @@ export class InputManager implements IUpdatable
 			}
 
 			// Any other click requests pointer lock if not already locked
+			// BUT don't lock if placement cursor is active
 			if (!document.pointerLockElement)
 			{
-				this.domElement.requestPointerLock();
+				const placementActive = (window as any).placementCursorActive;
+				if (!placementActive)
+				{
+					this.domElement.requestPointerLock();
+				}
 			}
 		}
 		else

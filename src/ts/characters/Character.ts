@@ -70,6 +70,13 @@ export class Character extends THREE.Object3D implements IWorldEntity
 	public initJumpSpeed: number = -1;
 	public groundImpactData: GroundImpactData = new GroundImpactData();
 	public raycastBox: THREE.Mesh;
+
+	// Wall jumping
+	public wallRayResult: CANNON.RaycastResult = new CANNON.RaycastResult();
+	public wallRayHasHit: boolean = false;
+	public wallNormal: CANNON.Vec3 = new CANNON.Vec3();
+	public canWallJump: boolean = false;
+	public wallJumpTimer: number = 0; // Buffer time to allow wall jumping after leaving wall
 	
 	public world: World;
 	public charState: ICharacterState;
@@ -838,6 +845,7 @@ export class Character extends THREE.Object3D implements IWorldEntity
 	public physicsPreStep(body: CANNON.Body, character: Character): void
 	{
 		character.feetRaycast();
+		character.wallRaycast();
 
 		// Raycast debug
 		if (character.rayHasHit)
@@ -870,6 +878,99 @@ export class Character extends THREE.Object3D implements IWorldEntity
 		};
 		// Cast the ray
 		this.rayHasHit = this.world.physicsWorld.raycastClosest(start, end, rayCastOptions, this.rayResult);
+	}
+
+	public wallRaycast(): void
+	{
+		// Wall detection for wall jumping - ALWAYS check for walls (even when grounded)
+		let body = this.characterCapsule.body;
+
+		// Longer detection distance when falling to catch walls better
+		const isFalling = !this.rayHasHit && body.velocity.y < 0;
+		const wallCheckDistance = isFalling ? 1.0 : 0.6; // Longer reach when falling
+
+		const raycastOptions = {
+			collisionFilterMask: -1, // Collide with everything (not just Default group)
+			skipBackfaces: true
+		};
+
+		// Check 8 directions around the character for walls
+		const directions = [
+			new CANNON.Vec3(1, 0, 0),    // Right
+			new CANNON.Vec3(-1, 0, 0),   // Left
+			new CANNON.Vec3(0, 0, 1),    // Forward
+			new CANNON.Vec3(0, 0, -1),   // Back
+			new CANNON.Vec3(0.707, 0, 0.707),   // Forward-right
+			new CANNON.Vec3(-0.707, 0, 0.707),  // Forward-left
+			new CANNON.Vec3(0.707, 0, -0.707),  // Back-right
+			new CANNON.Vec3(-0.707, 0, -0.707)  // Back-left
+		];
+
+		// Check at multiple heights (center and slightly above/below)
+		const heightOffsets = [0, 0.2, -0.2];
+
+		this.wallRayHasHit = false;
+
+		for (const heightOffset of heightOffsets)
+		{
+			for (const dir of directions)
+			{
+				const start = new CANNON.Vec3(body.position.x, body.position.y + heightOffset, body.position.z);
+				const end = new CANNON.Vec3(
+					body.position.x + dir.x * wallCheckDistance,
+					body.position.y + heightOffset,
+					body.position.z + dir.z * wallCheckDistance
+				);
+
+				const tempResult = new CANNON.RaycastResult();
+				const hit = this.world.physicsWorld.raycastClosest(start, end, raycastOptions, tempResult);
+
+				if (hit)
+				{
+					// Check if this is actually a wall (not the ground or ceiling)
+					// Wall normals should be mostly horizontal (Y component close to 0)
+					const normalY = tempResult.hitNormalWorld.y;
+					const isWall = Math.abs(normalY) < 0.7; // Relaxed threshold to catch more walls
+
+					if (isWall)
+					{
+						// Found a valid wall!
+						this.wallRayHasHit = true;
+						this.wallRayResult = tempResult;
+
+						// Store the wall normal (direction away from wall)
+						this.wallNormal.copy(tempResult.hitNormalWorld);
+
+						// Reset the wall jump timer when touching wall
+						this.wallJumpTimer = 0.2; // 0.2 second buffer
+
+						console.log('🧱 Wall detected! velocity.y:', body.velocity.y.toFixed(2), 'grounded:', this.rayHasHit, 'normal:', this.wallNormal.x.toFixed(2), this.wallNormal.y.toFixed(2), this.wallNormal.z.toFixed(2), 'distance:', tempResult.distance.toFixed(2));
+
+						// DON'T return here - we need to set canWallJump below!
+						break; // Exit the directions loop
+					}
+				}
+			}
+
+			// If we found a wall, exit the height offsets loop too
+			if (this.wallRayHasHit) {
+				break;
+			}
+		}
+
+		// Decrease timer if not currently touching a wall
+		if (!this.wallRayHasHit && this.wallJumpTimer > 0)
+		{
+			this.wallJumpTimer -= 1.0 / 60.0; // Decrease by one frame at 60fps
+		}
+
+		// Can wall jump if: (1) touching wall OR (2) recently touched wall (buffer)
+		// AND must be in air (no restriction on velocity direction - can jump while going up OR down)
+		this.canWallJump = (this.wallRayHasHit || this.wallJumpTimer > 0) && !this.rayHasHit;
+
+		if (this.wallRayHasHit || this.wallJumpTimer > 0) {
+			console.log('💡 Wall jump check: wallRayHasHit:', this.wallRayHasHit, 'timer:', this.wallJumpTimer.toFixed(3), 'rayHasHit:', this.rayHasHit, 'canWallJump:', this.canWallJump);
+		}
 	}
 
 	public physicsPostStep(body: CANNON.Body, character: Character): void
@@ -955,27 +1056,65 @@ export class Character extends THREE.Object3D implements IWorldEntity
 		// Jumping
 		if (character.wantsToJump)
 		{
-			// If initJumpSpeed is set
-			if (character.initJumpSpeed > -1)
-			{
-				// Flatten velocity
-				body.velocity.y = 0;
-				let speed = Math.max(character.velocitySimulator.position.length() * 4, character.initJumpSpeed);
-				body.velocity = Utils.cannonVector(character.orientation.clone().multiplyScalar(speed));
-			}
-			else {
-				// Moving objects compensation
-				let add = new CANNON.Vec3();
-				character.rayResult.body.getVelocityAtWorldPoint(character.rayResult.hitPointWorld, add);
-				body.velocity.vsub(add, body.velocity);
-			}
+			// Check if we can jump (either grounded OR touching a wall)
+			const canJump = character.rayHasHit || character.canWallJump;
 
-			// Add positive vertical velocity 
-			body.velocity.y += 4;
-			// Move above ground by 2x safe offset value
-			body.position.y += character.raySafeOffset * 2;
-			// Reset flag
-			character.wantsToJump = false;
+			console.log('⌨️ Space pressed! rayHasHit:', character.rayHasHit, 'canWallJump:', character.canWallJump, 'canJump:', canJump);
+
+			if (canJump)
+			{
+				// Wall jump logic - prioritize wall jump when touching wall
+				if (character.canWallJump)
+				{
+					console.log('🚀 WALL JUMP! normal:', character.wallNormal.x.toFixed(2), character.wallNormal.y.toFixed(2), character.wallNormal.z.toFixed(2), 'timer:', character.wallJumpTimer.toFixed(2));
+
+					// Wall jump - mostly vertical, minimal horizontal push
+					const wallJumpForce = 0.5; // Minimal horizontal push (stay close to wall)
+					const wallJumpHeight = 4.0; // Vertical jump (same as normal jump)
+
+					// Keep most of current horizontal velocity to maintain direction toward wall
+					// Only add a tiny push away from wall to prevent clipping
+					body.velocity.x = body.velocity.x * 0.8 + character.wallNormal.x * wallJumpForce;
+					body.velocity.z = body.velocity.z * 0.8 + character.wallNormal.z * wallJumpForce;
+
+					// Apply vertical velocity (strong upward push for climbing)
+					body.velocity.y = wallJumpHeight;
+
+					// Reset flag and consume timer
+					character.wantsToJump = false;
+					character.wallJumpTimer = 0; // Consume buffer on jump
+				}
+				// Normal ground jump logic
+				else if (character.rayHasHit)
+				{
+					// If initJumpSpeed is set
+					if (character.initJumpSpeed > -1)
+					{
+						// Flatten velocity
+						body.velocity.y = 0;
+						let speed = Math.max(character.velocitySimulator.position.length() * 4, character.initJumpSpeed);
+						body.velocity = Utils.cannonVector(character.orientation.clone().multiplyScalar(speed));
+					}
+					else {
+						// Moving objects compensation
+						let add = new CANNON.Vec3();
+						character.rayResult.body.getVelocityAtWorldPoint(character.rayResult.hitPointWorld, add);
+						body.velocity.vsub(add, body.velocity);
+					}
+
+					// Add positive vertical velocity
+					body.velocity.y += 4;
+					// Move above ground by 2x safe offset value
+					body.position.y += character.raySafeOffset * 2;
+					// Reset flag
+					character.wantsToJump = false;
+				}
+			}
+			else
+			{
+				// Can't jump - reset flag
+				character.wantsToJump = false;
+			}
 		}
 	}
 

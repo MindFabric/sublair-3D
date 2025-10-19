@@ -8527,7 +8527,7 @@
 			// Auto-detect WebSocket URL based on environment
 			const WS_URL = window.location.hostname === 'localhost'
 				? 'ws://localhost:3000'
-				: `wss://${window.location.host}`; // Use same host for Railway deployment
+				: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
 			// Check URL for session code on load
 			if (isSpectatorMode) {

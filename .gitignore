@@ -3,3 +3,6 @@ node_modules
 .env
 .env.local
 .env.*.local
+
+# SSL certificates (contains private keys)
+ssl/

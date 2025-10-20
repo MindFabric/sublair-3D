@@ -100,12 +100,87 @@ Textures generated using Canvas API with adjustable density parameter:
 - Textures support scale and rotation transformations
 - Applied to character materials via Three.js CanvasTexture
 
+## Settings Menu System
+
+### Features Implemented
+- **Comprehensive settings interface**
+  - Two tabbed sections: Controls, Audio
+  - Clean, modern UI matching app aesthetic (#bee17b accent color)
+  - Smooth animations and transitions
+  - Modal overlay with backdrop blur
+
+### Controls Tab
+- **Key Bindings Display**
+  - Visual reference for all game controls
+  - Keyboard shortcuts listed (WASD, Space, Shift, C, P, F)
+  - Clean key badge styling
+
+### Audio Tab
+- **Volume Controls**
+  - Master Volume slider (0-100%)
+  - Music Volume slider (0-100%)
+  - Sound Effects Volume slider (0-100%)
+  - Mute Audio toggle
+  - All sliders with live value feedback
+
+### Controls
+- **P key** - Toggle settings menu
+- **ESC key** - Close settings menu
+- **X button** - Top-right close button
+- **Reset button** - Restore all defaults with confirmation
+
+### Opening Behavior
+1. Check for conflicts with other open menus (customization, terminal, radio)
+2. Don't open if typing in input fields
+3. Disable WASD controls via dummy input receiver
+4. Exit pointer lock to enable mouse cursor
+5. Show settings menu with fade-in animation
+6. Set `window.settingsOpen = true`
+
+### Closing Behavior
+1. Hide menu with fade-out animation
+2. Re-enable character controls via `character.takeControl()`
+3. Request pointer lock for game camera
+4. Save all settings to localStorage
+5. Set `window.settingsOpen = false`
+
+### localStorage Persistence
+- **Storage Key**: `sublairSettings`
+- **Default Settings**:
+  ```javascript
+  {
+    masterVolume: 80,
+    musicVolume: 70,
+    sfxVolume: 100,
+    muteAudio: false
+  }
+  ```
+- Settings automatically loaded on page load
+- Settings saved when menu closes
+- Reset button clears localStorage and reloads page
+
+### Technical Implementation
+- **Self-contained IIFE** for encapsulation
+- **Dynamic CSS injection** via `<style>` element
+- **Dynamic HTML creation** via `createElement` and `innerHTML`
+- **Event delegation** for tab switching
+- **Modular setup functions** for sliders and toggles
+- **Global exposure**: `window.openSettings()`, `window.closeSettings()`, `window.currentSettings`
+
+### Integration with Existing Systems
+- Respects `window.customizationOpen`, `window.terminalOpen`, `window.radioOpen`
+- Uses shared `window.dummyInputReceiver` pattern
+- Compatible with existing pointer lock management
+- Hooks for future audio system integration (marked with TODO comments)
+
 ## Global State Variables
 - `character` - Character reference
 - `customizationOpen` - Boolean flag for customization menu state
 - `terminalOpen` - Boolean flag for terminal menu state
+- `settingsOpen` - Boolean flag for settings menu state
 - `isOpeningCustomization` - Flag to prevent double-opening during deceleration
 - `dummyInputReceiver` - Shared input receiver for disabling controls
+- `currentSettings` - Current settings object (synced with localStorage)
 
 ## File Modified
-- `simple-car.html` - Main game file with all customization and terminal systems
+- `index.html` - Main game file with all customization, terminal, and settings systems

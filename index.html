@@ -5361,158 +5361,168 @@
 					}
 				});
 
-				window.car = car = new Sketchbook.Car(carModel);
-				car.setPosition(0, 2, 0);
+				// Save car model globally for creating other players' cars later
+				window.carModel = carModel;
 
-				// Create spawn point for the car (required by physics system)
-				car.spawnPoint = new THREE.Object3D();
-				car.spawnPoint.position.set(0, 2, 0);
-				world.graphicsWorld.add(car.spawnPoint);
+				// CAR REMOVED FROM AUTO-LOADING - Cars will be spawned dynamically via multiplayer or placement system
+				console.log('🚗 Car model loaded but NOT spawned automatically');
 
-				world.add(car);
+				// // Each player gets their own car
+				// // Host car at (0, 2, 0), spectators offset to the side
+				// const carSpawnX = isSpectatorMode ? 5 : 0; // Spectators spawn 5 units to the right
 
-				// Apply host customization to car if spectator and customization already received
-				if (isSpectatorMode && window.hostCustomization) {
-					const c = window.hostCustomization;
-					car.traverse((child) => {
-						if (child.isMesh && child.material) {
-							const matName = child.material.name;
-							if (matName === 'DOOR' || matName.toLowerCase().includes('door')) {
-								child.material.color.set(c.carDoorColor);
-							} else if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
-								child.material.color.set(c.carFrameColor);
-							} else if (matName === 'HEADLIGHTS' || matName.toLowerCase().includes('headlight')) {
-								child.material.color.set(c.carHeadlightsColor);
-							} else if (matName === 'HOOD' || matName.toLowerCase().includes('hood')) {
-								child.material.color.set(c.carHoodColor);
-							} else if (matName === 'INTERIOR' || matName.toLowerCase().includes('interior')) {
-								child.material.color.set(c.carInteriorColor);
-							} else if (matName === 'RIM' || matName.toLowerCase().includes('rim')) {
-								child.material.color.set(c.carRimColor);
-							} else if (matName === 'STEERING' || matName.toLowerCase().includes('steering')) {
-								child.material.color.set(c.carSteeringColor);
-							} else if (matName === 'TAILLIGHTS' || matName.toLowerCase().includes('taillight')) {
-								child.material.color.set(c.carTaillightsColor);
-							} else if (matName === 'TIRE' || matName.toLowerCase().includes('tire')) {
-								child.material.color.set(c.carTireColor);
-							} else if (matName === 'TRIM' || (matName.toLowerCase().includes('trim') && !matName.toLowerCase().includes('speaker'))) {
-								child.material.color.set(c.carTrimColor);
-							}
-							child.material.needsUpdate = true;
-						}
-					});
-					console.log('🎨 Applied host car customization on load');
-				}
+				// window.car = car = new Sketchbook.Car(carModel);
+				// car.setPosition(carSpawnX, 2, 0);
 
-				// Create spatial audio for the car
-				const listener = new THREE.AudioListener();
-				world.camera.add(listener);
+				// // Create spawn point for the car (required by physics system)
+				// car.spawnPoint = new THREE.Object3D();
+				// car.spawnPoint.position.set(carSpawnX, 2, 0);
+				// world.graphicsWorld.add(car.spawnPoint);
 
-				window.carPositionalAudio = new THREE.PositionalAudio(listener);
-				window.carPositionalAudio.setRefDistance(2); // Audible from 2 units away
-				window.carPositionalAudio.setMaxDistance(8); // Max audible distance
-				window.carPositionalAudio.setRolloffFactor(2); // Faster falloff
-				window.carPositionalAudio.setDistanceModel('exponential'); // More realistic distance model
+				// world.add(car);
+				// console.log(`🚗 ${isSpectatorMode ? 'Spectator' : 'Host'} car spawned at (${carSpawnX}, 2, 0)`);
 
-				// Create car-specific EQ (like actual car speakers)
-				const audioContext = window.carPositionalAudio.context;
+				// // Apply host customization to car if spectator and customization already received
+				// if (isSpectatorMode && window.hostCustomization) {
+				// 	const c = window.hostCustomization;
+				// 		if (child.isMesh && child.material) {
+				// 			const matName = child.material.name;
+				// 			if (matName === 'DOOR' || matName.toLowerCase().includes('door')) {
+				// 				child.material.color.set(c.carDoorColor);
+				// 			} else if (matName === 'FRAME' || matName.toLowerCase().includes('frame')) {
+				// 				child.material.color.set(c.carFrameColor);
+				// 			} else if (matName === 'HEADLIGHTS' || matName.toLowerCase().includes('headlight')) {
+				// 				child.material.color.set(c.carHeadlightsColor);
+				// 			} else if (matName === 'HOOD' || matName.toLowerCase().includes('hood')) {
+				// 				child.material.color.set(c.carHoodColor);
+				// 			} else if (matName === 'INTERIOR' || matName.toLowerCase().includes('interior')) {
+				// 				child.material.color.set(c.carInteriorColor);
+				// 			} else if (matName === 'RIM' || matName.toLowerCase().includes('rim')) {
+				// 				child.material.color.set(c.carRimColor);
+				// 			} else if (matName === 'STEERING' || matName.toLowerCase().includes('steering')) {
+				// 				child.material.color.set(c.carSteeringColor);
+				// 			} else if (matName === 'TAILLIGHTS' || matName.toLowerCase().includes('taillight')) {
+				// 				child.material.color.set(c.carTaillightsColor);
+				// 			} else if (matName === 'TIRE' || matName.toLowerCase().includes('tire')) {
+				// 				child.material.color.set(c.carTireColor);
+				// 			} else if (matName === 'TRIM' || (matName.toLowerCase().includes('trim') && !matName.toLowerCase().includes('speaker'))) {
+				// 				child.material.color.set(c.carTrimColor);
+				// 			}
+				// 			child.material.needsUpdate = true;
+				// 		}
+				// 	});
+				// 	console.log('🎨 Applied host car customization on load');
+				// }
 
-				// Bass boost (typical car subwoofer)
-				window.carEQ = {
-					bass: audioContext.createBiquadFilter(),
-					lowMid: audioContext.createBiquadFilter(),
-					highMid: audioContext.createBiquadFilter(),
-					treble: audioContext.createBiquadFilter(),
-					outsideLowpass: audioContext.createBiquadFilter() // Muffle when outside car
-				};
+				// // Create spatial audio for the car
+				// const listener = new THREE.AudioListener();
+				// world.camera.add(listener);
 
-				// Bass boost at 80Hz (car subwoofer range)
-				window.carEQ.bass.type = 'lowshelf';
-				window.carEQ.bass.frequency.value = 80;
-				window.carEQ.bass.gain.value = 6; // +6dB bass boost
+				// window.carPositionalAudio = new THREE.PositionalAudio(listener);
+				// window.carPositionalAudio.setRefDistance(2); // Audible from 2 units away
+				// window.carPositionalAudio.setMaxDistance(8); // Max audible distance
+				// window.carPositionalAudio.setRolloffFactor(2); // Faster falloff
+				// window.carPositionalAudio.setDistanceModel('exponential'); // More realistic distance model
 
-				// Cut low-mids at 250Hz (reduce muddiness)
-				window.carEQ.lowMid.type = 'peaking';
-				window.carEQ.lowMid.frequency.value = 250;
-				window.carEQ.lowMid.Q.value = 1;
-				window.carEQ.lowMid.gain.value = -3; // -3dB cut
+				// // Create car-specific EQ (like actual car speakers)
+				// const audioContext = window.carPositionalAudio.context;
 
-				// Cut high-mids at 2kHz (reduce harshness)
-				window.carEQ.highMid.type = 'peaking';
-				window.carEQ.highMid.frequency.value = 2000;
-				window.carEQ.highMid.Q.value = 1;
-				window.carEQ.highMid.gain.value = -2; // -2dB cut
+				// // Bass boost (typical car subwoofer)
+				// window.carEQ = {
+				// 	bass: audioContext.createBiquadFilter(),
+				// 	lowMid: audioContext.createBiquadFilter(),
+				// 	highMid: audioContext.createBiquadFilter(),
+				// 	treble: audioContext.createBiquadFilter(),
+				// 	outsideLowpass: audioContext.createBiquadFilter() // Muffle when outside car
+				// };
 
-				// Roll off highs at 8kHz (car speakers don't have great treble)
-				window.carEQ.treble.type = 'highshelf';
-				window.carEQ.treble.frequency.value = 8000;
-				window.carEQ.treble.gain.value = -4; // -4dB rolloff
+				// // Bass boost at 80Hz (car subwoofer range)
+				// window.carEQ.bass.type = 'lowshelf';
+				// window.carEQ.bass.frequency.value = 80;
+				// window.carEQ.bass.gain.value = 6; // +6dB bass boost
 
-				// Lowpass for when outside car (starts muffled)
-				window.carEQ.outsideLowpass.type = 'lowpass';
-				window.carEQ.outsideLowpass.frequency.value = 800; // Muffled when outside
-				window.carEQ.outsideLowpass.Q.value = 1;
+				// // Cut low-mids at 250Hz (reduce muddiness)
+				// window.carEQ.lowMid.type = 'peaking';
+				// window.carEQ.lowMid.frequency.value = 250;
+				// window.carEQ.lowMid.Q.value = 1;
+				// window.carEQ.lowMid.gain.value = -3; // -3dB cut
 
-				// Add the positional audio to the car
-				car.add(window.carPositionalAudio);
+				// // Cut high-mids at 2kHz (reduce harshness)
+				// window.carEQ.highMid.type = 'peaking';
+				// window.carEQ.highMid.frequency.value = 2000;
+				// window.carEQ.highMid.Q.value = 1;
+				// window.carEQ.highMid.gain.value = -2; // -2dB cut
 
-				// Store car audio position globally
-				window.carAudioPosition = new THREE.Vector3();
-				window.carPositionalAudio.getWorldPosition(window.carAudioPosition);
+				// // Roll off highs at 8kHz (car speakers don't have great treble)
+				// window.carEQ.treble.type = 'highshelf';
+				// window.carEQ.treble.frequency.value = 8000;
+				// window.carEQ.treble.gain.value = -4; // -4dB rolloff
 
-				// Create debug visualization for car audio position
-				const carMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-				const carMarkerMaterial = new THREE.MeshBasicMaterial({
-					color: 0xff00ff, // Magenta for car
-					transparent: true,
-					opacity: 0.8
-				});
-				window.debugCarMarker = new THREE.Mesh(carMarkerGeometry, carMarkerMaterial);
-				window.debugCarMarker.position.copy(car.position);
-				window.debugCarMarker.visible = false;
-				world.graphicsWorld.add(window.debugCarMarker);
+				// // Lowpass for when outside car (starts muffled)
+				// window.carEQ.outsideLowpass.type = 'lowpass';
+				// window.carEQ.outsideLowpass.frequency.value = 800; // Muffled when outside
+				// window.carEQ.outsideLowpass.Q.value = 1;
 
-				// Create arrow showing car audio direction
-				const carInitialDir = new THREE.Vector3();
-				window.carPositionalAudio.getWorldDirection(carInitialDir);
-				const carArrowHelper = new THREE.ArrowHelper(
-					carInitialDir,
-					car.position,
-					3, // length
-					0xff00ff, // magenta
-					0.5, // headLength
-					0.3 // headWidth
-				);
-				window.debugCarArrow = carArrowHelper;
-				window.debugCarArrow.visible = false;
-				world.graphicsWorld.add(window.debugCarArrow);
+				// // Add the positional audio to the car
+				// car.add(window.carPositionalAudio);
 
-				// Create cone visualization for car (just front green cone)
-				// Front cone (145°)
-				const carFrontConeAngle = 145 * Math.PI / 180;
-				const carFrontConeRadius = Math.tan(carFrontConeAngle / 2) * 10;
-				const carFrontConeGeometry = new THREE.ConeGeometry(carFrontConeRadius, 10, 32, 1, false);
-				const carFrontConeMaterial = new THREE.MeshBasicMaterial({
-					color: 0x00ff00,
-					transparent: true,
-					opacity: 0.2,
-					side: THREE.DoubleSide
-				});
-				window.debugCarFrontCone = new THREE.Mesh(carFrontConeGeometry, carFrontConeMaterial);
+				// // Store car audio position globally
+				// window.carAudioPosition = new THREE.Vector3();
+				// window.carPositionalAudio.getWorldPosition(window.carAudioPosition);
 
-				// Position and rotate cone - car faces forward (positive Z)
-				const carFrontConeRotation = new THREE.Euler(-Math.PI / 2, 0, 0, 'XYZ');
-				window.debugCarFrontCone.rotation.copy(carFrontConeRotation);
+				// // Create debug visualization for car audio position
+				// const carMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+				// const carMarkerMaterial = new THREE.MeshBasicMaterial({
+				// 	color: 0xff00ff, // Magenta for car
+				// 	transparent: true,
+				// 	opacity: 0.8
+				// });
+				// window.debugCarMarker = new THREE.Mesh(carMarkerGeometry, carMarkerMaterial);
+				// window.debugCarMarker.position.copy(car.position);
+				// window.debugCarMarker.visible = false;
+				// world.graphicsWorld.add(window.debugCarMarker);
 
-				// Position cone at car position
-				const carFrontOffset = new THREE.Vector3(0, 0, 5);
-				window.debugCarFrontCone.position.copy(car.position).add(carFrontOffset);
+				// // Create arrow showing car audio direction
+				// const carInitialDir = new THREE.Vector3();
+				// window.carPositionalAudio.getWorldDirection(carInitialDir);
+				// const carArrowHelper = new THREE.ArrowHelper(
+				// 	carInitialDir,
+				// 	car.position,
+				// 	3, // length
+				// 	0xff00ff, // magenta
+				// 	0.5, // headLength
+				// 	0.3 // headWidth
+				// );
+				// window.debugCarArrow = carArrowHelper;
+				// window.debugCarArrow.visible = false;
+				// world.graphicsWorld.add(window.debugCarArrow);
 
-				// Add to scene but hide by default
-				window.debugCarFrontCone.visible = false;
-				world.graphicsWorld.add(window.debugCarFrontCone);
+				// // Create cone visualization for car (just front green cone)
+				// // Front cone (145°)
+				// const carFrontConeAngle = 145 * Math.PI / 180;
+				// const carFrontConeRadius = Math.tan(carFrontConeAngle / 2) * 10;
+				// const carFrontConeGeometry = new THREE.ConeGeometry(carFrontConeRadius, 10, 32, 1, false);
+				// const carFrontConeMaterial = new THREE.MeshBasicMaterial({
+				// 	color: 0x00ff00,
+				// 	transparent: true,
+				// 	opacity: 0.2,
+				// 	side: THREE.DoubleSide
+				// });
+				// window.debugCarFrontCone = new THREE.Mesh(carFrontConeGeometry, carFrontConeMaterial);
 
-				console.log('🚗 Car spatial audio system created with car EQ + debug visualizations');
+				// // Position and rotate cone - car faces forward (positive Z)
+				// const carFrontConeRotation = new THREE.Euler(-Math.PI / 2, 0, 0, 'XYZ');
+				// window.debugCarFrontCone.rotation.copy(carFrontConeRotation);
+
+				// // Position cone at car position
+				// const carFrontOffset = new THREE.Vector3(0, 0, 5);
+				// window.debugCarFrontCone.position.copy(car.position).add(carFrontOffset);
+
+				// // Add to scene but hide by default
+				// window.debugCarFrontCone.visible = false;
+				// world.graphicsWorld.add(window.debugCarFrontCone);
+
+				// console.log('🚗 Car spatial audio system created with car EQ + debug visualizations');
 			});
 
 			window.character = null; // Store character reference globally
@@ -5580,6 +5590,14 @@
 							}
 						});
 					}
+
+					// Setup CSM lighting for character materials
+					charModel.scene.traverse((child) => {
+						if (child.isMesh && child.material && world && world.sky && world.sky.csm) {
+							world.sky.csm.setupMaterial(child.material);
+						}
+					});
+					console.log('✅ Character materials set up with CSM lighting');
 
 					// Create Sketchbook.Character instance with full physics and animations
 					window.character = character = new Sketchbook.Character(charModel);
@@ -8754,17 +8772,25 @@
 
 							// Generate share URL
 							const shareUrl = `${window.location.origin}${window.location.pathname}?session=${data.sessionCode}`;
-							document.getElementById('share-url').value = shareUrl;
+							const shareUrlInput = document.getElementById('share-url');
+							if (shareUrlInput) {
+								shareUrlInput.value = shareUrl;
+							}
 
-							document.getElementById('session-code-display').style.display = 'block';
-							document.getElementById('host-session-btn').style.display = 'none';
+							// Hide host button after hosting starts
+							const hostBtn = document.getElementById('host-session-btn');
+							if (hostBtn) {
+								hostBtn.style.display = 'none';
+							}
 							console.log(`✅ Session created: ${data.sessionCode}`);
 							console.log(`🔗 Share URL: ${shareUrl}`);
 
 							// Show portal when hosting
 							if (window.portal) {
 								window.portal.visible = true;
-								console.log('🌀 Portal activated for multiplayer session');
+								console.log('🌀 Portal activated for multiplayer session at position:', window.portal.position);
+							} else {
+								console.warn('⚠️ Portal not loaded yet - cannot show it');
 							}
 
 							// Show multiplayer chat
@@ -8809,7 +8835,9 @@
 							// Show portal for spectators
 							if (window.portal) {
 								window.portal.visible = true;
-								console.log('🌀 Portal visible for spectator');
+								console.log('🌀 Portal visible for spectator at position:', window.portal.position);
+							} else {
+								console.warn('⚠️ Portal not loaded yet for spectator - cannot show it');
 							}
 
 							if (isSpectatorMode) {
@@ -9195,6 +9223,14 @@
 											}
 										}
 
+										// Setup CSM lighting for host character materials
+										charModel.scene.traverse((child) => {
+											if (child.isMesh && child.material && world && world.sky && world.sky.csm) {
+												world.sky.csm.setupMaterial(child.material);
+											}
+										});
+										console.log('✅ Host character materials set up with CSM lighting');
+
 										// Create container hierarchy to match Character class structure
 										window.hostCharacterContainer = new THREE.Group(); // Main container at physics position
 										window.hostCharacterTilt = new THREE.Group();      // Tilt container
@@ -9309,25 +9345,63 @@
 								// Set target to latest for immediate use
 								window.hostCharacterTarget = newUpdate;
 
-								// Apply car position/rotation if available
-								if (data.car && window.car && window.car.collision) {
-									const carPos = data.car.position;
-									const carRot = data.car.rotation;
+								// Apply host's car position/rotation
+								if (data.car && isSpectatorMode && window.carModel) {
+									// Initialize playerCars if it doesn't exist
+									if (!window.playerCars) {
+										window.playerCars = {};
+									}
 
-									// Apply position directly to physics body
-									window.car.collision.position.set(carPos.x, carPos.y, carPos.z);
+									// Create car for host if it doesn't exist
+									if (!window.playerCars['host']) {
+										console.log('🚗 SPEC Creating car for host at position:', data.car.position);
 
-									// Apply rotation directly to physics body
-									window.car.collision.quaternion.set(carRot.x, carRot.y, carRot.z, carRot.w);
+										// Clone the car model to avoid sharing meshes/objects
+										const clonedCarModel = {
+											scene: window.carModel.scene.clone(true), // Deep clone
+											animations: window.carModel.animations
+										};
 
-									// Sync visual representation with physics
-									window.car.position.copy(window.car.collision.position);
-									window.car.quaternion.copy(window.car.collision.quaternion);
+										const hostCar = new Sketchbook.Car(clonedCarModel);
+										hostCar.setPosition(data.car.position.x, data.car.position.y, data.car.position.z);
+										world.add(hostCar);
+										window.playerCars['host'] = hostCar;
+										console.log('✅ SPEC created host car, playerCars:', Object.keys(window.playerCars));
+									}
+
+									// Update host's car position (ALWAYS update, not just when character is in it!)
+									const hostCar = window.playerCars['host'];
+									if (hostCar) {
+										const carPos = data.car.position;
+										const carRot = data.car.rotation;
+
+										// Debug logging
+										if (Math.random() < 0.02) { // 2% of updates
+											console.log('📥 SPEC updating host car:', {
+												pos: `(${carPos.x.toFixed(1)}, ${carPos.y.toFixed(1)}, ${carPos.z.toFixed(1)})`,
+												inVehicle: data.car.characterInVehicle
+											});
+										}
+
+										// Update physics body
+										if (hostCar.collision) {
+											hostCar.collision.position.set(carPos.x, carPos.y, carPos.z);
+											hostCar.collision.quaternion.set(carRot.x, carRot.y, carRot.z, carRot.w);
+											hostCar.collision.velocity.set(0, 0, 0);
+											hostCar.collision.angularVelocity.set(0, 0, 0);
+										}
+
+										// Update visual
+										hostCar.position.set(carPos.x, carPos.y, carPos.z);
+										hostCar.quaternion.set(carRot.x, carRot.y, carRot.z, carRot.w);
+									}
 
 									// Hide/show host character based on whether they're in the vehicle
 									if (window.hostCharacterContainer) {
 										window.hostCharacterContainer.visible = !data.car.characterInVehicle;
 									}
+								} else if (!data.car && isSpectatorMode && Math.random() < 0.01) {
+									console.warn('⚠️ SPEC: Host car data missing!');
 								}
 							}
 							break;
@@ -9350,6 +9424,11 @@
 								// Create target state map for smooth interpolation
 								if (!window.spectatorCharacterTargets) {
 									window.spectatorCharacterTargets = {};
+								}
+
+								// Create player cars map if it doesn't exist
+								if (!window.playerCars) {
+									window.playerCars = {}; // Stores other players' cars {playerId: carObject}
 								}
 
 								// Create animation mixers map
@@ -9481,6 +9560,14 @@
 											});
 										}
 
+										// Setup CSM lighting for spectator character materials
+										characterScene.traverse((child) => {
+											if (child.isMesh && child.material && world && world.sky && world.sky.csm) {
+												world.sky.csm.setupMaterial(child.material);
+											}
+										});
+										console.log('✅ Spectator character materials set up with CSM lighting:', playerId);
+
 										// Create name tag sprite for spectator (use real username if available)
 										const spectatorUsername = data.customization?.username || 'Spectator ' + playerId.slice(-4);
 										const nameTagSprite = window.createNameTagSprite(spectatorUsername);
@@ -9579,13 +9666,76 @@
 									}
 								}
 
+								// Create/update spectator's car
+								if (data.car && window.carModel) {
+									// Initialize playerCars if it doesn't exist
+									if (!window.playerCars) {
+										window.playerCars = {};
+									}
+
+									// Create car for this spectator if it doesn't exist
+									if (!window.playerCars[playerId]) {
+										console.log('🚗 HOST Creating car for spectator:', playerId, 'at position:', data.car.position);
+
+										// Clone the car model to avoid sharing meshes/objects
+										const clonedCarModel = {
+											scene: window.carModel.scene.clone(true), // Deep clone
+											animations: window.carModel.animations
+										};
+
+										const spectatorCar = new Sketchbook.Car(clonedCarModel);
+										spectatorCar.setPosition(data.car.position.x, data.car.position.y, data.car.position.z);
+										world.add(spectatorCar);
+										window.playerCars[playerId] = spectatorCar;
+										console.log('✅ HOST created spectator car, playerCars:', Object.keys(window.playerCars));
+									}
+
+									// Update spectator's car position (ALWAYS update, not just when character is in it!)
+									const spectatorCar = window.playerCars[playerId];
+									if (spectatorCar) {
+										const carPos = data.car.position;
+										const carRot = data.car.rotation;
+
+										// Debug logging
+										if (Math.random() < 0.02) { // 2% of updates
+											console.log('📥 HOST updating spectator car:', playerId, {
+												pos: `(${carPos.x.toFixed(1)}, ${carPos.y.toFixed(1)}, ${carPos.z.toFixed(1)})`,
+												inVehicle: data.car.characterInVehicle
+											});
+										}
+
+										// Update physics body
+										if (spectatorCar.collision) {
+											spectatorCar.collision.position.set(carPos.x, carPos.y, carPos.z);
+											spectatorCar.collision.quaternion.set(carRot.x, carRot.y, carRot.z, carRot.w);
+											spectatorCar.collision.velocity.set(0, 0, 0);
+											spectatorCar.collision.angularVelocity.set(0, 0, 0);
+										}
+
+										// Update visual
+										spectatorCar.position.set(carPos.x, carPos.y, carPos.z);
+										spectatorCar.quaternion.set(carRot.x, carRot.y, carRot.z, carRot.w);
+									}
+								} else if (!data.car && Math.random() < 0.01) {
+									console.warn('⚠️ HOST: Spectator car data missing!', playerId);
+								}
+
+								// Hide/show spectator character based on whether they're in the vehicle
+								if (typeof data.characterInVehicle !== 'undefined') {
+									const spectatorContainer = window.spectatorCharacters[playerId];
+									if (spectatorContainer) {
+										spectatorContainer.visible = !data.characterInVehicle;
+									}
+								}
+
 								// Debug logging (occasional) - show position too
 								if (Math.random() < 0.01) { // 1% of updates
 									console.log('📥 HOST received spectator update:', playerId, {
 										anim: data.animationState,
 										pos: `(${data.position.x.toFixed(1)}, ${data.position.y.toFixed(1)}, ${data.position.z.toFixed(1)})`,
 										hasCustomization: !!data.customization,
-										username: data.customization?.username
+										username: data.customization?.username,
+										hasCar: !!data.car
 									});
 								}
 							}
@@ -10496,15 +10646,28 @@
 
 				isHosting = false;
 				currentSessionCode = null;
-				document.getElementById('session-code-display').style.display = 'none';
-				document.getElementById('host-session-btn').style.display = 'block';
-				document.getElementById('generated-code').textContent = '------';
+
+				// Reset UI elements if they exist
+				const hostBtn = document.getElementById('host-session-btn');
+				if (hostBtn) {
+					hostBtn.style.display = 'block';
+				}
+				const generatedCode = document.getElementById('generated-code');
+				if (generatedCode) {
+					generatedCode.textContent = '------';
+				}
 
 				// Re-enable join section
-				document.getElementById('session-code').disabled = false;
-				document.getElementById('join-session-btn').disabled = false;
-				document.getElementById('join-session-btn').style.opacity = '1';
-				document.getElementById('session-code').style.opacity = '1';
+				const sessionCodeInput = document.getElementById('session-code');
+				if (sessionCodeInput) {
+					sessionCodeInput.disabled = false;
+					sessionCodeInput.style.opacity = '1';
+				}
+				const joinBtn = document.getElementById('join-session-btn');
+				if (joinBtn) {
+					joinBtn.disabled = false;
+					joinBtn.style.opacity = '1';
+				}
 
 				// Hide portal when disconnecting
 				if (window.portal) {
@@ -10894,15 +11057,19 @@
 						let savedCustomization = localStorage.getItem('characterCustomization');
 						let customizationData = savedCustomization ? JSON.parse(savedCustomization) : {};
 
+						// Add username and photoURL to customization data
+						customizationData.username = window.authState?.user?.username ||
+						                             window.authState?.user?.displayName ||
+						                             window.authState?.email?.split('@')[0] ||
+						                             'Host Player';
+						customizationData.photoURL = window.authState?.user?.photoURL || null;
+
 						multiplayerWs.send(JSON.stringify({
 							type: 'host',
 							playerData: {
-								username: window.authState?.user?.username ||
-								         window.authState?.user?.displayName ||
-								         window.authState?.email?.split('@')[0] ||
-								         'Host Player'
+								username: customizationData.username
 							},
-							customization: customizationData // Include ALL customization colors
+							customization: customizationData // Include ALL customization colors + username + photoURL
 						}));
 
 						// Show success message temporarily
@@ -14081,8 +14248,8 @@
 			// Initialize separate UI sound engine for interface sounds
 			window.uiSoundEngine = uiSoundEngine = new SoundEngine(audioListener);
 
-			// Load game sounds
-			soundEngine.loadSounds([
+			// Load game sounds (store promise for later)
+			const gameSoundsPromise = soundEngine.loadSounds([
 				// Footstep sounds
 				{ name: 'footstep1', path: 'build/snds/step1.wav', options: { volume: 0.5 } },
 				{ name: 'footstep2', path: 'build/snds/step2.wav', options: { volume: 0.5 } },
@@ -14092,13 +14259,16 @@
 				{ name: 'footstep6', path: 'build/snds/step6.wav', options: { volume: 0.5 } },
 				{ name: 'footstep7', path: 'build/snds/step7.wav', options: { volume: 0.5 } },
 				// Ambient background music
-				{ name: 'ambience', path: 'build/snds/ambience.mp3', options: { volume: 0.15, loop: true } }
+				{ name: 'ambience', path: 'build/snds/ambience.ogg', options: { volume: 0.15, loop: true } }
 			]).then(() => {
-				console.log('Game sounds loaded!');
+				console.log('✅ Game sounds loaded successfully!');
+			}).catch((error) => {
+				console.error('❌ Error loading game sounds:', error);
+				console.warn('⚠️ Continuing without all game sounds...');
 			});
 
 			// Load UI sounds separately
-			uiSoundEngine.loadSounds([
+			const uiSoundsPromise = uiSoundEngine.loadSounds([
 				{ name: 'lock', path: 'build/snds/lock.wav', options: { volume: 0.4 } },
 				{ name: 'sentMessage', path: 'build/snds/SentMessage.wav', options: { volume: 0.4 } },
 				{ name: 'tock', path: 'build/snds/Tock.wav', options: { volume: 0.3 } },
@@ -14108,8 +14278,14 @@
 				{ name: 'fb_hit', path: 'build/snds/fb_hit.wav', options: { volume: 0.5 } },
 				{ name: 'fb_die', path: 'build/snds/fb_die.wav', options: { volume: 0.5 } }
 			]).then(() => {
-				console.log('UI sounds loaded!');
-				console.log('All sounds loaded!');
+				console.log('✅ UI sounds loaded successfully!');
+			}).catch(error => {
+				console.error('❌ Error loading UI sounds:', error);
+			});
+
+			// Wait for BOTH game and UI sounds to load before starting ambience
+			Promise.all([gameSoundsPromise, uiSoundsPromise]).then(() => {
+				console.log('✅ All sounds loaded!');
 
 				// Resume AudioContext on first user interaction (required by browser autoplay policy)
 				const resumeAudio = () => {
@@ -14133,11 +14309,11 @@
 				// Also check immediately
 				console.log('🔍 Initial AudioContext state:', audioListener.context.state);
 
-				// Start playing ambient music immediately
+				// Start playing ambient music after ALL sounds are loaded
 				soundEngine.play('ambience');
-				console.log('Ambient music started');
+				console.log('🎵 Ambient music started');
 			}).catch(error => {
-				console.error('Error loading sounds:', error);
+				console.error('❌ Error in sound loading:', error);
 			});
 
 			// Update crosshair visibility based on aim mode
@@ -14426,7 +14602,9 @@
 					console.log('🌀 Portal animation playing');
 				}
 
-				console.log('🌀 Portal loaded (hidden until hosting)');
+				console.log('🌀 Portal loaded at position:', portal.position, 'visible:', portal.visible);
+			}, (error) => {
+				console.error('❌ Failed to load portal:', error);
 			});
 
 			// Computer interaction system
@@ -15038,7 +15216,7 @@ window.decksMenuOpen = false;
 						// Check if character is in a vehicle
 						const inVehicle = character.occupyingSeat !== null;
 
-						// Prepare car data if car exists
+						// ALWAYS prepare car data so spectators know if character is in/out of vehicle
 						let carData = null;
 						if (window.car && window.car.collision) {
 							const carPos = window.car.collision.position;
@@ -15055,8 +15233,24 @@ window.decksMenuOpen = false;
 									z: Math.round(carQuat.z * 10000) / 10000,
 									w: Math.round(carQuat.w * 10000) / 10000
 								},
-								characterInVehicle: inVehicle
+								characterInVehicle: inVehicle  // This flag tells spectators if host is visible or in car
 							};
+
+							// Debug logging
+							if (Math.random() < 0.02) { // 2% of updates
+								console.log('📤 HOST broadcasting car:', {
+									pos: `(${carPos.x.toFixed(1)}, ${carPos.y.toFixed(1)}, ${carPos.z.toFixed(1)})`,
+									inVehicle: inVehicle
+								});
+							}
+
+							// Only mark as driver if actually in vehicle
+							if (inVehicle) {
+								window.carDriverId = 'host';
+							} else if (window.carDriverId === 'host') {
+								// I was driving but now I'm not - clear driver
+								window.carDriverId = null;
+							}
 						}
 
 						multiplayerWs.send(JSON.stringify({
@@ -15159,12 +15353,49 @@ window.decksMenuOpen = false;
 						const savedCustomization = localStorage.getItem('characterCustomization');
 						if (savedCustomization) {
 							spectatorCustomization = JSON.parse(savedCustomization);
+							// Add username and photoURL to customization data
+							spectatorCustomization.username = window.authState?.user?.username ||
+							                                  window.authState?.user?.displayName ||
+							                                  window.authState?.email?.split('@')[0] ||
+							                                  'Spectator';
+							spectatorCustomization.photoURL = window.authState?.user?.photoURL || null;
 							// Debug log (occasional)
 							if (Math.random() < 0.01) {
 								console.log('📤 Spectator broadcasting customization:', spectatorCustomization);
 							}
 						} else {
 							console.warn('⚠️ No customization data found in localStorage for spectator');
+						}
+
+						// Spectators broadcast their own car position
+						const spectatorInVehicle = character.occupyingSeat !== null;
+
+						let spectatorCarData = null;
+						if (window.car && window.car.collision) {
+							const carPos = window.car.collision.position;
+							const carQuat = window.car.collision.quaternion;
+							spectatorCarData = {
+								position: {
+									x: Math.round(carPos.x * 1000) / 1000,
+									y: Math.round(carPos.y * 1000) / 1000,
+									z: Math.round(carPos.z * 1000) / 1000
+								},
+								rotation: {
+									x: Math.round(carQuat.x * 10000) / 10000,
+									y: Math.round(carQuat.y * 10000) / 10000,
+									z: Math.round(carQuat.z * 10000) / 10000,
+									w: Math.round(carQuat.w * 10000) / 10000
+								},
+								characterInVehicle: spectatorInVehicle
+							};
+
+							// Debug logging
+							if (Math.random() < 0.02) { // 2% of updates
+								console.log('📤 SPEC broadcasting car:', {
+									pos: `(${carPos.x.toFixed(1)}, ${carPos.y.toFixed(1)}, ${carPos.z.toFixed(1)})`,
+									inVehicle: spectatorInVehicle
+								});
+							}
 						}
 
 						multiplayerWs.send(JSON.stringify({
@@ -15188,7 +15419,8 @@ window.decksMenuOpen = false;
 								y: Math.round(character.velocity.y * 1000) / 1000,
 								z: Math.round(character.velocity.z * 1000) / 1000
 							},
-							customization: spectatorCustomization // NEW: Username and skin colors
+							customization: spectatorCustomization, // NEW: Username and skin colors
+							car: spectatorCarData // Spectator's car position
 						}));
 					}
 				}

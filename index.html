@@ -2581,6 +2581,48 @@
 </head>
 
 <body>
+	<!-- CRITICAL: Early loading indicator (shows IMMEDIATELY before anything else) -->
+	<div id="early-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Courier New', monospace; color: #bee17b;">
+		<div style="font-size: 24px; margin-bottom: 20px; animation: pulse 1.5s ease-in-out infinite;">SUBLAIR 3D</div>
+		<div style="font-size: 14px; opacity: 0.7;">Loading...</div>
+		<div style="margin-top: 30px; width: 200px; height: 4px; background: #333; border-radius: 2px; overflow: hidden;">
+			<div style="width: 100%; height: 100%; background: #bee17b; animation: loading 2s ease-in-out infinite;"></div>
+		</div>
+	</div>
+	<style>
+		@keyframes pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.5; }
+		}
+		@keyframes loading {
+			0% { transform: translateX(-100%); }
+			100% { transform: translateX(100%); }
+		}
+	</style>
+	<script>
+		// Remove early loader once page is interactive
+		window.addEventListener('DOMContentLoaded', function() {
+			console.log('✅ DOM Content Loaded - removing early loader');
+			var loader = document.getElementById('early-loader');
+			if (loader) {
+				loader.style.transition = 'opacity 0.5s';
+				loader.style.opacity = '0';
+				setTimeout(function() {
+					loader.style.display = 'none';
+				}, 500);
+			}
+		});
+
+		// Fallback: remove after 10 seconds no matter what
+		setTimeout(function() {
+			var loader = document.getElementById('early-loader');
+			if (loader && loader.style.display !== 'none') {
+				console.warn('⚠️ Removing early loader after 10s timeout');
+				loader.style.display = 'none';
+			}
+		}, 10000);
+	</script>
+
 	<!-- Welcome Slideshow -->
 	<div id="welcome-overlay" class="welcome-overlay active">
 		<div class="welcome-modal">
@@ -3157,8 +3199,8 @@
 		Engine: <a href="https://github.com/swift502/Sketchbook" target="_blank">Sketchbook 0.4</a>
 	</div>
 
-	<script src="./node_modules/flv.js/dist/flv.min.js"></script>
-	<script src="./build/sketchbook.min.js"></script>
+	<script src="./node_modules/flv.js/dist/flv.min.js?v=2024"></script>
+	<script src="./build/sketchbook.min.js?v=2024"></script>
 
 	<script>
 		// Disable console logs in production (keeps console.error and console.warn)

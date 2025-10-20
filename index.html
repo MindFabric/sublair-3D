@@ -8856,7 +8856,7 @@
 					// Create audio element
 					const audio = new Audio();
 					audio.srcObject = stream;
-					audio.autoplay = true;
+					// REMOVED: audio.autoplay - using Web Audio API instead
 
 					// Create Web Audio API chain for volume control
 					const source = this.audioContext.createMediaStreamSource(stream);
@@ -8866,7 +8866,7 @@
 					source.connect(gainNode);
 					gainNode.connect(this.audioContext.destination);
 
-					this.audioElements.set(playerId, audio);
+					// REMOVED: this.audioElements.set - not using HTML audio element
 					this.gainNodes.set(playerId, gainNode);
 
 					console.log(`🔊 Audio element created for player ${playerId}`);

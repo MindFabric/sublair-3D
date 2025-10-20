@@ -9503,7 +9503,7 @@ createReverbImpulse() {
 							// Establish voice chat connection with the new player
 							if (window.voiceManager && data.playerId) {
 								console.log(`🎤 Establishing voice connection with new player: ${data.playerId}`);
-								window.voiceManager.onPlayerJoined(data.playerId);
+								// REMOVED: Don't create offer from host - spectator will send offer first
 							}
 
 							// Send current customization state to the new spectator

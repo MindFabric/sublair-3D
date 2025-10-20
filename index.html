@@ -7930,38 +7930,100 @@
 					<!-- Multiplayer View -->
 					<div class="os-view" id="multiplayer-view" style="display: none;">
 						<div class="app-window">
-							<div class="app-header">
-								<div class="app-title">MULTIPLAYER.EXE v1.0</div>
+							<div class="app-header" style="display: flex; justify-content: space-between; align-items: center;">
+								<div class="app-title">MULTIPLAYER.EXE v1.0 - SERVER BROWSER</div>
+								<div style="display: flex; gap: 10px;">
+									<button id="host-menu-btn" class="audio-btn" style="padding: 8px 16px; font-size: 13px;">[HOST]</button>
+									<button id="join-menu-btn" class="audio-btn" style="padding: 8px 16px; font-size: 13px;">[JOIN BY CODE]</button>
+									<button id="refresh-sessions-btn" class="audio-btn" style="padding: 8px 16px; font-size: 13px;">[REFRESH]</button>
+								</div>
 							</div>
-							<div class="app-content" style="padding: 30px; display: flex; gap: 20px; height: 100%;">
-								<!-- Host Section -->
-								<div style="flex: 1; background: #000; border: 2px solid #bee17b; padding: 30px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-									<div style="font-size: 18px; font-weight: bold; color: #bee17b; margin-bottom: 30px; text-align: center;">[HOST SESSION]</div>
-									<button id="host-session-btn" class="audio-btn" style="width: 100%; max-width: 300px; padding: 20px; font-size: 16px;">[START HOSTING]</button>
-									<div id="session-code-display" style="display: none; margin-top: 30px; text-align: center; width: 100%;">
-										<div style="color: #bee17b; font-size: 13px; margin-bottom: 10px;">SESSION CODE:</div>
-										<div id="generated-code" style="color: #bee17b; font-size: 32px; font-weight: bold; letter-spacing: 4px; padding: 20px; background: #111; border: 2px solid #bee17b; border-radius: 4px; cursor: pointer; margin: 0 auto; max-width: 300px;" title="Click to copy">------</div>
-										<div style="color: #bee17b; font-size: 11px; margin-top: 10px; opacity: 0.7;">CLICK CODE TO COPY</div>
-										<div style="margin-top: 15px; max-width: 400px; margin-left: auto; margin-right: auto;">
-											<div style="color: #bee17b; font-size: 13px; margin-bottom: 8px;">SHARE URL:</div>
-											<div style="display: flex; gap: 8px; align-items: stretch;">
-												<input type="text" id="share-url" readonly style="flex: 1; padding: 12px; background: #111; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 12px; cursor: pointer;" title="Click to copy" />
-												<button id="copy-url-btn" class="audio-btn" style="padding: 12px 20px; font-size: 13px; white-space: nowrap;">[COPY]</button>
-											</div>
+							<div class="app-content" style="padding: 0; height: 100%; background: #000;">
+								<!-- Server Browser Table -->
+								<div style="height: 100%; display: flex; flex-direction: column;">
+									<!-- Table Header -->
+									<div style="display: grid; grid-template-columns: 40px 2fr 1fr 100px 120px 80px; gap: 15px; padding: 15px 20px; background: #111; border-bottom: 2px solid #bee17b; font-family: 'Share', monospace; font-size: 12px; color: #bee17b; font-weight: bold;">
+										<div style="text-align: center;">#</div>
+										<div>HOST</div>
+										<div>SESSION CODE</div>
+										<div style="text-align: center;">PLAYERS</div>
+										<div style="text-align: center;">STATUS</div>
+										<div style="text-align: center;">UPTIME</div>
+									</div>
+
+									<!-- Sessions List -->
+									<div id="sessions-list" style="flex: 1; overflow-y: auto;">
+										<!-- Sessions will be populated here -->
+										<div style="text-align: center; color: #bee17b; opacity: 0.5; padding: 80px 20px; font-size: 14px;">
+											[SCANNING FOR SERVERS...]<br><br>
+											<span style="font-size: 11px;">Refreshes every 5 seconds</span>
 										</div>
-										<button id="disconnect-btn" class="audio-btn" style="width: 100%; max-width: 300px; padding: 12px; font-size: 14px; margin-top: 20px; background: #200; border-color: #f44;">[DISCONNECT]</button>
+									</div>
+
+									<!-- Footer Info -->
+									<div style="padding: 12px 20px; background: #111; border-top: 2px solid #bee17b; font-family: 'Share', monospace; font-size: 11px; color: #bee17b; display: flex; justify-content: space-between; align-items: center;">
+										<div>
+											<span id="session-count">0</span> ACTIVE SERVERS | CLICK ROW TO JOIN
+										</div>
+										<div style="opacity: 0.7;">
+											AUTO-REFRESH: ON
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Host Session Modal -->
+					<div id="host-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; align-items: center; justify-content: center;">
+						<div style="background: #000; border: 3px solid #bee17b; border-radius: 8px; padding: 40px; max-width: 500px; width: 90%; font-family: 'Share', monospace;">
+							<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+								<div style="font-size: 20px; font-weight: bold; color: #bee17b;">[HOST SESSION]</div>
+								<button id="host-modal-close" style="background: none; border: none; color: #bee17b; font-size: 24px; cursor: pointer; font-family: 'Share', monospace; padding: 0 10px;">[X]</button>
+							</div>
+
+							<div id="host-form" style="text-align: center;">
+								<p style="color: #bee17b; font-size: 13px; margin-bottom: 25px; opacity: 0.8;">
+									Create a new multiplayer session. Your session will appear in the server browser for others to join.
+								</p>
+								<button id="host-session-btn" class="audio-btn" style="width: 100%; padding: 20px; font-size: 16px; margin-bottom: 15px;">[START HOSTING]</button>
+							</div>
+
+							<div id="session-info" style="display: none;">
+								<div style="background: #111; border: 2px solid #bee17b; border-radius: 4px; padding: 20px; margin-bottom: 20px;">
+									<div style="color: #bee17b; font-size: 12px; margin-bottom: 10px; opacity: 0.7;">SESSION CODE:</div>
+									<div id="generated-code" style="color: #bee17b; font-size: 36px; font-weight: bold; letter-spacing: 6px; text-align: center; cursor: pointer; padding: 10px; background: #000; border: 1px solid #bee17b; border-radius: 4px;" title="Click to copy">------</div>
+									<div style="color: #bee17b; font-size: 10px; margin-top: 8px; text-align: center; opacity: 0.6;">▲ CLICK TO COPY</div>
+								</div>
+
+								<div style="margin-bottom: 20px;">
+									<div style="color: #bee17b; font-size: 12px; margin-bottom: 8px; opacity: 0.7;">SHARE URL:</div>
+									<div style="display: flex; gap: 8px;">
+										<input type="text" id="share-url" readonly style="flex: 1; padding: 12px; background: #111; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 11px; cursor: pointer; border-radius: 4px;" title="Click to copy" />
+										<button id="copy-url-btn" class="audio-btn" style="padding: 12px 20px; font-size: 12px;">[COPY]</button>
 									</div>
 								</div>
 
-								<!-- Join Section -->
-								<div style="flex: 1; background: #000; border: 2px solid #bee17b; padding: 30px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-									<div style="font-size: 18px; font-weight: bold; color: #bee17b; margin-bottom: 30px; text-align: center;">[JOIN SESSION]</div>
-									<div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
-										<input type="text" id="session-code" placeholder="ENTER CODE" style="width: 100%; max-width: 300px; padding: 20px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 24px; text-align: center; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 20px; box-sizing: border-box;" maxlength="6" />
-										<button id="join-session-btn" class="audio-btn" style="width: 100%; max-width: 300px; padding: 20px; font-size: 16px;">[JOIN SESSION]</button>
-									</div>
-								</div>
+								<button id="disconnect-btn" class="audio-btn" style="width: 100%; padding: 15px; font-size: 14px; background: #200; border-color: #f44;">[END SESSION]</button>
 							</div>
+						</div>
+					</div>
+
+					<!-- Join by Code Modal -->
+					<div id="join-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; align-items: center; justify-content: center;">
+						<div style="background: #000; border: 3px solid #bee17b; border-radius: 8px; padding: 40px; max-width: 500px; width: 90%; font-family: 'Share', monospace;">
+							<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+								<div style="font-size: 20px; font-weight: bold; color: #bee17b;">[JOIN BY CODE]</div>
+								<button id="join-modal-close" style="background: none; border: none; color: #bee17b; font-size: 24px; cursor: pointer; font-family: 'Share', monospace; padding: 0 10px;">[X]</button>
+							</div>
+
+							<p style="color: #bee17b; font-size: 13px; margin-bottom: 25px; opacity: 0.8; text-align: center;">
+								Enter a 6-character session code to join directly.
+							</p>
+
+							<input type="text" id="session-code" placeholder="ENTER CODE" style="width: 100%; padding: 25px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 32px; text-align: center; letter-spacing: 8px; text-transform: uppercase; margin-bottom: 20px; box-sizing: border-box; border-radius: 4px;" maxlength="6" />
+
+							<button id="join-session-btn" class="audio-btn" style="width: 100%; padding: 20px; font-size: 16px;">[JOIN SESSION]</button>
 						</div>
 					</div>
 
@@ -8439,6 +8501,15 @@
 					setPresenceOffline();
 				}
 
+				// Check if leaving multiplayer view
+				const multiplayerView = document.getElementById('multiplayer-view');
+				if (multiplayerView && multiplayerView.style.display === 'block' && appName !== 'multiplayer') {
+					// Leaving multiplayer, stop session refresh
+					if (window.stopSessionsAutoRefresh) {
+						window.stopSessionsAutoRefresh();
+					}
+				}
+
 				// Hide all views
 				document.querySelectorAll('.os-view').forEach(view => {
 					view.style.display = 'none';
@@ -8456,6 +8527,11 @@
 				// If switching to chat, start polling
 				if (appName === 'chat' && window.authState?.isLoggedIn) {
 					startChatPolling();
+				}
+
+				// If switching to multiplayer, start session refresh
+				if (appName === 'multiplayer' && window.startSessionsAutoRefresh) {
+					window.startSessionsAutoRefresh();
 				}
 			}
 
@@ -10741,13 +10817,11 @@
 			// Host session button
 			document.getElementById('host-session-btn').addEventListener('click', () => {
 				console.log('🎮 Starting host session...');
-				connectMultiplayer();
 
-				// Disable join section while hosting
-				document.getElementById('session-code').disabled = true;
-				document.getElementById('join-session-btn').disabled = true;
-				document.getElementById('join-session-btn').style.opacity = '0.5';
-				document.getElementById('session-code').style.opacity = '0.5';
+				// Hide the start button, show loading
+				document.getElementById('host-form').innerHTML = '<p style="color: #bee17b; text-align: center; padding: 40px;">Connecting to server...</p>';
+
+				connectMultiplayer();
 
 				// Wait for connection then send host message
 				const checkConnection = setInterval(() => {
@@ -10761,10 +10835,22 @@
 						multiplayerWs.send(JSON.stringify({
 							type: 'host',
 							playerData: {
-								username: window.authState?.username || 'Host Player'
+								username: window.authState?.user?.username ||
+								         window.authState?.user?.displayName ||
+								         window.authState?.email?.split('@')[0] ||
+								         'Host Player'
 							},
 							customization: customizationData // Include ALL customization colors
 						}));
+
+						// Show success message temporarily
+						document.getElementById('host-form').innerHTML = '<p style="color: #bee17b; text-align: center; padding: 40px;">✓ Session created!</p>';
+
+						// After session is created, show session info
+						setTimeout(() => {
+							document.getElementById('host-form').style.display = 'none';
+							document.getElementById('session-info').style.display = 'block';
+						}, 800);
 					}
 				}, 100);
 			});
@@ -10778,6 +10864,9 @@
 				}
 
 				console.log(`🔗 Joining session: ${code}`);
+
+				// Close the join modal
+				document.getElementById('join-modal').style.display = 'none';
 
 				// Pre-create AudioContext during user gesture (required for autoplay)
 				if (!window.djAudioContext) {
@@ -10796,7 +10885,10 @@
 							type: 'join',
 							sessionCode: code,
 							playerData: {
-								username: window.authState?.username || 'Spectator'
+								username: window.authState?.user?.username ||
+								         window.authState?.user?.displayName ||
+								         window.authState?.email?.split('@')[0] ||
+								         'Spectator'
 							}
 						}));
 					}
@@ -10808,6 +10900,214 @@
 				console.log('🛑 Disconnecting from session...');
 				disconnectMultiplayer();
 			});
+
+			// ========================================
+			// MODAL HANDLERS
+			// ========================================
+
+			// Host modal open/close
+			document.getElementById('host-menu-btn').addEventListener('click', () => {
+				const hostModal = document.getElementById('host-modal');
+				hostModal.style.display = 'flex';
+			});
+
+			document.getElementById('host-modal-close').addEventListener('click', () => {
+				const hostModal = document.getElementById('host-modal');
+				hostModal.style.display = 'none';
+			});
+
+			// Join modal open/close
+			document.getElementById('join-menu-btn').addEventListener('click', () => {
+				const joinModal = document.getElementById('join-modal');
+				joinModal.style.display = 'flex';
+				// Focus on input
+				setTimeout(() => {
+					document.getElementById('session-code').focus();
+				}, 100);
+			});
+
+			document.getElementById('join-modal-close').addEventListener('click', () => {
+				const joinModal = document.getElementById('join-modal');
+				joinModal.style.display = 'none';
+			});
+
+			// Close modals on background click
+			document.getElementById('host-modal').addEventListener('click', (e) => {
+				if (e.target.id === 'host-modal') {
+					document.getElementById('host-modal').style.display = 'none';
+				}
+			});
+
+			document.getElementById('join-modal').addEventListener('click', (e) => {
+				if (e.target.id === 'join-modal') {
+					document.getElementById('join-modal').style.display = 'none';
+				}
+			});
+
+			// Update disconnect button to close modal and show main view
+			const originalDisconnectHandler = document.getElementById('disconnect-btn').onclick;
+			document.getElementById('disconnect-btn').addEventListener('click', () => {
+				// Hide session info, show host form
+				document.getElementById('session-info').style.display = 'none';
+				document.getElementById('host-form').style.display = 'block';
+				// Close modal
+				document.getElementById('host-modal').style.display = 'none';
+			});
+
+			// ========================================
+			// BROWSE SESSIONS FUNCTIONALITY
+			// ========================================
+			let sessionsRefreshInterval = null;
+
+			// Fetch and display active sessions
+			async function fetchActiveSessions() {
+				try {
+					const API_URL = window.location.hostname === 'localhost' ?
+						'http://localhost:3000' :
+						window.location.origin;
+
+					const response = await fetch(`${API_URL}/api/v1/multiplayer/sessions`);
+					const data = await response.json();
+
+					const sessionsList = document.getElementById('sessions-list');
+					const sessionCount = document.getElementById('session-count');
+
+					if (!data.success || !data.data || data.data.length === 0) {
+						sessionsList.innerHTML = `
+							<div style="text-align: center; color: #bee17b; opacity: 0.5; padding: 80px 20px; font-size: 14px;">
+								[NO ACTIVE SERVERS]<br><br>
+								<span style="font-size: 12px;">Click [HOST] to create a session</span>
+							</div>
+						`;
+						if (sessionCount) sessionCount.textContent = '0';
+						return;
+					}
+
+					// Update session count
+					if (sessionCount) sessionCount.textContent = data.data.length;
+
+					// Build table rows
+					let html = '';
+					data.data.forEach((session, index) => {
+						const timeAgo = getTimeAgo(session.createdAt);
+						const statusText = session.hasStream ? 'LIVE DJ' : 'PLAYING';
+						const statusColor = session.hasStream ? '#f00' : '#bee17b';
+
+						html += `
+							<div class="session-row" data-session-code="${session.sessionCode}" style="display: grid; grid-template-columns: 40px 2fr 1fr 100px 120px 80px; gap: 15px; padding: 15px 20px; border-bottom: 1px solid #222; cursor: pointer; transition: all 0.15s; font-family: 'Share', monospace; font-size: 12px; color: #bee17b;">
+								<div style="text-align: center; opacity: 0.5;">${index + 1}</div>
+								<div style="font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${session.hostUsername}</div>
+								<div style="font-family: monospace; letter-spacing: 2px;">${session.sessionCode}</div>
+								<div style="text-align: center;">${session.playerCount}</div>
+								<div style="text-align: center; color: ${statusColor};">${statusText}</div>
+								<div style="text-align: center; opacity: 0.7;">${timeAgo}</div>
+							</div>
+						`;
+					});
+
+					sessionsList.innerHTML = html;
+
+					// Add click handlers and hover effects to rows
+					document.querySelectorAll('.session-row').forEach(row => {
+						row.addEventListener('click', function() {
+							const sessionCode = this.getAttribute('data-session-code');
+							joinSessionByCode(sessionCode);
+						});
+
+						// Hover effect - highlight row
+						row.addEventListener('mouseenter', function() {
+							this.style.background = '#bee17b';
+							this.style.color = '#000';
+							this.querySelectorAll('div').forEach(el => {
+								el.style.color = '#000';
+							});
+						});
+
+						row.addEventListener('mouseleave', function() {
+							this.style.background = 'transparent';
+							this.style.color = '#bee17b';
+							this.querySelectorAll('div').forEach((el, idx) => {
+								// Keep status color on unhover
+								if (idx === 4) {
+									const hasStream = el.textContent.includes('LIVE');
+									el.style.color = hasStream ? '#f00' : '#bee17b';
+								} else {
+									el.style.color = '#bee17b';
+								}
+							});
+						});
+					});
+
+					console.log(`✅ Displayed ${data.data.length} active sessions in table`);
+				} catch (error) {
+					console.error('❌ Error fetching sessions:', error);
+					document.getElementById('sessions-list').innerHTML = `
+						<div style="text-align: center; color: #f44; padding: 80px 20px; font-size: 14px;">
+							[CONNECTION ERROR]<br><br>
+							<span style="font-size: 11px;">Unable to reach server</span>
+						</div>
+					`;
+					const sessionCount = document.getElementById('session-count');
+					if (sessionCount) sessionCount.textContent = '0';
+				}
+			}
+
+			// Helper function to get time ago string
+			function getTimeAgo(timestamp) {
+				const seconds = Math.floor((Date.now() - timestamp) / 1000);
+
+				if (seconds < 60) return `${seconds}s ago`;
+				if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+				if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+				return `${Math.floor(seconds / 86400)}d ago`;
+			}
+
+			// Join session by code (helper function)
+			function joinSessionByCode(code) {
+				console.log(`🔗 Joining session from browse: ${code}`);
+				document.getElementById('session-code').value = code.toUpperCase();
+				document.getElementById('join-session-btn').click();
+			}
+
+			// Refresh sessions button
+			document.getElementById('refresh-sessions-btn').addEventListener('click', () => {
+				console.log('🔄 Manually refreshing sessions...');
+				fetchActiveSessions();
+			});
+
+			// Auto-refresh sessions every 5 seconds when multiplayer view is visible
+			function startSessionsAutoRefresh() {
+				if (sessionsRefreshInterval) {
+					clearInterval(sessionsRefreshInterval);
+				}
+
+				// Initial fetch
+				fetchActiveSessions();
+
+				// Auto-refresh every 5 seconds
+				sessionsRefreshInterval = setInterval(() => {
+					const multiplayerView = document.getElementById('multiplayer-view');
+					if (multiplayerView && multiplayerView.style.display !== 'none') {
+						fetchActiveSessions();
+					}
+				}, 5000);
+			}
+
+			// Stop auto-refresh
+			function stopSessionsAutoRefresh() {
+				if (sessionsRefreshInterval) {
+					clearInterval(sessionsRefreshInterval);
+					sessionsRefreshInterval = null;
+				}
+			}
+
+			// Make functions globally accessible
+			window.startSessionsAutoRefresh = startSessionsAutoRefresh;
+			window.stopSessionsAutoRefresh = stopSessionsAutoRefresh;
+
+			// ========================================
+			// END BROWSE SESSIONS FUNCTIONALITY
+			// ========================================
 
 			// Copy session code on click
 			document.getElementById('generated-code').addEventListener('click', () => {

@@ -943,6 +943,45 @@ v1Router.post('/tracks/:trackId/play', async (req, res) => {
   }
 });
 
+// GET /api/v1/multiplayer/sessions - Get all active multiplayer sessions
+v1Router.get('/multiplayer/sessions', (req, res) => {
+  console.log('🎮 GET /api/v1/multiplayer/sessions');
+
+  try {
+    // Access the sessions Map from the WebSocket server (defined below)
+    // We need to make sessions accessible, so we'll use a global reference
+    const activeSessions = [];
+
+    if (typeof global.multiplayerSessions !== 'undefined') {
+      global.multiplayerSessions.forEach((session, sessionCode) => {
+        // Only include active sessions with valid hosts
+        if (session.host && session.host.readyState === 1) { // 1 = WebSocket.OPEN
+          activeSessions.push({
+            sessionCode: sessionCode,
+            hostUsername: session.hostData?.username || 'Host',
+            playerCount: session.players ? session.players.length + 1 : 1, // +1 for host
+            hasStream: session.streamKey && global.activeDJStreams && global.activeDJStreams.has(session.streamKey),
+            createdAt: session.createdAt || Date.now()
+          });
+        }
+      });
+    }
+
+    console.log(`✅ Returned ${activeSessions.length} active sessions`);
+    res.json({
+      success: true,
+      data: activeSessions,
+      count: activeSessions.length
+    });
+  } catch (error) {
+    console.error('❌ Error fetching sessions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch sessions'
+    });
+  }
+});
+
 // Mount v1 router
 app.use('/api/v1', v1Router);
 
@@ -1111,6 +1150,8 @@ console.log(`🎥 HTTP-FLV available on port ${isProduction ? (HTTP_FLV_PORT + 1
 
 // Store active DJ streams
 const activeDJStreams = new Map(); // { sessionCode: { active: true, listeners: [] } }
+// Make activeDJStreams globally accessible for REST API
+global.activeDJStreams = activeDJStreams;
 
 // Handle RTMP stream events
 nms.on('prePublish', (id, StreamPath, args) => {
@@ -1259,8 +1300,10 @@ const server = http.createServer(app);
 // WebSocket server for multiplayer
 const wss = new WebSocket.Server({ server });
 
-// Store active sessions: { sessionCode: { host: ws, players: [ws], hostData: {} } }
+// Store active sessions: { sessionCode: { host: ws, players: [ws], hostData: {}, createdAt: timestamp } }
 const sessions = new Map();
+// Make sessions globally accessible for REST API
+global.multiplayerSessions = sessions;
 
 // Generate random 6-character session code
 function generateSessionCode() {
@@ -1321,13 +1364,14 @@ wss.on('connection', (ws, req) => {
           ws.playerData = data.playerData || {};
           ws.customization = data.customization || {}; // Store host customization
 
-          // Store session with stream key
+          // Store session with stream key and creation timestamp
           sessions.set(sessionCode, {
             host: ws,
             players: [],
             hostData: ws.playerData,
             customization: ws.customization, // Include in session data
-            streamKey: streamKey // Store stream key in session
+            streamKey: streamKey, // Store stream key in session
+            createdAt: Date.now() // Track session creation time
           });
 
           // Map stream key to session code

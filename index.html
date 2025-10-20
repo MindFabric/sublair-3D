@@ -8724,9 +8724,28 @@
 						{ urls: 'stun:stun1.l.google.com:19302' }
 					];
 
-					console.log('🎤 VoiceManager initialized');
+					// Store reverb nodes map
+			this.reverbNodes = new Map();
+
+			// Create reverb impulse response
+			this.createReverbImpulse();
+
+			console.log('🎤 VoiceManager initialized');
 				}
 
+createReverbImpulse() {
+	const sampleRate = this.audioContext.sampleRate;
+	const length = sampleRate * 2;
+	const impulse = this.audioContext.createBuffer(2, length, sampleRate);
+	const impulseL = impulse.getChannelData(0);
+	const impulseR = impulse.getChannelData(1);
+	for (let i = 0; i < length; i++) {
+		const decay = Math.exp(-i / (sampleRate * 0.5));
+		impulseL[i] = (Math.random() * 2 - 1) * decay;
+		impulseR[i] = (Math.random() * 2 - 1) * decay;
+	}
+	this.reverbBuffer = impulse;
+}
 				async initialize() {
 					try {
 						// Get selected microphone device ID from settings
@@ -8863,11 +8882,24 @@
 					const gainNode = this.audioContext.createGain();
 					gainNode.gain.value = 0; // Start at 0, will be updated by updateProximityVolumes
 
-					source.connect(gainNode);
-					gainNode.connect(this.audioContext.destination);
+			// Create reverb nodes (dry/wet mix)
+			const dryGain = this.audioContext.createGain();
+			const wetGain = this.audioContext.createGain();
+			const convolver = this.audioContext.createConvolver();
+			convolver.buffer = this.reverbBuffer;
+			dryGain.gain.value = 1.0;
+			wetGain.gain.value = 0.0;
 
-					// REMOVED: this.audioElements.set - not using HTML audio element
-					this.gainNodes.set(playerId, gainNode);
+			// Connect audio chain
+			source.connect(gainNode);
+			gainNode.connect(dryGain);
+			gainNode.connect(convolver);
+			convolver.connect(wetGain);
+			dryGain.connect(this.audioContext.destination);
+			wetGain.connect(this.audioContext.destination);
+
+			this.gainNodes.set(playerId, gainNode);
+			this.reverbNodes.set(playerId, { dry: dryGain, wet: wetGain, convolver });
 
 					console.log(`🔊 Audio element created for player ${playerId}`);
 				}
@@ -8940,11 +8972,19 @@
 							this.minHearingDistance
 						);
 
-						// Apply master volume multiplier
-						const finalVolume = proximityVolume * this.masterVolume;
-						remote.gainNode.gain.value = finalVolume;
+				// Apply master volume multiplier
+				const finalVolume = proximityVolume * this.masterVolume;
+				remote.gainNode.gain.value = finalVolume;
 
-						console.log(`🔊 ${remote.playerId}: dist=${distance.toFixed(1)}m vol=${(finalVolume * 100).toFixed(0)}%`);
+				// Update reverb dry/wet mix based on volume (distance)
+				const reverbNodes = this.reverbNodes.get(remote.playerId);
+				if (reverbNodes) {
+					const wetness = 1 - proximityVolume;
+					reverbNodes.dry.gain.value = 1 - wetness;
+					reverbNodes.wet.gain.value = wetness * 0.6;
+				}
+
+				console.log(`🔊 ${remote.playerId}: dist=${distance.toFixed(1)}m vol=${(finalVolume * 100).toFixed(0)}%`);
 					});
 				}
 

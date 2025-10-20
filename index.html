@@ -5364,23 +5364,23 @@
 				// Save car model globally for creating other players' cars later
 				window.carModel = carModel;
 
-				// CAR REMOVED FROM AUTO-LOADING - Cars will be spawned dynamically via multiplayer or placement system
-				console.log('🚗 Car model loaded but NOT spawned automatically');
+				// Only spawn car in SINGLEPLAYER mode (not in multiplayer)
+				if (!isSpectatorMode && !isHosting) {
+					console.log('🚗 Spawning car for SINGLEPLAYER mode');
 
-				// // Each player gets their own car
-				// // Host car at (0, 2, 0), spectators offset to the side
-				// const carSpawnX = isSpectatorMode ? 5 : 0; // Spectators spawn 5 units to the right
+					window.car = car = new Sketchbook.Car(carModel);
+					car.setPosition(0, 2, 0);
 
-				// window.car = car = new Sketchbook.Car(carModel);
-				// car.setPosition(carSpawnX, 2, 0);
+					// Create spawn point for the car (required by physics system)
+					car.spawnPoint = new THREE.Object3D();
+					car.spawnPoint.position.set(0, 2, 0);
+					world.graphicsWorld.add(car.spawnPoint);
 
-				// // Create spawn point for the car (required by physics system)
-				// car.spawnPoint = new THREE.Object3D();
-				// car.spawnPoint.position.set(carSpawnX, 2, 0);
-				// world.graphicsWorld.add(car.spawnPoint);
-
-				// world.add(car);
-				// console.log(`🚗 ${isSpectatorMode ? 'Spectator' : 'Host'} car spawned at (${carSpawnX}, 2, 0)`);
+					world.add(car);
+					console.log('🚗 Car spawned at (0, 2, 0) for singleplayer');
+				} else {
+					console.log('🚗 Car model loaded but NOT spawned (multiplayer mode)');
+				}
 
 				// // Apply host customization to car if spectator and customization already received
 				// if (isSpectatorMode && window.hostCustomization) {
@@ -5414,115 +5414,117 @@
 				// 	console.log('🎨 Applied host car customization on load');
 				// }
 
-				// // Create spatial audio for the car
-				// const listener = new THREE.AudioListener();
-				// world.camera.add(listener);
+				// Create spatial audio for the car (SINGLEPLAYER ONLY)
+				if (!isSpectatorMode && !isHosting && window.car) {
+					const listener = new THREE.AudioListener();
+					world.camera.add(listener);
 
-				// window.carPositionalAudio = new THREE.PositionalAudio(listener);
-				// window.carPositionalAudio.setRefDistance(2); // Audible from 2 units away
-				// window.carPositionalAudio.setMaxDistance(8); // Max audible distance
-				// window.carPositionalAudio.setRolloffFactor(2); // Faster falloff
-				// window.carPositionalAudio.setDistanceModel('exponential'); // More realistic distance model
+					window.carPositionalAudio = new THREE.PositionalAudio(listener);
+					window.carPositionalAudio.setRefDistance(2); // Audible from 2 units away
+					window.carPositionalAudio.setMaxDistance(8); // Max audible distance
+					window.carPositionalAudio.setRolloffFactor(2); // Faster falloff
+					window.carPositionalAudio.setDistanceModel('exponential'); // More realistic distance model
 
-				// // Create car-specific EQ (like actual car speakers)
-				// const audioContext = window.carPositionalAudio.context;
+					// Create car-specific EQ (like actual car speakers)
+					const audioContext = window.carPositionalAudio.context;
 
-				// // Bass boost (typical car subwoofer)
-				// window.carEQ = {
-				// 	bass: audioContext.createBiquadFilter(),
-				// 	lowMid: audioContext.createBiquadFilter(),
-				// 	highMid: audioContext.createBiquadFilter(),
-				// 	treble: audioContext.createBiquadFilter(),
-				// 	outsideLowpass: audioContext.createBiquadFilter() // Muffle when outside car
-				// };
+					// Bass boost (typical car subwoofer)
+					window.carEQ = {
+						bass: audioContext.createBiquadFilter(),
+						lowMid: audioContext.createBiquadFilter(),
+						highMid: audioContext.createBiquadFilter(),
+						treble: audioContext.createBiquadFilter(),
+						outsideLowpass: audioContext.createBiquadFilter() // Muffle when outside car
+					};
 
-				// // Bass boost at 80Hz (car subwoofer range)
-				// window.carEQ.bass.type = 'lowshelf';
-				// window.carEQ.bass.frequency.value = 80;
-				// window.carEQ.bass.gain.value = 6; // +6dB bass boost
+					// Bass boost at 80Hz (car subwoofer range)
+					window.carEQ.bass.type = 'lowshelf';
+					window.carEQ.bass.frequency.value = 80;
+					window.carEQ.bass.gain.value = 6; // +6dB bass boost
 
-				// // Cut low-mids at 250Hz (reduce muddiness)
-				// window.carEQ.lowMid.type = 'peaking';
-				// window.carEQ.lowMid.frequency.value = 250;
-				// window.carEQ.lowMid.Q.value = 1;
-				// window.carEQ.lowMid.gain.value = -3; // -3dB cut
+					// Cut low-mids at 250Hz (reduce muddiness)
+					window.carEQ.lowMid.type = 'peaking';
+					window.carEQ.lowMid.frequency.value = 250;
+					window.carEQ.lowMid.Q.value = 1;
+					window.carEQ.lowMid.gain.value = -3; // -3dB cut
 
-				// // Cut high-mids at 2kHz (reduce harshness)
-				// window.carEQ.highMid.type = 'peaking';
-				// window.carEQ.highMid.frequency.value = 2000;
-				// window.carEQ.highMid.Q.value = 1;
-				// window.carEQ.highMid.gain.value = -2; // -2dB cut
+					// Cut high-mids at 2kHz (reduce harshness)
+					window.carEQ.highMid.type = 'peaking';
+					window.carEQ.highMid.frequency.value = 2000;
+					window.carEQ.highMid.Q.value = 1;
+					window.carEQ.highMid.gain.value = -2; // -2dB cut
 
-				// // Roll off highs at 8kHz (car speakers don't have great treble)
-				// window.carEQ.treble.type = 'highshelf';
-				// window.carEQ.treble.frequency.value = 8000;
-				// window.carEQ.treble.gain.value = -4; // -4dB rolloff
+					// Roll off highs at 8kHz (car speakers don't have great treble)
+					window.carEQ.treble.type = 'highshelf';
+					window.carEQ.treble.frequency.value = 8000;
+					window.carEQ.treble.gain.value = -4; // -4dB rolloff
 
-				// // Lowpass for when outside car (starts muffled)
-				// window.carEQ.outsideLowpass.type = 'lowpass';
-				// window.carEQ.outsideLowpass.frequency.value = 800; // Muffled when outside
-				// window.carEQ.outsideLowpass.Q.value = 1;
+					// Lowpass for when outside car (starts muffled)
+					window.carEQ.outsideLowpass.type = 'lowpass';
+					window.carEQ.outsideLowpass.frequency.value = 800; // Muffled when outside
+					window.carEQ.outsideLowpass.Q.value = 1;
 
-				// // Add the positional audio to the car
-				// car.add(window.carPositionalAudio);
+					// Add the positional audio to the car
+					car.add(window.carPositionalAudio);
 
-				// // Store car audio position globally
-				// window.carAudioPosition = new THREE.Vector3();
-				// window.carPositionalAudio.getWorldPosition(window.carAudioPosition);
+					// Store car audio position globally
+					window.carAudioPosition = new THREE.Vector3();
+					window.carPositionalAudio.getWorldPosition(window.carAudioPosition);
 
-				// // Create debug visualization for car audio position
-				// const carMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-				// const carMarkerMaterial = new THREE.MeshBasicMaterial({
-				// 	color: 0xff00ff, // Magenta for car
-				// 	transparent: true,
-				// 	opacity: 0.8
-				// });
-				// window.debugCarMarker = new THREE.Mesh(carMarkerGeometry, carMarkerMaterial);
-				// window.debugCarMarker.position.copy(car.position);
-				// window.debugCarMarker.visible = false;
-				// world.graphicsWorld.add(window.debugCarMarker);
+					// Create debug visualization for car audio position
+					const carMarkerGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+					const carMarkerMaterial = new THREE.MeshBasicMaterial({
+						color: 0xff00ff, // Magenta for car
+						transparent: true,
+						opacity: 0.8
+					});
+					window.debugCarMarker = new THREE.Mesh(carMarkerGeometry, carMarkerMaterial);
+					window.debugCarMarker.position.copy(car.position);
+					window.debugCarMarker.visible = false;
+					world.graphicsWorld.add(window.debugCarMarker);
 
-				// // Create arrow showing car audio direction
-				// const carInitialDir = new THREE.Vector3();
-				// window.carPositionalAudio.getWorldDirection(carInitialDir);
-				// const carArrowHelper = new THREE.ArrowHelper(
-				// 	carInitialDir,
-				// 	car.position,
-				// 	3, // length
-				// 	0xff00ff, // magenta
-				// 	0.5, // headLength
-				// 	0.3 // headWidth
-				// );
-				// window.debugCarArrow = carArrowHelper;
-				// window.debugCarArrow.visible = false;
-				// world.graphicsWorld.add(window.debugCarArrow);
+					// Create arrow showing car audio direction
+					const carInitialDir = new THREE.Vector3();
+					window.carPositionalAudio.getWorldDirection(carInitialDir);
+					const carArrowHelper = new THREE.ArrowHelper(
+						carInitialDir,
+						car.position,
+						3, // length
+						0xff00ff, // magenta
+						0.5, // headLength
+						0.3 // headWidth
+					);
+					window.debugCarArrow = carArrowHelper;
+					window.debugCarArrow.visible = false;
+					world.graphicsWorld.add(window.debugCarArrow);
 
-				// // Create cone visualization for car (just front green cone)
-				// // Front cone (145°)
-				// const carFrontConeAngle = 145 * Math.PI / 180;
-				// const carFrontConeRadius = Math.tan(carFrontConeAngle / 2) * 10;
-				// const carFrontConeGeometry = new THREE.ConeGeometry(carFrontConeRadius, 10, 32, 1, false);
-				// const carFrontConeMaterial = new THREE.MeshBasicMaterial({
-				// 	color: 0x00ff00,
-				// 	transparent: true,
-				// 	opacity: 0.2,
-				// 	side: THREE.DoubleSide
-				// });
-				// window.debugCarFrontCone = new THREE.Mesh(carFrontConeGeometry, carFrontConeMaterial);
+					// Create cone visualization for car (just front green cone)
+					// Front cone (145°)
+					const carFrontConeAngle = 145 * Math.PI / 180;
+					const carFrontConeRadius = Math.tan(carFrontConeAngle / 2) * 10;
+					const carFrontConeGeometry = new THREE.ConeGeometry(carFrontConeRadius, 10, 32, 1, false);
+					const carFrontConeMaterial = new THREE.MeshBasicMaterial({
+						color: 0x00ff00,
+						transparent: true,
+						opacity: 0.2,
+						side: THREE.DoubleSide
+					});
+					window.debugCarFrontCone = new THREE.Mesh(carFrontConeGeometry, carFrontConeMaterial);
 
-				// // Position and rotate cone - car faces forward (positive Z)
-				// const carFrontConeRotation = new THREE.Euler(-Math.PI / 2, 0, 0, 'XYZ');
-				// window.debugCarFrontCone.rotation.copy(carFrontConeRotation);
+					// Position and rotate cone - car faces forward (positive Z)
+					const carFrontConeRotation = new THREE.Euler(-Math.PI / 2, 0, 0, 'XYZ');
+					window.debugCarFrontCone.rotation.copy(carFrontConeRotation);
 
-				// // Position cone at car position
-				// const carFrontOffset = new THREE.Vector3(0, 0, 5);
-				// window.debugCarFrontCone.position.copy(car.position).add(carFrontOffset);
+					// Position cone at car position
+					const carFrontOffset = new THREE.Vector3(0, 0, 5);
+					window.debugCarFrontCone.position.copy(car.position).add(carFrontOffset);
 
-				// // Add to scene but hide by default
-				// window.debugCarFrontCone.visible = false;
-				// world.graphicsWorld.add(window.debugCarFrontCone);
+					// Add to scene but hide by default
+					window.debugCarFrontCone.visible = false;
+					world.graphicsWorld.add(window.debugCarFrontCone);
 
-				// console.log('🚗 Car spatial audio system created with car EQ + debug visualizations');
+					console.log('🚗 Car spatial audio system created with car EQ + debug visualizations');
+				}
 			});
 
 			window.character = null; // Store character reference globally

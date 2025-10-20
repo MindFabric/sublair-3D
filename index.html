@@ -3187,9 +3187,29 @@
 
 		// CRT shader and BokehPass preloading removed - spectators are now full characters
 
-		// Create a simple flat world with a car
-		window.world = new Sketchbook.World();
-		const world = window.world; // Keep local reference for compatibility
+		// ========================================
+		// INITIALIZATION WITH ERROR HANDLING
+		// ========================================
+
+		function initializeWorld() {
+			// Check if Sketchbook is loaded
+			if (typeof Sketchbook === 'undefined') {
+				console.error('❌ Sketchbook library failed to load!');
+				document.body.innerHTML = `
+					<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: 'Share', monospace; color: #bee17b; text-align: center; background: #000; padding: 40px; border: 2px solid #bee17b; border-radius: 8px;">
+						<h2 style="color: #f00; margin-bottom: 20px;">[INITIALIZATION ERROR]</h2>
+						<p style="margin-bottom: 20px;">Failed to load Sketchbook engine.<br>Please refresh the page.</p>
+						<button onclick="location.reload()" style="background: #bee17b; color: #000; border: none; padding: 15px 30px; font-family: 'Share', monospace; cursor: pointer; font-size: 14px; border-radius: 4px;">[RELOAD]</button>
+					</div>
+				`;
+				return;
+			}
+
+			console.log('✅ Sketchbook library loaded successfully');
+
+			// Create a simple flat world with a car
+			window.world = new Sketchbook.World();
+			const world = window.world; // Keep local reference for compatibility
 
 		// Check for spectator mode globally (used throughout the app)
 		const urlParams = new URLSearchParams(window.location.search);
@@ -17046,6 +17066,62 @@ window.decksMenuOpen = false;
 			}
 		});
 		*/
+
+		} // End of initializeWorld() function
+
+		// ========================================
+		// START INITIALIZATION
+		// ========================================
+
+		// Initialization timeout - show error if loading takes too long
+		const initTimeout = setTimeout(() => {
+			console.error('❌ Initialization timeout - page took too long to load');
+			document.body.innerHTML = `
+				<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: 'Share', monospace; color: #bee17b; text-align: center; background: #000; padding: 40px; border: 2px solid #bee17b; border-radius: 8px; max-width: 500px;">
+					<h2 style="color: #ff0; margin-bottom: 20px;">[LOADING TIMEOUT]</h2>
+					<p style="margin-bottom: 20px;">The page is taking longer than expected to load.<br><br>This may be due to slow connection or server issues.</p>
+					<button onclick="location.reload()" style="background: #bee17b; color: #000; border: none; padding: 15px 30px; font-family: 'Share', monospace; cursor: pointer; font-size: 14px; border-radius: 4px; margin-right: 10px;">[RELOAD]</button>
+					<button onclick="window.location.href='https://3d.sublair.com'" style="background: #282828; color: #bee17b; border: 1px solid #bee17b; padding: 15px 30px; font-family: 'Share', monospace; cursor: pointer; font-size: 14px; border-radius: 4px;">[GO TO MAIN SITE]</button>
+				</div>
+			`;
+		}, 30000); // 30 second timeout
+
+		// Try to initialize immediately
+		try {
+			if (typeof Sketchbook !== 'undefined') {
+				console.log('✅ Sketchbook loaded, initializing...');
+				clearTimeout(initTimeout);
+				initializeWorld();
+			} else {
+				// Wait for script to load
+				console.log('⏳ Waiting for Sketchbook to load...');
+				let checkCount = 0;
+				const checkInterval = setInterval(() => {
+					checkCount++;
+					if (typeof Sketchbook !== 'undefined') {
+						console.log('✅ Sketchbook loaded after wait, initializing...');
+						clearInterval(checkInterval);
+						clearTimeout(initTimeout);
+						initializeWorld();
+					} else if (checkCount > 100) { // 10 seconds (100 * 100ms)
+						console.error('❌ Sketchbook failed to load after 10 seconds');
+						clearInterval(checkInterval);
+						// Timeout will handle error display
+					}
+				}, 100);
+			}
+		} catch (error) {
+			console.error('❌ Initialization error:', error);
+			clearTimeout(initTimeout);
+			document.body.innerHTML = `
+				<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: 'Share', monospace; color: #bee17b; text-align: center; background: #000; padding: 40px; border: 2px solid #bee17b; border-radius: 8px; max-width: 500px;">
+					<h2 style="color: #f00; margin-bottom: 20px;">[CRITICAL ERROR]</h2>
+					<p style="margin-bottom: 10px;">An error occurred during initialization:</p>
+					<pre style="color: #f00; background: #111; padding: 15px; border-radius: 4px; text-align: left; overflow-x: auto; margin-bottom: 20px;">${error.message || error}</pre>
+					<button onclick="location.reload()" style="background: #bee17b; color: #000; border: none; padding: 15px 30px; font-family: 'Share', monospace; cursor: pointer; font-size: 14px; border-radius: 4px;">[RELOAD]</button>
+				</div>
+			`;
+		}
 
 	</script>
 </body>

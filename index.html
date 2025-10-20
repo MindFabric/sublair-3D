@@ -3256,7 +3256,8 @@
 		// Check for spectator mode globally (used throughout the app)
 		const urlParams = new URLSearchParams(window.location.search);
 		const spectatorSessionCode = urlParams.get('session');
-		const isSpectatorMode = spectatorSessionCode && spectatorSessionCode.length === 6;
+		const isSpectatorMode = !!(spectatorSessionCode && spectatorSessionCode.length === 6);
+		window.isSpectatorMode = isSpectatorMode; // Make it globally accessible
 
 		// Hide music app icon for spectators
 		if (isSpectatorMode) {
@@ -8676,6 +8677,386 @@
 			}
 
 			// ========================================
+			// PROXIMITY VOICE CHAT SYSTEM
+			// ========================================
+
+			/**
+			 * Calculate audio gain based on 3D distance
+			 * @param {number} distance - Distance in world units
+			 * @param {number} maxDistance - Maximum hearing distance (default: 50)
+			 * @param {number} minDistance - Distance where volume is 100% (default: 5)
+			 * @returns {number} Volume multiplier 0-1
+			 */
+			function calculateProximityVolume(distance, maxDistance = 50, minDistance = 5) {
+				if (distance <= minDistance) return 1.0;
+				if (distance >= maxDistance) return 0.0;
+
+				// Inverse square law with smooth falloff
+				const normalizedDistance = (distance - minDistance) / (maxDistance - minDistance);
+				const volume = 1 - Math.pow(normalizedDistance, 1.5);
+
+				return Math.max(0, Math.min(1, volume));
+			}
+
+			// VoiceManager class for WebRTC proximity voice chat
+			class VoiceManager {
+				constructor(websocket) {
+					this.websocket = websocket;
+					this.localStream = null;
+					this.peerConnections = new Map(); // playerId -> RTCPeerConnection
+					this.remoteStreams = new Map(); // playerId -> MediaStream
+					this.audioElements = new Map(); // playerId -> HTMLAudioElement
+					this.gainNodes = new Map(); // playerId -> GainNode
+
+					this.enabled = false;
+					this.muted = false;
+					this.pushToTalkEnabled = false;
+					this.pushToTalkActive = false;
+					this.masterVolume = 1.0;
+					this.maxHearingDistance = 50;
+					this.minHearingDistance = 5;
+
+					this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+					// STUN/TURN servers
+					this.iceServers = [
+						{ urls: 'stun:stun.l.google.com:19302' },
+						{ urls: 'stun:stun1.l.google.com:19302' }
+					];
+
+					console.log('🎤 VoiceManager initialized');
+				}
+
+				async initialize() {
+					try {
+						// Get selected microphone device ID from settings
+						const selectedMicId = window.currentSettings?.selectedMicrophoneId || 'default';
+
+						// Build audio constraints with selected device
+						const audioConstraints = {
+							echoCancellation: true,
+							noiseSuppression: true,
+							autoGainControl: true
+						};
+
+						// Add deviceId constraint if not default
+						if (selectedMicId !== 'default') {
+							audioConstraints.deviceId = { exact: selectedMicId };
+						}
+
+						console.log('🎤 Requesting microphone:', selectedMicId);
+
+						// Request microphone access
+						this.localStream = await navigator.mediaDevices.getUserMedia({
+							audio: audioConstraints
+						});
+
+						this.enabled = true;
+						console.log('🎤 Voice chat initialized');
+
+						// Apply initial mute state
+						if (this.muted || (this.pushToTalkEnabled && !this.pushToTalkActive)) {
+							this.muteLocalStream();
+						}
+
+						return true;
+					} catch (error) {
+						console.error('❌ Failed to initialize voice chat:', error);
+						return false;
+					}
+				}
+
+				async createPeerConnection(playerId) {
+					const pc = new RTCPeerConnection({ iceServers: this.iceServers });
+
+					// Add local audio track
+					this.localStream.getTracks().forEach(track => {
+						pc.addTrack(track, this.localStream);
+					});
+
+					// Handle incoming audio stream
+					pc.ontrack = (event) => {
+						console.log(`📡 Received audio stream from player ${playerId}`);
+						this.handleRemoteStream(playerId, event.streams[0]);
+					};
+
+					// Handle ICE candidates
+					pc.onicecandidate = (event) => {
+						if (event.candidate) {
+							this.websocket.send(JSON.stringify({
+								type: 'webrtc_ice_candidate',
+								targetId: playerId,
+								candidate: event.candidate
+							}));
+						}
+					};
+
+					pc.onconnectionstatechange = () => {
+						console.log(`🔌 Connection state for ${playerId}: ${pc.connectionState}`);
+						if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+							this.removePeerConnection(playerId);
+						}
+					};
+
+					this.peerConnections.set(playerId, pc);
+					return pc;
+				}
+
+				async createOffer(playerId) {
+					console.log(`📞 Creating WebRTC offer for player: ${playerId}`);
+					const pc = await this.createPeerConnection(playerId);
+					const offer = await pc.createOffer();
+					await pc.setLocalDescription(offer);
+
+					console.log(`📤 Sending WebRTC offer to ${playerId}`);
+					this.websocket.send(JSON.stringify({
+						type: 'webrtc_offer',
+						targetId: playerId,
+						offer: offer
+					}));
+				}
+
+				async handleOffer(playerId, offer) {
+					console.log(`📞 Received WebRTC offer from ${playerId}`);
+					const pc = await this.createPeerConnection(playerId);
+					await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+					const answer = await pc.createAnswer();
+					await pc.setLocalDescription(answer);
+
+					console.log(`📤 Sending WebRTC answer to ${playerId}`);
+					this.websocket.send(JSON.stringify({
+						type: 'webrtc_answer',
+						targetId: playerId,
+						answer: answer
+					}));
+				}
+
+				async handleAnswer(playerId, answer) {
+					console.log(`📞 Received WebRTC answer from ${playerId}`);
+					const pc = this.peerConnections.get(playerId);
+					if (pc) {
+						await pc.setRemoteDescription(new RTCSessionDescription(answer));
+						console.log(`✅ WebRTC connection established with ${playerId}`);
+					} else {
+						console.error(`❌ No peer connection found for ${playerId}`);
+					}
+				}
+
+				async handleIceCandidate(playerId, candidate) {
+					const pc = this.peerConnections.get(playerId);
+					if (pc) {
+						await pc.addIceCandidate(new RTCIceCandidate(candidate));
+					}
+				}
+
+				handleRemoteStream(playerId, stream) {
+					this.remoteStreams.set(playerId, stream);
+
+					// Create audio element
+					const audio = new Audio();
+					audio.srcObject = stream;
+					audio.autoplay = true;
+
+					// Create Web Audio API chain for volume control
+					const source = this.audioContext.createMediaStreamSource(stream);
+					const gainNode = this.audioContext.createGain();
+					gainNode.gain.value = 0; // Start at 0, will be updated by updateProximityVolumes
+
+					source.connect(gainNode);
+					gainNode.connect(this.audioContext.destination);
+
+					this.audioElements.set(playerId, audio);
+					this.gainNodes.set(playerId, gainNode);
+
+					console.log(`🔊 Audio element created for player ${playerId}`);
+				}
+
+				updateProximityVolumes() {
+					if (!this.enabled) return;
+					if (!character) return;
+
+					const localPos = character.position;
+					const isSpectator = window.isSpectatorMode;
+
+					// Build list of remote players to update
+					const remotePlayers = [];
+
+					if (isSpectator) {
+						// SPECTATOR: Update volume for host
+						console.log(`🔊 SPECTATOR mode: hostContainer=${!!window.hostCharacterContainer} gainNode=${this.gainNodes.has('host')}`);
+						if (window.hostCharacterContainer && this.gainNodes.has('host')) {
+							remotePlayers.push({
+								playerId: 'host',
+								position: window.hostCharacterContainer.position,
+								gainNode: this.gainNodes.get('host')
+							});
+							console.log(`🔊 Added host to remotePlayers`);
+						} else {
+							if (!window.hostCharacterContainer) console.log(`🔊 No hostCharacterContainer`);
+							if (!this.gainNodes.has('host')) console.log(`🔊 No gain node for host. gainNodes size: ${this.gainNodes.size}`);
+						}
+
+						// SPECTATOR: Update volume for other spectators (if any)
+						if (window.spectatorCharacters) {
+							Object.keys(window.spectatorCharacters).forEach(playerId => {
+								// Skip metadata keys (scene, nametag, customization) but keep main spectator IDs
+							if (playerId.endsWith('_scene') || playerId.endsWith('_nametag') || playerId.endsWith('_customization')) return;
+								const container = window.spectatorCharacters[playerId];
+								if (container && container.position && this.gainNodes.has(playerId)) {
+									remotePlayers.push({
+										playerId: playerId,
+										position: container.position,
+										gainNode: this.gainNodes.get(playerId)
+									});
+								}
+							});
+						}
+					} else {
+						// HOST: Update volume for all spectators
+						if (window.spectatorCharacters) {
+							Object.keys(window.spectatorCharacters).forEach(playerId => {
+								// Skip metadata keys (scene, nametag, customization) but keep main spectator IDs
+							if (playerId.endsWith('_scene') || playerId.endsWith('_nametag') || playerId.endsWith('_customization')) return;
+								const container = window.spectatorCharacters[playerId];
+								if (container && container.position && this.gainNodes.has(playerId)) {
+									remotePlayers.push({
+										playerId: playerId,
+										position: container.position,
+										gainNode: this.gainNodes.get(playerId)
+									});
+								}
+							});
+						}
+					}
+
+					// Update volumes based on distance
+					remotePlayers.forEach(remote => {
+						const distance = localPos.distanceTo(remote.position);
+
+						const proximityVolume = calculateProximityVolume(
+							distance,
+							this.maxHearingDistance,
+							this.minHearingDistance
+						);
+
+						// Apply master volume multiplier
+						const finalVolume = proximityVolume * this.masterVolume;
+						remote.gainNode.gain.value = finalVolume;
+
+						console.log(`🔊 ${remote.playerId}: dist=${distance.toFixed(1)}m vol=${(finalVolume * 100).toFixed(0)}%`);
+					});
+				}
+
+				onPlayerJoined(playerId) {
+					if (!this.enabled) {
+						console.warn(`⚠️ Voice chat not enabled, skipping connection to ${playerId}`);
+						return;
+					}
+
+					console.log(`👤 New player joined: ${playerId}, creating WebRTC connection...`);
+					console.log(`🔊 VoiceManager state: enabled=${this.enabled}, localStream=${!!this.localStream}, peerConnections=${this.peerConnections.size}`);
+					this.createOffer(playerId);
+				}
+
+				onPlayerLeft(playerId) {
+					console.log(`👋 Player left: ${playerId}, removing connection...`);
+					this.removePeerConnection(playerId);
+				}
+
+				removePeerConnection(playerId) {
+					const pc = this.peerConnections.get(playerId);
+					if (pc) {
+						pc.close();
+						this.peerConnections.delete(playerId);
+					}
+
+					const audio = this.audioElements.get(playerId);
+					if (audio) {
+						audio.srcObject = null;
+						this.audioElements.delete(playerId);
+					}
+
+					this.remoteStreams.delete(playerId);
+					this.gainNodes.delete(playerId);
+				}
+
+				muteLocalStream() {
+					if (this.localStream) {
+						this.localStream.getAudioTracks().forEach(track => {
+							track.enabled = false;
+						});
+					}
+				}
+
+				unmuteLocalStream() {
+					if (this.localStream) {
+						this.localStream.getAudioTracks().forEach(track => {
+							track.enabled = true;
+						});
+					}
+				}
+
+				toggleMute() {
+					this.muted = !this.muted;
+					if (this.muted || (this.pushToTalkEnabled && !this.pushToTalkActive)) {
+						this.muteLocalStream();
+					} else {
+						this.unmuteLocalStream();
+					}
+					return this.muted;
+				}
+
+				setPushToTalk(enabled) {
+					this.pushToTalkEnabled = enabled;
+					if (enabled && !this.pushToTalkActive && !this.muted) {
+						this.muteLocalStream();
+					} else if (!enabled && !this.muted) {
+						this.unmuteLocalStream();
+					}
+				}
+
+				setPushToTalkActive(active) {
+					if (!this.pushToTalkEnabled) return;
+
+					this.pushToTalkActive = active;
+					if (active && !this.muted) {
+						this.unmuteLocalStream();
+					} else if (!active && !this.muted) {
+						this.muteLocalStream();
+					}
+				}
+
+				setMasterVolume(volume) {
+					this.masterVolume = Math.max(0, Math.min(1, volume));
+				}
+
+				cleanup() {
+					// Close all peer connections
+					this.peerConnections.forEach(pc => pc.close());
+					this.peerConnections.clear();
+
+					// Stop local stream
+					if (this.localStream) {
+						this.localStream.getTracks().forEach(track => track.stop());
+					}
+
+					// Clean up audio elements
+					this.audioElements.forEach(audio => {
+						audio.srcObject = null;
+					});
+					this.audioElements.clear();
+
+					this.remoteStreams.clear();
+					this.gainNodes.clear();
+					this.enabled = false;
+				}
+			}
+
+			// Global voice manager instance
+			let voiceManager = null;
+
+			// ========================================
 			// MULTIPLAYER WEBSOCKET SYSTEM
 			// ========================================
 			let multiplayerWs = null;
@@ -8689,7 +9070,7 @@
 
 			// Check URL for session code on load
 			if (isSpectatorMode) {
-				console.log(`🔗 Auto-joining session from URL: ${spectatorSessionCode}`);
+				console.log(`🔗 Spectator mode detected for session: ${spectatorSessionCode}`);
 
 				// Skip welcome screen and firebase auth for spectators
 				const welcomeOverlay = document.getElementById('welcome-overlay');
@@ -8698,53 +9079,13 @@
 					welcomeOverlay.style.display = 'none';
 				}
 
-				// Show spectator loading screen
-				const spectatorLoading = document.getElementById('spectator-loading');
-				const loadingStatus = document.getElementById('spectator-loading-status');
-				spectatorLoading.style.display = 'flex';
-
-				// Show "Click to Join" button instead of auto-joining
-				// This provides the required user gesture for AudioContext
-				loadingStatus.innerHTML = `
-					<div style="text-align: center;">
-						<div style="margin-bottom: 20px; font-size: 18px;">Ready to join session:</div>
-						<div style="font-size: 32px; font-weight: bold; color: #bee17b; margin-bottom: 30px;">${spectatorSessionCode}</div>
-						<button id="spectator-join-btn" style="
-							background: #bee17b;
-							color: #000;
-							border: none;
-							padding: 20px 40px;
-							font-family: 'Share', monospace;
-							font-size: 18px;
-							font-weight: bold;
-							cursor: pointer;
-							border-radius: 4px;
-							transition: all 0.3s;
-						" onmouseover="this.style.background='#d4f098'" onmouseout="this.style.background='#bee17b'">
-							CLICK TO JOIN
-						</button>
-					</div>
-				`;
-
-				// Wait for user click (valid user gesture for AudioContext)
-				setTimeout(() => {
-					const spectatorJoinBtn = document.getElementById('spectator-join-btn');
-					if (spectatorJoinBtn) {
-						spectatorJoinBtn.addEventListener('click', () => {
-							// Create AudioContext during user gesture
-							if (!window.djAudioContext) {
-								window.djAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-								console.log('🎵 Pre-created AudioContext for DJ streaming (spectator link join)');
-								console.log(`🎵 AudioContext state: ${window.djAudioContext.state}`);
-							}
-
-							// Show loading message
-							loadingStatus.textContent = 'Joining session...';
-
-							// Join the session
-							document.getElementById('session-code').value = spectatorSessionCode.toUpperCase();
-							document.getElementById('join-session-btn').click();
-						});
+				// Wait for pre-lobby modal to be initialized, then open it
+				// This will show the mic settings and wait for user to click "Join Session"
+				const waitForPreLobby = setInterval(() => {
+					if (window.openPreLobby) {
+						clearInterval(waitForPreLobby);
+						window.openPreLobby(spectatorSessionCode);
+						console.log('✅ Pre-lobby modal opened for spectator');
 					}
 				}, 100);
 			}
@@ -8797,6 +9138,24 @@
 
 							// Show multiplayer chat
 							showMpChat();
+
+							// Initialize voice chat for host (always enabled)
+							if (multiplayerWs) {
+								if (!window.voiceManager) {
+									window.voiceManager = new VoiceManager(multiplayerWs);
+								}
+								window.voiceManager.initialize().then(success => {
+									if (success) {
+										console.log('🎤 Voice chat initialized for host');
+										const micStatusEl = document.getElementById('mic-status-text');
+										if (micStatusEl) micStatusEl.textContent = 'Active';
+									} else {
+										console.warn('⚠️ Voice chat failed to initialize for host');
+										const micStatusEl = document.getElementById('mic-status-text');
+										if (micStatusEl) micStatusEl.textContent = 'Failed';
+									}
+								});
+							}
 							break;
 
 						case 'joined':
@@ -9010,6 +9369,28 @@
 
 													// Show multiplayer chat for spectators
 													showMpChat();
+
+													// Initialize voice chat for spectator (always enabled)
+													if (multiplayerWs) {
+														if (!window.voiceManager) {
+															window.voiceManager = new VoiceManager(multiplayerWs);
+														}
+														window.voiceManager.initialize().then(success => {
+															if (success) {
+																console.log('🎤 Voice chat initialized for spectator');
+																const micStatusEl = document.getElementById('mic-status-text');
+																if (micStatusEl) micStatusEl.textContent = 'Active';
+
+																// Establish voice connection with the host
+																console.log('🎤 Establishing voice connection with host');
+																window.voiceManager.onPlayerJoined('host');
+															} else {
+																console.warn('⚠️ Voice chat failed to initialize for spectator');
+																const micStatusEl = document.getElementById('mic-status-text');
+																if (micStatusEl) micStatusEl.textContent = 'Failed';
+															}
+														});
+													}
 												}, 500);
 											}
 										}, 100);
@@ -9073,10 +9454,16 @@
 							break;
 
 						case 'player_joined':
-							console.log(`👻 Spectator joined (${data.playerCount} total)`);
+							console.log(`👻 Spectator joined (${data.playerCount} total) - Player ID: ${data.playerId}`);
 							window.spectatorCount = data.playerCount;
 							if (playerViewerOpen) {
 								updatePlayerList();
+							}
+
+							// Establish voice chat connection with the new player
+							if (window.voiceManager && data.playerId) {
+								console.log(`🎤 Establishing voice connection with new player: ${data.playerId}`);
+								window.voiceManager.onPlayerJoined(data.playerId);
 							}
 
 							// Send current customization state to the new spectator
@@ -9143,6 +9530,11 @@
 								delete window.spectatorCharacterTargets[data.spectatorId];
 								delete window.spectatorAnimationMixers[data.spectatorId];
 								delete window.spectatorAnimations[data.spectatorId];
+							}
+
+							// Remove voice chat connection
+							if (data.spectatorId && voiceManager) {
+								voiceManager.onPlayerLeft(data.spectatorId);
 							}
 
 							if (playerViewerOpen) {
@@ -10195,6 +10587,39 @@
 								if (playerViewerOpen) {
 									updatePlayerList();
 								}
+							}
+							break;
+
+						// WebRTC Voice Chat Signaling Messages
+						case 'webrtc_peer_joined':
+							// New player joined - initiate WebRTC connection
+							if (data.playerId && voiceManager) {
+								console.log(`🎤 New peer joined for voice chat: ${data.playerId}`);
+								voiceManager.onPlayerJoined(data.playerId);
+							}
+							break;
+
+						case 'webrtc_offer':
+							// Received WebRTC offer from another player
+							if (data.fromId && data.offer && window.voiceManager) {
+								console.log(`📞 Received WebRTC offer from ${data.fromId}`);
+								window.voiceManager.handleOffer(data.fromId, data.offer);
+							}
+							break;
+
+						case 'webrtc_answer':
+							// Received WebRTC answer from another player
+							if (data.fromId && data.answer && window.voiceManager) {
+								console.log(`📞 Received WebRTC answer from ${data.fromId}`);
+								window.voiceManager.handleAnswer(data.fromId, data.answer);
+							}
+							break;
+
+						case 'webrtc_ice_candidate':
+							// Received ICE candidate from another player
+							if (data.fromId && data.candidate && window.voiceManager) {
+								console.log(`🧊 Received ICE candidate from ${data.fromId}`);
+								window.voiceManager.handleIceCandidate(data.fromId, data.candidate);
 							}
 							break;
 
@@ -15427,6 +15852,11 @@ window.decksMenuOpen = false;
 					}
 				}
 
+				// Update proximity-based voice chat volumes for BOTH host and spectators
+				if (window.voiceManager && window.voiceManager.enabled && character) {
+					window.voiceManager.updateProximityVolumes();
+				}
+
 				if (character) {
 					checkComputerProximity();
 					checkCarProximity();
@@ -17415,7 +17845,14 @@ window.decksMenuOpen = false;
 				masterVolume: 80,
 				musicVolume: 70,
 				sfxVolume: 100,
-				muteAudio: false
+				muteAudio: false,
+				// Voice chat settings
+				voiceEnabled: true,
+				voiceVolume: 100,
+				voiceMuted: false,
+				pushToTalk: false,
+				maxHearingDistance: 50,
+				selectedMicrophoneId: 'default' // 'default' or specific deviceId
 			};
 
 			// Load settings from localStorage
@@ -17660,6 +18097,33 @@ window.decksMenuOpen = false;
 					min-width: 50px;
 					text-align: right;
 				}
+				.settings-select {
+					width: 100%;
+					max-width: 300px;
+					padding: 8px 12px;
+					background: rgba(0, 0, 0, 0.4);
+					border: 1px solid rgba(190, 225, 123, 0.3);
+					border-radius: 6px;
+					color: #bee17b;
+					font-family: 'Share Tech Mono', monospace;
+					font-size: 11px;
+					cursor: pointer;
+					outline: none;
+					transition: all 0.2s ease;
+				}
+				.settings-select:hover {
+					border-color: #bee17b;
+					background: rgba(0, 0, 0, 0.5);
+				}
+				.settings-select:focus {
+					border-color: #bee17b;
+					box-shadow: 0 0 10px rgba(190, 225, 123, 0.2);
+				}
+				.settings-select option {
+					background: #1a1a1a;
+					color: #bee17b;
+					padding: 8px;
+				}
 				.settings-toggle {
 					position: relative;
 					width: 50px;
@@ -17722,6 +18186,29 @@ window.decksMenuOpen = false;
 					border-color: #bee17b;
 					transform: translateY(-1px);
 				}
+				.settings-test-btn {
+					padding: 8px 16px;
+					background: rgba(190, 225, 123, 0.1);
+					border: 1px solid rgba(190, 225, 123, 0.3);
+					border-radius: 6px;
+					color: #bee17b;
+					font-family: 'Share Tech Mono', monospace;
+					font-size: 11px;
+					cursor: pointer;
+					transition: all 0.2s ease;
+					text-transform: uppercase;
+					letter-spacing: 1px;
+				}
+				.settings-test-btn:hover {
+					background: rgba(190, 225, 123, 0.2);
+					border-color: #bee17b;
+					transform: translateY(-1px);
+				}
+				.settings-test-btn.active {
+					background: rgba(190, 225, 123, 0.3);
+					border-color: #bee17b;
+					color: #ffffff;
+				}
 				.controls-list {
 					display: flex;
 					flex-direction: column;
@@ -17750,6 +18237,126 @@ window.decksMenuOpen = false;
 					letter-spacing: 1px;
 					border: 1px solid rgba(190, 225, 123, 0.3);
 				}
+
+				/* Pre-Lobby Modal Styles */
+				.pre-lobby-modal {
+					position: fixed;
+					top: 0;
+					left: 0;
+					width: 100%;
+					height: 100%;
+					background: rgba(0, 0, 0, 0.85);
+					backdrop-filter: blur(10px);
+					display: none;
+					justify-content: center;
+					align-items: center;
+					z-index: 10000;
+					font-family: 'Share Tech Mono', monospace;
+				}
+				.pre-lobby-modal.active {
+					display: flex;
+				}
+				.pre-lobby-container {
+					background: rgba(26, 26, 26, 0.95);
+					border: 1px solid rgba(190, 225, 123, 0.3);
+					border-radius: 12px;
+					padding: 32px;
+					max-width: 500px;
+					width: 90%;
+					box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+				}
+				.pre-lobby-header {
+					text-align: center;
+					margin-bottom: 24px;
+				}
+				.pre-lobby-title {
+					font-size: 24px;
+					color: #bee17b;
+					margin-bottom: 8px;
+					font-weight: 600;
+				}
+				.pre-lobby-session-code {
+					font-size: 32px;
+					color: #bee17b;
+					font-weight: bold;
+					margin-bottom: 16px;
+				}
+				.pre-lobby-subtitle {
+					font-size: 12px;
+					color: rgba(190, 225, 123, 0.7);
+					text-transform: uppercase;
+					letter-spacing: 1px;
+				}
+				.pre-lobby-section {
+					margin-bottom: 20px;
+					background: rgba(190, 225, 123, 0.05);
+					padding: 16px;
+					border-radius: 8px;
+					border: 1px solid rgba(190, 225, 123, 0.1);
+				}
+				.pre-lobby-section-title {
+					font-size: 12px;
+					color: #bee17b;
+					margin-bottom: 12px;
+					text-transform: uppercase;
+					letter-spacing: 1px;
+					font-weight: 600;
+				}
+				.pre-lobby-option {
+					display: flex;
+					flex-direction: column;
+					gap: 8px;
+					margin-bottom: 16px;
+				}
+				.pre-lobby-option:last-child {
+					margin-bottom: 0;
+				}
+				.pre-lobby-label {
+					font-size: 11px;
+					color: rgba(190, 225, 123, 0.9);
+					font-weight: 600;
+				}
+				.pre-lobby-description {
+					font-size: 10px;
+					color: rgba(190, 225, 123, 0.5);
+					margin-top: -4px;
+				}
+				.pre-lobby-footer {
+					display: flex;
+					gap: 12px;
+					margin-top: 24px;
+				}
+				.pre-lobby-btn {
+					flex: 1;
+					padding: 14px 24px;
+					border: none;
+					border-radius: 6px;
+					font-family: 'Share Tech Mono', monospace;
+					font-size: 13px;
+					font-weight: 600;
+					cursor: pointer;
+					transition: all 0.2s ease;
+					text-transform: uppercase;
+					letter-spacing: 1px;
+				}
+				.pre-lobby-btn-primary {
+					background: #bee17b;
+					color: #000;
+				}
+				.pre-lobby-btn-primary:hover {
+					background: #d4f098;
+					transform: translateY(-2px);
+					box-shadow: 0 4px 12px rgba(190, 225, 123, 0.3);
+				}
+				.pre-lobby-btn-secondary {
+					background: rgba(190, 225, 123, 0.1);
+					color: #bee17b;
+					border: 1px solid rgba(190, 225, 123, 0.3);
+				}
+				.pre-lobby-btn-secondary:hover {
+					background: rgba(190, 225, 123, 0.2);
+					border-color: #bee17b;
+				}
 			`;
 			document.head.appendChild(style);
 
@@ -17765,6 +18372,7 @@ window.decksMenuOpen = false;
 				<div class="settings-tabs">
 					<button class="settings-tab active" data-tab="controls">Controls</button>
 					<button class="settings-tab" data-tab="audio">Audio</button>
+					<button class="settings-tab" data-tab="voice">Voice</button>
 				</div>
 				<div class="settings-content">
 					<div class="settings-tab-content active" id="controls-tab">
@@ -17801,6 +18409,28 @@ window.decksMenuOpen = false;
 							<div class="settings-option">
 								<div class="settings-option-label">Mute Audio<span class="settings-option-description">Disable all sounds</span></div>
 								<div class="settings-toggle ${currentSettings.muteAudio ? 'active' : ''}" id="mute-audio-toggle"></div>
+							</div>
+						</div>
+					</div>
+					<div class="settings-tab-content" id="voice-tab">
+						<div class="settings-section">
+							<div class="settings-section-title">Microphone Settings</div>
+							<div class="settings-option">
+								<div class="settings-option-label">Microphone Device<span class="settings-option-description">Select which microphone to use</span></div>
+								<select class="settings-select" id="microphone-select">
+									<option value="">Loading devices...</option>
+								</select>
+							</div>
+							<div class="settings-section-title" style="margin-top: 20px;">Microphone Test</div>
+							<div class="settings-option">
+								<div class="settings-option-label">Test Microphone<span class="settings-option-description">Click to test your microphone</span></div>
+								<button class="settings-test-btn" id="mic-test-btn">Start Test</button>
+							</div>
+							<div class="settings-option" id="mic-meter-container" style="display: none;">
+								<div class="settings-option-label">Input Level<span class="settings-option-description">Speak to see your microphone level</span></div>
+								<div style="width: 100%; height: 20px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; position: relative;">
+									<div id="mic-level-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #bee17b, #8bc34a); transition: width 0.05s;"></div>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -17892,6 +18522,218 @@ window.decksMenuOpen = false;
 
 			setupToggle('mute-audio-toggle', 'muteAudio');
 
+			// Microphone Device Selector
+			const microphoneSelect = document.getElementById('microphone-select');
+			let availableMicrophones = [];
+
+			async function loadMicrophoneDevices() {
+				try {
+					console.log('🎤 Loading microphone devices...');
+
+					// Request permission first to get device labels
+					const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+					tempStream.getTracks().forEach(track => track.stop()); // Stop immediately
+
+					// Get all audio input devices
+					const devices = await navigator.mediaDevices.enumerateDevices();
+					availableMicrophones = devices.filter(device => device.kind === 'audioinput');
+
+					// Clear and populate select
+					microphoneSelect.innerHTML = '';
+
+					if (availableMicrophones.length === 0) {
+						microphoneSelect.innerHTML = '<option value="">No microphones found</option>';
+						console.warn('⚠️ No microphone devices found');
+						return;
+					}
+
+					// Add default option
+					const defaultOption = document.createElement('option');
+					defaultOption.value = 'default';
+					defaultOption.textContent = 'System Default';
+					microphoneSelect.appendChild(defaultOption);
+
+					// Add each microphone
+					availableMicrophones.forEach((device, index) => {
+						const option = document.createElement('option');
+						option.value = device.deviceId;
+						option.textContent = device.label || `Microphone ${index + 1}`;
+						microphoneSelect.appendChild(option);
+					});
+
+					// Set saved selection
+					if (currentSettings.selectedMicrophoneId) {
+						microphoneSelect.value = currentSettings.selectedMicrophoneId;
+					}
+
+					console.log(`✅ Loaded ${availableMicrophones.length} microphone devices`);
+
+				} catch (error) {
+					console.error('❌ Failed to load microphone devices:', error);
+					microphoneSelect.innerHTML = '<option value="">Permission denied</option>';
+				}
+			}
+
+			// Handle microphone selection change
+			microphoneSelect.addEventListener('change', (e) => {
+				const selectedId = e.target.value;
+				currentSettings.selectedMicrophoneId = selectedId;
+				saveSettings(currentSettings);
+
+				const selectedDevice = availableMicrophones.find(d => d.deviceId === selectedId);
+				const deviceName = selectedId === 'default' ? 'System Default' : (selectedDevice ? selectedDevice.label : 'Unknown');
+
+				console.log(`🎤 Microphone changed to: ${deviceName} (${selectedId})`);
+
+				// If voice manager is active, reinitialize with new device
+				if (window.voiceManager && window.voiceManager.enabled) {
+					console.log('🔄 Reinitializing voice manager with new microphone...');
+					window.voiceManager.cleanup();
+					window.voiceManager.initialize().then(success => {
+						if (success) {
+							console.log('✅ Voice manager reinitialized with new microphone');
+						} else {
+							console.error('❌ Failed to reinitialize voice manager');
+						}
+					});
+				}
+			});
+
+			// Load devices when settings menu opens
+			const originalOpenSettings = openSettings;
+			openSettings = function() {
+				originalOpenSettings();
+				// Load microphone devices when opening settings
+				setTimeout(() => {
+					loadMicrophoneDevices();
+				}, 100);
+			};
+
+			// Microphone Test System
+			let micTestStream = null;
+			let micTestAnalyser = null;
+			let micTestAnimationId = null;
+			const micTestBtn = document.getElementById('mic-test-btn');
+			const micMeterContainer = document.getElementById('mic-meter-container');
+			const micLevelBar = document.getElementById('mic-level-bar');
+
+			async function startMicTest() {
+				try {
+					console.log('🎤 Starting microphone test...');
+
+					// Get selected microphone device ID from settings
+					const selectedMicId = currentSettings.selectedMicrophoneId || 'default';
+
+					// Build audio constraints with selected device
+					const audioConstraints = {
+						echoCancellation: true,
+						noiseSuppression: true,
+						autoGainControl: true
+					};
+
+					// Add deviceId constraint if not default
+					if (selectedMicId !== 'default') {
+						audioConstraints.deviceId = { exact: selectedMicId };
+					}
+
+					console.log('🎤 Testing microphone:', selectedMicId);
+
+					// Request microphone access
+					micTestStream = await navigator.mediaDevices.getUserMedia({
+						audio: audioConstraints
+					});
+
+					// Create audio context and analyser
+					const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+					const source = audioContext.createMediaStreamSource(micTestStream);
+					micTestAnalyser = audioContext.createAnalyser();
+					micTestAnalyser.fftSize = 256;
+					source.connect(micTestAnalyser);
+
+					// Show meter
+					micMeterContainer.style.display = 'flex';
+					micTestBtn.textContent = 'Stop Test';
+					micTestBtn.classList.add('active');
+
+					// Animation loop for level meter
+					const dataArray = new Uint8Array(micTestAnalyser.frequencyBinCount);
+
+					function updateMeter() {
+						if (!micTestStream) return;
+
+						micTestAnalyser.getByteFrequencyData(dataArray);
+
+						// Calculate average volume
+						let sum = 0;
+						for (let i = 0; i < dataArray.length; i++) {
+							sum += dataArray[i];
+						}
+						const average = sum / dataArray.length;
+						const percentage = Math.min(100, (average / 255) * 100 * 2); // Amplify for visibility
+
+						micLevelBar.style.width = percentage + '%';
+
+						// Color coding: green (normal) -> yellow (loud) -> red (clipping)
+						if (percentage > 90) {
+							micLevelBar.style.background = 'linear-gradient(90deg, #ff5252, #ff1744)';
+						} else if (percentage > 70) {
+							micLevelBar.style.background = 'linear-gradient(90deg, #ffeb3b, #ffc107)';
+						} else {
+							micLevelBar.style.background = 'linear-gradient(90deg, #bee17b, #8bc34a)';
+						}
+
+						micTestAnimationId = requestAnimationFrame(updateMeter);
+					}
+
+					updateMeter();
+					console.log('✅ Microphone test started');
+
+				} catch (error) {
+					console.error('❌ Microphone test failed:', error);
+					alert('Failed to access microphone. Please check your browser permissions.');
+					stopMicTest();
+				}
+			}
+
+			function stopMicTest() {
+				console.log('🛑 Stopping microphone test...');
+
+				if (micTestAnimationId) {
+					cancelAnimationFrame(micTestAnimationId);
+					micTestAnimationId = null;
+				}
+
+				if (micTestStream) {
+					micTestStream.getTracks().forEach(track => track.stop());
+					micTestStream = null;
+				}
+
+				micTestAnalyser = null;
+				micMeterContainer.style.display = 'none';
+				micLevelBar.style.width = '0%';
+				micTestBtn.textContent = 'Start Test';
+				micTestBtn.classList.remove('active');
+
+				console.log('✅ Microphone test stopped');
+			}
+
+			micTestBtn.addEventListener('click', () => {
+				if (micTestStream) {
+					stopMicTest();
+				} else {
+					startMicTest();
+				}
+			});
+
+			// Clean up mic test when settings menu closes
+			const originalCloseSettings = closeSettings;
+			closeSettings = function() {
+				if (micTestStream) {
+					stopMicTest();
+				}
+				originalCloseSettings();
+			};
+
 			// P key to toggle settings
 			document.addEventListener('keydown', (e) => {
 				if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -17914,6 +18756,323 @@ window.decksMenuOpen = false;
 			window.currentSettings = currentSettings;
 
 			console.log('✅ Settings Menu System initialized');
+		})();
+
+		// ===========================================
+		// Pre-Lobby Modal System
+		// ===========================================
+		(function() {
+			// Create pre-lobby modal HTML
+			const preLobbyModal = document.createElement('div');
+			preLobbyModal.className = 'pre-lobby-modal';
+			preLobbyModal.id = 'pre-lobby-modal';
+			preLobbyModal.innerHTML = `
+				<div class="pre-lobby-container">
+					<div class="pre-lobby-header">
+						<div class="pre-lobby-title">Join Session</div>
+						<div class="pre-lobby-session-code" id="pre-lobby-session-code">ABC123</div>
+						<div class="pre-lobby-subtitle">Configure your microphone</div>
+					</div>
+
+					<div class="pre-lobby-section">
+						<div class="pre-lobby-section-title">Microphone Settings</div>
+						<div class="pre-lobby-option">
+							<div class="pre-lobby-label">Microphone Device</div>
+							<div class="pre-lobby-description">Select which microphone to use</div>
+							<select class="settings-select" id="pre-lobby-mic-select">
+								<option value="">Loading devices...</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="pre-lobby-section">
+						<div class="pre-lobby-section-title">Microphone Test</div>
+						<div class="pre-lobby-option">
+							<div class="pre-lobby-label">Test Your Microphone</div>
+							<div class="pre-lobby-description">Click to test - speak to see your microphone level</div>
+							<button class="settings-test-btn" id="pre-lobby-mic-test-btn">Start Test</button>
+						</div>
+						<div class="pre-lobby-option" id="pre-lobby-mic-meter-container" style="display: none; margin-top: 8px;">
+							<div class="pre-lobby-label">Input Level</div>
+							<div style="width: 100%; height: 20px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; position: relative; margin-top: 8px;">
+								<div id="pre-lobby-mic-level-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #bee17b, #8bc34a); transition: width 0.05s;"></div>
+							</div>
+						</div>
+					</div>
+
+					<div class="pre-lobby-footer">
+						<button class="pre-lobby-btn pre-lobby-btn-secondary" id="pre-lobby-cancel-btn">Cancel</button>
+						<button class="pre-lobby-btn pre-lobby-btn-primary" id="pre-lobby-join-btn">Join Session</button>
+					</div>
+				</div>
+			`;
+			document.body.appendChild(preLobbyModal);
+
+			// Pre-lobby modal state
+			let preLobbyMicTestStream = null;
+			let preLobbyMicTestAnalyser = null;
+			let preLobbyMicTestAnimationId = null;
+			let preLobbySessionCode = null;
+
+			// References
+			const preLobbyMicSelect = document.getElementById('pre-lobby-mic-select');
+			const preLobbyMicTestBtn = document.getElementById('pre-lobby-mic-test-btn');
+			const preLobbyMicMeterContainer = document.getElementById('pre-lobby-mic-meter-container');
+			const preLobbyMicLevelBar = document.getElementById('pre-lobby-mic-level-bar');
+			const preLobbyJoinBtn = document.getElementById('pre-lobby-join-btn');
+			const preLobbyCancelBtn = document.getElementById('pre-lobby-cancel-btn');
+
+			// Open pre-lobby modal
+			function openPreLobby(sessionCode) {
+				preLobbySessionCode = sessionCode;
+				document.getElementById('pre-lobby-session-code').textContent = sessionCode;
+				preLobbyModal.classList.add('active');
+				console.log('🚪 Pre-lobby modal opened for session:', sessionCode);
+
+				// Load microphone devices
+				setTimeout(() => {
+					loadPreLobbyMicrophoneDevices();
+				}, 100);
+			}
+
+			// Close pre-lobby modal
+			function closePreLobby() {
+				preLobbyModal.classList.remove('active');
+				if (preLobbyMicTestStream) {
+					stopPreLobbyMicTest();
+				}
+				console.log('🚪 Pre-lobby modal closed');
+			}
+
+			// Load microphone devices for pre-lobby
+			async function loadPreLobbyMicrophoneDevices() {
+				try {
+					console.log('🎤 Loading microphone devices for pre-lobby...');
+
+					// Request permission first to get device labels
+					const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+					tempStream.getTracks().forEach(track => track.stop());
+
+					// Get all audio input devices
+					const devices = await navigator.mediaDevices.enumerateDevices();
+					const availableMicrophones = devices.filter(device => device.kind === 'audioinput');
+
+					// Clear and populate select
+					preLobbyMicSelect.innerHTML = '';
+
+					if (availableMicrophones.length === 0) {
+						preLobbyMicSelect.innerHTML = '<option value="">No microphones found</option>';
+						console.warn('⚠️ No microphone devices found');
+						return;
+					}
+
+					// Add default option
+					const defaultOption = document.createElement('option');
+					defaultOption.value = 'default';
+					defaultOption.textContent = 'System Default';
+					preLobbyMicSelect.appendChild(defaultOption);
+
+					// Add each microphone
+					availableMicrophones.forEach((device, index) => {
+						const option = document.createElement('option');
+						option.value = device.deviceId;
+						option.textContent = device.label || `Microphone ${index + 1}`;
+						preLobbyMicSelect.appendChild(option);
+					});
+
+					// Set saved selection from settings
+					if (window.currentSettings && window.currentSettings.selectedMicrophoneId) {
+						preLobbyMicSelect.value = window.currentSettings.selectedMicrophoneId;
+					}
+
+					console.log(`✅ Loaded ${availableMicrophones.length} microphone devices for pre-lobby`);
+
+				} catch (error) {
+					console.error('❌ Failed to load microphone devices for pre-lobby:', error);
+					preLobbyMicSelect.innerHTML = '<option value="">Permission denied</option>';
+				}
+			}
+
+			// Mic test for pre-lobby
+			async function startPreLobbyMicTest() {
+				try {
+					console.log('🎤 Starting pre-lobby microphone test...');
+
+					const selectedMicId = preLobbyMicSelect.value || 'default';
+					const audioConstraints = {
+						echoCancellation: true,
+						noiseSuppression: true,
+						autoGainControl: true
+					};
+
+					if (selectedMicId !== 'default') {
+						audioConstraints.deviceId = { exact: selectedMicId };
+					}
+
+					preLobbyMicTestStream = await navigator.mediaDevices.getUserMedia({
+						audio: audioConstraints
+					});
+
+					const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+					const source = audioContext.createMediaStreamSource(preLobbyMicTestStream);
+					preLobbyMicTestAnalyser = audioContext.createAnalyser();
+					preLobbyMicTestAnalyser.fftSize = 256;
+					source.connect(preLobbyMicTestAnalyser);
+
+					preLobbyMicMeterContainer.style.display = 'block';
+					preLobbyMicTestBtn.textContent = 'Stop Test';
+					preLobbyMicTestBtn.classList.add('active');
+
+					const dataArray = new Uint8Array(preLobbyMicTestAnalyser.frequencyBinCount);
+
+					function updateMeter() {
+						if (!preLobbyMicTestStream) return;
+
+						preLobbyMicTestAnalyser.getByteFrequencyData(dataArray);
+
+						let sum = 0;
+						for (let i = 0; i < dataArray.length; i++) {
+							sum += dataArray[i];
+						}
+						const average = sum / dataArray.length;
+						const percentage = Math.min(100, (average / 255) * 100 * 2);
+
+						preLobbyMicLevelBar.style.width = percentage + '%';
+
+						if (percentage > 90) {
+							preLobbyMicLevelBar.style.background = 'linear-gradient(90deg, #ff5252, #ff1744)';
+						} else if (percentage > 70) {
+							preLobbyMicLevelBar.style.background = 'linear-gradient(90deg, #ffeb3b, #ffc107)';
+						} else {
+							preLobbyMicLevelBar.style.background = 'linear-gradient(90deg, #bee17b, #8bc34a)';
+						}
+
+						preLobbyMicTestAnimationId = requestAnimationFrame(updateMeter);
+					}
+
+					updateMeter();
+					console.log('✅ Pre-lobby microphone test started');
+
+				} catch (error) {
+					console.error('❌ Pre-lobby microphone test failed:', error);
+					alert('Failed to access microphone. Please check your browser permissions.');
+					stopPreLobbyMicTest();
+				}
+			}
+
+			function stopPreLobbyMicTest() {
+				console.log('🛑 Stopping pre-lobby microphone test...');
+
+				if (preLobbyMicTestAnimationId) {
+					cancelAnimationFrame(preLobbyMicTestAnimationId);
+					preLobbyMicTestAnimationId = null;
+				}
+
+				if (preLobbyMicTestStream) {
+					preLobbyMicTestStream.getTracks().forEach(track => track.stop());
+					preLobbyMicTestStream = null;
+				}
+
+				preLobbyMicTestAnalyser = null;
+				preLobbyMicMeterContainer.style.display = 'none';
+				preLobbyMicLevelBar.style.width = '0%';
+				preLobbyMicTestBtn.textContent = 'Start Test';
+				preLobbyMicTestBtn.classList.remove('active');
+
+				console.log('✅ Pre-lobby microphone test stopped');
+			}
+
+			// Event listeners
+			preLobbyMicTestBtn.addEventListener('click', () => {
+				if (preLobbyMicTestStream) {
+					stopPreLobbyMicTest();
+				} else {
+					startPreLobbyMicTest();
+				}
+			});
+
+			preLobbyMicSelect.addEventListener('change', (e) => {
+				const selectedId = e.target.value;
+				// Save to settings
+				if (window.currentSettings) {
+					window.currentSettings.selectedMicrophoneId = selectedId;
+					if (window.saveSettings) {
+						saveSettings(window.currentSettings);
+					}
+				}
+				console.log('🎤 Pre-lobby microphone changed to:', selectedId);
+			});
+
+			preLobbyJoinBtn.addEventListener('click', () => {
+				// Stop mic test if running
+				if (preLobbyMicTestStream) {
+					stopPreLobbyMicTest();
+				}
+
+				// Create AudioContext during user gesture
+				if (!window.djAudioContext) {
+					window.djAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+					console.log('🎵 Pre-created AudioContext for DJ streaming (pre-lobby join)');
+				}
+
+				// Close modal
+				closePreLobby();
+
+				// Join the session
+				document.getElementById('session-code').value = preLobbySessionCode.toUpperCase();
+				document.getElementById('join-session-btn').click();
+			});
+
+			preLobbyCancelBtn.addEventListener('click', () => {
+				closePreLobby();
+				// Clear the spectator loading screen
+				const spectatorLoading = document.getElementById('spectator-loading');
+				if (spectatorLoading) {
+					spectatorLoading.style.display = 'none';
+				}
+
+				// Show a message that they cancelled joining
+				const loadingScreen = document.getElementById('loading-screen');
+				if (loadingScreen) {
+					loadingScreen.style.display = 'flex';
+					const loadingText = loadingScreen.querySelector('.loading-text');
+					if (loadingText) {
+						loadingText.textContent = 'Join cancelled. Close this tab or refresh to try again.';
+					}
+				}
+			});
+
+			// Expose globally
+			window.openPreLobby = openPreLobby;
+			window.closePreLobby = closePreLobby;
+
+			console.log('✅ Pre-Lobby Modal System initialized');
+		})();
+
+		// ===========================================
+		// Push-to-Talk (V key) Handler
+		// ===========================================
+		(function() {
+			// V key push-to-talk controls
+			document.addEventListener('keydown', (e) => {
+				// Don't trigger if typing in an input field or other UI is open
+				if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+				if (window.customizationOpen || window.terminalOpen || window.radioOpen || window.settingsOpen) return;
+
+				if ((e.key === 'v' || e.key === 'V') && window.voiceManager && window.voiceManager.pushToTalkEnabled && !e.repeat) {
+					window.voiceManager.setPushToTalkActive(true);
+					console.log('🎤 Push-to-talk activated (V key pressed)');
+				}
+			});
+
+			document.addEventListener('keyup', (e) => {
+				if ((e.key === 'v' || e.key === 'V') && window.voiceManager && window.voiceManager.pushToTalkEnabled) {
+					window.voiceManager.setPushToTalkActive(false);
+					console.log('🔇 Push-to-talk deactivated (V key released)');
+				}
+			});
+
+			console.log('✅ Push-to-Talk controls initialized (V key)');
 		})();
 
 	</script>

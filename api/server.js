@@ -1422,6 +1422,7 @@ wss.on('connection', (ws, req) => {
             session.host.send(JSON.stringify({
               type: 'player_joined',
               playerData: ws.playerData,
+              playerId: ws.spectatorId, // Add playerId for voice chat
               spectatorId: ws.spectatorId,
               playerCount: session.players.length
             }));
@@ -1443,6 +1444,41 @@ wss.on('connection', (ws, req) => {
               }
             }
           }
+
+          // Notify new player about existing players for WebRTC setup
+          // Tell the new player about the host
+          ws.send(JSON.stringify({
+            type: 'webrtc_peer_joined',
+            playerId: 'host'
+          }));
+
+          // Tell the new player about all existing spectators
+          session.players.forEach(player => {
+            if (player !== ws && player.spectatorId) {
+              ws.send(JSON.stringify({
+                type: 'webrtc_peer_joined',
+                playerId: player.spectatorId
+              }));
+            }
+          });
+
+          // Notify all existing players about the new player
+          const newPlayerMessage = JSON.stringify({
+            type: 'webrtc_peer_joined',
+            playerId: ws.spectatorId
+          });
+
+          // Notify host
+          if (session.host.readyState === WebSocket.OPEN) {
+            session.host.send(newPlayerMessage);
+          }
+
+          // Notify all other spectators
+          session.players.forEach(player => {
+            if (player !== ws && player.readyState === WebSocket.OPEN) {
+              player.send(newPlayerMessage);
+            }
+          });
 
           // Broadcast complete player list to everyone (host + all spectators)
           broadcastPlayerList(session);
@@ -1876,6 +1912,66 @@ wss.on('connection', (ws, req) => {
                   player.send(latencyUpdate);
                 }
               });
+            }
+          }
+          break;
+
+        case 'webrtc_offer':
+          // Forward WebRTC offer to target peer for voice chat
+          if (ws.sessionCode && data.targetId) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const targetPlayer = [session.host, ...session.players].find(
+                p => (p.isHost && data.targetId === 'host') || p.spectatorId === data.targetId
+              );
+              if (targetPlayer && targetPlayer !== ws && targetPlayer.readyState === WebSocket.OPEN) {
+                targetPlayer.send(JSON.stringify({
+                  type: 'webrtc_offer',
+                  offer: data.offer,
+                  fromId: ws.isHost ? 'host' : ws.spectatorId
+                }));
+                console.log(`📞 Forwarded WebRTC offer from ${ws.isHost ? 'host' : ws.spectatorId} to ${data.targetId}`);
+              }
+            }
+          }
+          break;
+
+        case 'webrtc_answer':
+          // Forward WebRTC answer to target peer for voice chat
+          if (ws.sessionCode && data.targetId) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const targetPlayer = [session.host, ...session.players].find(
+                p => (p.isHost && data.targetId === 'host') || p.spectatorId === data.targetId
+              );
+              if (targetPlayer && targetPlayer !== ws && targetPlayer.readyState === WebSocket.OPEN) {
+                targetPlayer.send(JSON.stringify({
+                  type: 'webrtc_answer',
+                  answer: data.answer,
+                  fromId: ws.isHost ? 'host' : ws.spectatorId
+                }));
+                console.log(`📞 Forwarded WebRTC answer from ${ws.isHost ? 'host' : ws.spectatorId} to ${data.targetId}`);
+              }
+            }
+          }
+          break;
+
+        case 'webrtc_ice_candidate':
+          // Forward ICE candidate to target peer for voice chat
+          if (ws.sessionCode && data.targetId) {
+            const session = sessions.get(ws.sessionCode);
+            if (session) {
+              const targetPlayer = [session.host, ...session.players].find(
+                p => (p.isHost && data.targetId === 'host') || p.spectatorId === data.targetId
+              );
+              if (targetPlayer && targetPlayer !== ws && targetPlayer.readyState === WebSocket.OPEN) {
+                targetPlayer.send(JSON.stringify({
+                  type: 'webrtc_ice_candidate',
+                  candidate: data.candidate,
+                  fromId: ws.isHost ? 'host' : ws.spectatorId
+                }));
+                console.log(`🧊 Forwarded ICE candidate from ${ws.isHost ? 'host' : ws.spectatorId} to ${data.targetId}`);
+              }
             }
           }
           break;

@@ -944,7 +944,7 @@ export class Character extends THREE.Object3D implements IWorldEntity
 						// Reset the wall jump timer when touching wall
 						this.wallJumpTimer = 0.2; // 0.2 second buffer
 
-						console.log('🧱 Wall detected! velocity.y:', body.velocity.y.toFixed(2), 'grounded:', this.rayHasHit, 'normal:', this.wallNormal.x.toFixed(2), this.wallNormal.y.toFixed(2), this.wallNormal.z.toFixed(2), 'distance:', tempResult.distance.toFixed(2));
+						// console.log('🧱 Wall detected! velocity.y:', body.velocity.y.toFixed(2), 'grounded:', this.rayHasHit, 'normal:', this.wallNormal.x.toFixed(2), this.wallNormal.y.toFixed(2), this.wallNormal.z.toFixed(2), 'distance:', tempResult.distance.toFixed(2));
 
 						// DON'T return here - we need to set canWallJump below!
 						break; // Exit the directions loop
@@ -969,7 +969,7 @@ export class Character extends THREE.Object3D implements IWorldEntity
 		this.canWallJump = (this.wallRayHasHit || this.wallJumpTimer > 0) && !this.rayHasHit;
 
 		if (this.wallRayHasHit || this.wallJumpTimer > 0) {
-			console.log('💡 Wall jump check: wallRayHasHit:', this.wallRayHasHit, 'timer:', this.wallJumpTimer.toFixed(3), 'rayHasHit:', this.rayHasHit, 'canWallJump:', this.canWallJump);
+			// console.log('💡 Wall jump check: wallRayHasHit:', this.wallRayHasHit, 'timer:', this.wallJumpTimer.toFixed(3), 'rayHasHit:', this.rayHasHit, 'canWallJump:', this.canWallJump);
 		}
 	}
 

@@ -10931,9 +10931,14 @@ createReverbImpulse() {
 
 						// Create FLV player
 						const streamKey = data.streamKey;
-						// Use current hostname for FLV stream URL (works for both localhost and production)
+						// Use current hostname for FLV stream URL
+						// In production, use nginx proxy at /live (no port)
+						// In localhost, connect directly to port 8888
 						const hostname = window.location.hostname;
-						const streamUrl = `http://${hostname}:8888/live/${streamKey}.flv`;
+						const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+						const streamUrl = isLocalhost
+							? `http://${hostname}:8888/live/${streamKey}.flv`
+							: `${window.location.protocol}//${hostname}/live/${streamKey}.flv`;
 
 						window.djFlvPlayer = flvjs.createPlayer({
 							type: 'flv',

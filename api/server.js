@@ -1112,7 +1112,8 @@ const NodeMediaServer = require('node-media-server');
 // Determine if we're in production (Railway) or development (localhost)
 const isProduction = process.env.NODE_ENV === 'production';
 const RTMP_PORT = isProduction ? (parseInt(process.env.RTMP_PORT) || 1935) : 1935;
-const HTTP_FLV_PORT = isProduction ? parseInt(PORT) + 1 : 8888; // Parse PORT as int before adding
+// Always use 8888 for HTTP-FLV to match nginx proxy configuration
+const HTTP_FLV_PORT = 8888;
 
 const nmsConfig = {
   rtmp: {
@@ -1146,7 +1147,7 @@ nms.run();
 console.log(`📹 RTMP Server running on port ${RTMP_PORT}`);
 console.log(`🔑 OBS Stream URL: rtmp://${isProduction ? '3d.sublair.com' : 'localhost'}:${RTMP_PORT}/live`);
 console.log('🔑 Stream Key: Use your session code (e.g., ABC123)');
-console.log(`🎥 HTTP-FLV available on port ${isProduction ? (HTTP_FLV_PORT + 1) : 8888}`);
+console.log(`🎥 HTTP-FLV available on port ${HTTP_FLV_PORT}`);
 
 // Store active DJ streams
 const activeDJStreams = new Map(); // { sessionCode: { active: true, listeners: [] } }

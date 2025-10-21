@@ -15351,6 +15351,15 @@ window.decksMenuOpen = false;
 	function openManagerMenu() {
 		if (window.managerMenuOpen || window.customizationOpen || window.terminalOpen || window.radioOpen || window.settingsOpen) return;
 
+		// Stop character movement IMMEDIATELY
+		if (character && character.characterCapsule && character.characterCapsule.body) {
+			character.characterCapsule.body.velocity.set(0, 0, 0);
+			character.characterCapsule.body.angularVelocity.set(0, 0, 0);
+			character.velocitySimulator.target.set(0, 0, 0);
+			character.velocitySimulator.position.set(0, 0, 0);
+			character.velocitySimulator.velocity.set(0, 0, 0);
+		}
+
 		managerMenu.style.display = 'flex';
 		window.managerMenuOpen = true;
 		managerResponse.style.display = 'none';

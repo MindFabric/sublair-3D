@@ -2646,6 +2646,7 @@
 				<div class="welcome-slide" data-slide="2">
 					<h2>Interactive Computer</h2>
 					<p>Walk up to the computer terminal and press <strong>F</strong> to access the SUBLAIR OS. Browse music, adjust the EQ, and control playback with a retro DOS-inspired interface.</p>
+					<p style="margin-top: 12px;"><strong style="color: #bee17b;">Multiplayer:</strong> Share your session URL with friends to explore together! Multiple players can join, explore, and interact in the same world simultaneously.</p>
 				</div>
 				<!-- Slide 4 -->
 				<div class="welcome-slide" data-slide="3">
@@ -2654,11 +2655,18 @@
 				</div>
 				<!-- Slide 5 -->
 				<div class="welcome-slide" data-slide="4">
-					<h2>Customize Your Character</h2>
-					<p>Press <strong>C</strong> anytime to customize your character's appearance. Change colors, patterns, and textures to make your avatar truly unique.</p>
+					<h2>DJ Decks & Streaming</h2>
+					<p>Become the DJ! Interact with the decks to start broadcasting live music streams. Configure your <strong>OBS</strong> or streaming software to send RTMP streams to the server.</p>
+					<p style="margin-top: 12px;">Spectators will hear your live stream in real-time with spatial 3D audio. Host parties, DJ sets, or radio shows - the underground is yours to control.</p>
 				</div>
 				<!-- Slide 6 -->
 				<div class="welcome-slide" data-slide="5">
+					<h2>Customize & Build Your World</h2>
+					<p>Press <strong>C</strong> anytime to customize your character's appearance. Change colors, patterns, and textures to make your avatar truly unique.</p>
+					<p style="margin-top: 12px;"><strong style="color: #bee17b;">World Building:</strong> Use the object placer to add primitives and build structures. Create your own 3D spaces and shape the world around you!</p>
+				</div>
+				<!-- Slide 7 -->
+				<div class="welcome-slide" data-slide="6">
 					<h2>Welcome to the Underground</h2>
 					<p>This is just the beginning. SUBLAIR 3D is in active development - a disruptive vision of what music discovery can be.</p>
 					<p style="margin-top: 16px; font-style: italic; opacity: 0.7;">Think big. Think disruptive. The network beneath.</p>
@@ -2673,6 +2681,7 @@
 					<div class="welcome-dot" onclick="goToSlide(3)"></div>
 					<div class="welcome-dot" onclick="goToSlide(4)"></div>
 					<div class="welcome-dot" onclick="goToSlide(5)"></div>
+					<div class="welcome-dot" onclick="goToSlide(6)"></div>
 				</div>
 				<div class="welcome-nav">
 					<button class="welcome-btn" id="welcome-prev" onclick="prevSlide()" disabled>Previous</button>
@@ -3594,6 +3603,18 @@
 					return Math.round(value / gridSize) * gridSize;
 				}
 
+				// Helper function to snap object face to grid (accounts for object size)
+				function snapObjectToGrid(position, objectSize, gridSize) {
+					// Calculate where the bottom-left corner would be
+					const cornerOffset = objectSize / 2;
+
+					// Snap the corner to grid
+					const snappedCorner = Math.round((position - cornerOffset) / gridSize) * gridSize;
+
+					// Calculate center position from snapped corner
+					return snappedCorner + cornerOffset;
+				}
+
 				// Separate function to update cursor in render loop
 				function updatePlacementCursorPosition() {
 					if (!placementCursorActive || !placementCursor) {
@@ -3647,10 +3668,25 @@
 
 						// Apply grid snapping if enabled
 						if (gridSnapEnabled) {
-							x = snapToGrid(x, GRID_SIZE);
-							z = snapToGrid(z, GRID_SIZE);
-							// Snap Y to grid for surface-to-surface alignment!
-							y = snapToGrid(y, GRID_SIZE);
+							// Get preview object dimensions for face-based snapping
+							const preview = window.objectPreview;
+							if (preview) {
+								// Calculate bounding box to get object dimensions
+								const bbox = new THREE.Box3().setFromObject(preview);
+								const width = bbox.max.x - bbox.min.x;
+								const depth = bbox.max.z - bbox.min.z;
+								const height = bbox.max.y - bbox.min.y;
+
+								// Snap object faces to grid instead of center
+								x = snapObjectToGrid(x, width, GRID_SIZE);
+								z = snapObjectToGrid(z, depth, GRID_SIZE);
+								y = snapObjectToGrid(y, height, GRID_SIZE);
+							} else {
+								// Fallback to center snapping if no preview
+								x = snapToGrid(x, GRID_SIZE);
+								z = snapToGrid(z, GRID_SIZE);
+								y = snapToGrid(y, GRID_SIZE);
+							}
 						}
 
 						// Apply vertical offset from E/Q keys
@@ -5668,66 +5704,37 @@
 					world.add(npc);
 
 				// ==========================================
-				// CUSTOM MANAGER AI - Random Movement + Player Tracking
+				// CUSTOM MANAGER AI - Random Wandering
 				// ==========================================
 				class ManagerAI {
 					constructor(npc) {
 						this.character = npc;
 						this.randomFrequency = 150; // Less frequent random actions
-						this.idleTimer = 0;
-						this.trackingRange = 5;
-						this.isTracking = false;
 					}
 
 					update(timeStep) {
-						if (!character || !this.character) return;
+						if (!this.character) return;
 
-						const managerPos = this.character.position;
-						const playerPos = character.position;
-						const distance = managerPos.distanceTo(playerPos);
+						// Random wandering behavior (based on RandomBehaviour.ts)
+						let rndInt = Math.floor(Math.random() * this.randomFrequency);
+						let rndBool = Math.random() > 0.5;
 
-						// Check if player is nearby
-						if (distance < this.trackingRange) {
-							// TRACKING MODE - Look at player
-							this.isTracking = true;
-
-							// Calculate direction to player
-							const direction = new THREE.Vector3();
-							direction.subVectors(playerPos, managerPos);
-							direction.y = 0; // Keep horizontal
-							direction.normalize();
-
-							// Set view vector to look at player
-							this.character.setViewVector(direction);
-
-							// Stop moving when tracking player
-							this.character.velocitySimulator.target.set(0, 0, 0);
-
-						} else {
-							// RANDOM MODE - Wander around
-							this.isTracking = false;
-
-							// Random behavior logic (from RandomBehaviour.ts)
-							let rndInt = Math.floor(Math.random() * this.randomFrequency);
-							let rndBool = Math.random() > 0.5;
-
-							if (rndInt === 0) {
-								// Random direction change
-								this.character.setViewVector(new THREE.Vector3(
-									Math.random() - 0.5,
-									Math.random() - 0.5,
-									Math.random() - 0.5
-								));
-								this.character.triggerAction('up', true);
-								this.character.charState.update(timeStep);
-								this.character.triggerAction('up', false);
-							} else if (rndInt === 1) {
-								this.character.triggerAction('up', rndBool);
-							} else if (rndInt === 2) {
-								this.character.triggerAction('run', rndBool);
-							}
-							// Removed jump (rndInt === 3) so manager is more professional
+						if (rndInt === 0) {
+							// Random direction change
+							this.character.setViewVector(new THREE.Vector3(
+								Math.random() - 0.5,
+								Math.random() - 0.5,
+								Math.random() - 0.5
+							));
+							this.character.triggerAction('up', true);
+							this.character.charState.update(timeStep);
+							this.character.triggerAction('up', false);
+						} else if (rndInt === 1) {
+							this.character.triggerAction('up', rndBool);
+						} else if (rndInt === 2) {
+							this.character.triggerAction('run', rndBool);
 						}
+						// Removed jump (rndInt === 3) so manager is more professional
 					}
 				}
 
@@ -5741,7 +5748,7 @@
 					npcNameTagSprite.position.set(0, 0.75, 0);
 					npc.add(npcNameTagSprite);
 
-					console.log('✅ NPC spawned with custom ManagerAI (random movement + player tracking) at position (10, 15, 10)');
+					console.log('✅ NPC spawned with custom ManagerAI (random wandering) at position (10, 15, 10)');
 
 					// Store NPC reference globally if needed
 					window.npc = npc;
@@ -6173,16 +6180,32 @@
 						</div>
 
 						<div class="customization-section">
-							<div class="section-label">Instructions</div>
+							<div class="section-label">Object Placer Instructions</div>
 							<p style="color: rgba(190, 225, 123, 0.6); font-size: 10px; line-height: 1.5; margin: 0;">
-								• Click any primitive to start placing<br>
-								• Move mouse to position preview<br>
-								• Press G to toggle grid snap ON/OFF<br>
-								• Scroll wheel to scale up/down<br>
-								• Hold Shift for fine adjustments<br>
-								• Hold R + move mouse to rotate<br>
-								• Left-click to place in world<br>
-								• Close menu when done (C key)
+								<strong style="color: #bee17b;">GETTING STARTED:</strong><br>
+								• Click any primitive below to enter placement mode<br>
+								• A preview will appear - move mouse to position it<br>
+								<br>
+								<strong style="color: #bee17b;">FREE CAM MODE:</strong><br>
+								• Left-click empty space - Lock camera & enter free cam<br>
+								• WASD + Mouse - Fly around while camera is locked<br>
+								• Right-click - Exit free cam & unlock camera<br>
+								• ESC key - Also exits free cam<br>
+								<br>
+								<strong style="color: #bee17b;">POSITIONING:</strong><br>
+								• Scroll wheel - Scale size (hold Shift for fine control)<br>
+								• Q/E keys - Adjust height up/down<br>
+								• G key - Toggle grid snap on/off<br>
+								<br>
+								<strong style="color: #bee17b;">ROTATION:</strong><br>
+								• Hold R + move mouse - Free rotation (all axes)<br>
+								<br>
+								<strong style="color: #bee17b;">PLACEMENT:</strong><br>
+								• Left-click - Place object in world<br>
+								• Right-click - Delete object under cursor<br>
+								• Left-click existing object - Paint it with current color<br>
+								<br>
+								• Press C to close this menu when done
 							</p>
 						</div>
 					</div>
@@ -15944,13 +15967,11 @@ window.decksMenuOpen = false;
 	console.log('✅ Manager links WebSocket sync initialized');
 
 // ==========================================
-// MANAGER NPC PLAYER TRACKING
+// MANAGER NPC WANDERING BEHAVIOR
 // ==========================================
-// NOTE: Player tracking is now built into the ManagerAI class above (lines 5670-5736)
-// The custom AI intelligently switches between random movement and player tracking
-// - When player is >5 units away: Random walking/running behavior
-// - When player is <5 units away: Stop moving and face the player
-// This replaces the old rotation-based tracking system to avoid conflicts
+// NOTE: Manager uses aimless random wandering behavior (ManagerAI class at lines ~5670-5705)
+// The manager NPC randomly walks and runs around without any specific goal
+// Based on the default RandomBehaviour pattern
 })();
 })();
 })();
@@ -18215,7 +18236,7 @@ window.decksMenuOpen = false;
 
 		// ========== WELCOME SLIDESHOW ==========
 		let currentSlide = 0;
-		const totalSlides = 6;
+		const totalSlides = 7;
 
 		function updateSlide() {
 			// Update slides

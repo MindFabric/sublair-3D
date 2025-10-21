@@ -5667,17 +5667,81 @@
 					// Add NPC to world
 					world.add(npc);
 
-					// Give NPC RandomBehaviour AI
-					// Lower frequency = more active (100 means actions trigger randomly at ~1% chance per frame)
-					const randomAI = new Sketchbook.RandomBehaviour(100);
-					npc.setBehaviour(randomAI);
+				// ==========================================
+				// CUSTOM MANAGER AI - Random Movement + Player Tracking
+				// ==========================================
+				class ManagerAI {
+					constructor(npc) {
+						this.character = npc;
+						this.randomFrequency = 150; // Less frequent random actions
+						this.idleTimer = 0;
+						this.trackingRange = 5;
+						this.isTracking = false;
+					}
+
+					update(timeStep) {
+						if (!character || !this.character) return;
+
+						const managerPos = this.character.position;
+						const playerPos = character.position;
+						const distance = managerPos.distanceTo(playerPos);
+
+						// Check if player is nearby
+						if (distance < this.trackingRange) {
+							// TRACKING MODE - Look at player
+							this.isTracking = true;
+
+							// Calculate direction to player
+							const direction = new THREE.Vector3();
+							direction.subVectors(playerPos, managerPos);
+							direction.y = 0; // Keep horizontal
+							direction.normalize();
+
+							// Set view vector to look at player
+							this.character.setViewVector(direction);
+
+							// Stop moving when tracking player
+							this.character.velocitySimulator.target.set(0, 0, 0);
+
+						} else {
+							// RANDOM MODE - Wander around
+							this.isTracking = false;
+
+							// Random behavior logic (from RandomBehaviour.ts)
+							let rndInt = Math.floor(Math.random() * this.randomFrequency);
+							let rndBool = Math.random() > 0.5;
+
+							if (rndInt === 0) {
+								// Random direction change
+								this.character.setViewVector(new THREE.Vector3(
+									Math.random() - 0.5,
+									Math.random() - 0.5,
+									Math.random() - 0.5
+								));
+								this.character.triggerAction('up', true);
+								this.character.charState.update(timeStep);
+								this.character.triggerAction('up', false);
+							} else if (rndInt === 1) {
+								this.character.triggerAction('up', rndBool);
+							} else if (rndInt === 2) {
+								this.character.triggerAction('run', rndBool);
+							}
+							// Removed jump (rndInt === 3) so manager is more professional
+						}
+					}
+				}
+
+				// Apply custom Manager AI
+				const managerAI = new ManagerAI(npc);
+				npc.setBehaviour(managerAI);
+
 
 					// Create name tag for NPC
 					const npcNameTagSprite = window.createNameTagSprite('manager');
 					npcNameTagSprite.position.set(0, 0.75, 0);
 					npc.add(npcNameTagSprite);
 
-					console.log('✅ NPC spawned with RandomBehaviour AI at position (10, 15, 10)');
+					console.log('✅ NPC spawned with custom ManagerAI (random movement + player tracking) at position (10, 15, 10)');
 
 					// Store NPC reference globally if needed
 					window.npc = npc;
@@ -13758,6 +13822,7 @@ createReverbImpulse() {
 			interactionPrompt.className = 'interaction-prompt';
 			interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to use computer';
 			document.body.appendChild(interactionPrompt);
+			window.interactionPrompt = interactionPrompt; // Expose globally for manager and other interactions
 
 			// Create audio loading indicator
 			const audioLoadingDiv = document.createElement('div');
@@ -15138,9 +15203,12 @@ createReverbImpulse() {
 
 			// Computer interaction system
 			let nearComputer = false;
+			window.nearComputer = false; // Expose globally
 			let nearCar = false;
+			window.nearCar = false; // Expose globally
 			let radioPromptDismissed = false;
 let nearDecks = false;
+window.nearDecks = false; // Expose globally
 window.decksMenuOpen = false;
 
 
@@ -15166,14 +15234,17 @@ window.decksMenuOpen = false;
 					// Only show prompt for host, not spectators
 					if (!isSpectatorMode) {
 						nearComputer = true;
+						window.nearComputer = true; // Update global
 						interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to use computer';
 						interactionPrompt.classList.add('show');
 					} else {
 						nearComputer = false;
+						window.nearComputer = false; // Update global
 					}
 				} else {
 					nearComputer = false;
-					if (!nearCar && !nearDecks) {
+					window.nearComputer = false; // Update global
+					if (!nearCar && !nearDecks && !window.nearManager) {
 						interactionPrompt.classList.remove('show');
 					}
 				}
@@ -15190,14 +15261,17 @@ window.decksMenuOpen = false;
 					// Only show prompt for host, not spectators
 					if (!isSpectatorMode) {
 						nearDecks = true;
+						window.nearDecks = true; // Update global
 						interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to get stream info';
 						interactionPrompt.classList.add('show');
 					} else {
 						nearDecks = false;
+						window.nearDecks = false; // Update global
 					}
 				} else {
 					nearDecks = false;
-					if (!nearComputer && !nearCar) {
+					window.nearDecks = false; // Update global
+					if (!nearComputer && !nearCar && !window.nearManager) {
 						interactionPrompt.classList.remove('show');
 					}
 				}
@@ -15212,6 +15286,7 @@ window.decksMenuOpen = false;
 
 				if (inVehicle && !nearCar && !radioPromptDismissed) {
 					nearCar = true;
+					window.nearCar = true; // Update global
 					interactionPrompt.innerHTML = 'Press <kbd>R</kbd> for phone';
 					interactionPrompt.classList.add('show');
 
@@ -15226,9 +15301,10 @@ window.decksMenuOpen = false;
 					}
 				} else if (!inVehicle && nearCar) {
 					nearCar = false;
+					window.nearCar = false; // Update global
 					// Reset the dismissed flag when exiting vehicle
 					radioPromptDismissed = false;
-					if (!nearComputer) {
+					if (!nearComputer && !window.nearManager) {
 						interactionPrompt.classList.remove('show');
 					}
 
@@ -15249,27 +15325,46 @@ window.decksMenuOpen = false;
 // ==========================================
 (function() {
 	let nearManager = false;
+	window.nearManager = false; // Expose globally for other proximity checks
 	window.managerMenuOpen = false;
 
-	// Create Manager Menu HTML
+	// Create Manager Menu HTML - Classic NPC Game Style
 	const managerMenuHTML = `
-		<div id="manager-menu" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 10000; align-items: center; justify-content: center;">
-			<div style="background: #000; border: 3px solid #bee17b; border-radius: 8px; padding: 40px; max-width: 600px; width: 90%; font-family: 'Share', monospace; box-shadow: 0 0 30px rgba(190, 225, 123, 0.3);">
-				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-					<div style="font-size: 24px; font-weight: bold; color: #bee17b;">[MANAGER CONSOLE]</div>
-					<button id="manager-menu-close" style="background: none; border: none; color: #bee17b; font-size: 24px; cursor: pointer; font-family: 'Share', monospace; padding: 0 10px;">[X]</button>
+		<div id="manager-menu" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.92); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+			<div style="background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); border: 4px solid #bee17b; border-radius: 16px; padding: 0; max-width: 650px; width: 90%; font-family: 'Share', monospace; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8), 0 0 40px rgba(190, 225, 123, 0.2); overflow: hidden;">
+
+				<!-- NPC Header with Character Info -->
+				<div style="background: linear-gradient(90deg, #bee17b 0%, #8fb85f 100%); padding: 20px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #000;">
+					<div style="display: flex; align-items: center; gap: 15px;">
+						<div style="width: 50px; height: 50px; background: #000; border: 3px solid #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #bee17b; font-weight: bold;">M</div>
+						<div>
+							<div style="font-size: 22px; font-weight: bold; color: #000; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Manager</div>
+							<div style="font-size: 12px; color: #1a1a1a; opacity: 0.8;">Social Media Coordinator</div>
+						</div>
+					</div>
+					<button id="manager-menu-close" style="background: rgba(0,0,0,0.3); border: 2px solid #000; color: #000; font-size: 18px; cursor: pointer; font-family: 'Share', monospace; padding: 5px 15px; border-radius: 8px; font-weight: bold; transition: all 0.2s;">[X]</button>
 				</div>
 
-				<p style="color: #bee17b; font-size: 14px; margin-bottom: 25px; opacity: 0.8; line-height: 1.6;">
-					> Hello, I'm the Manager. What can I help you with today?
-				</p>
+				<!-- Dialog Box -->
+				<div style="padding: 30px;">
+					<div id="manager-dialog" style="background: #0a0a0a; border: 3px solid #bee17b; border-radius: 12px; padding: 25px; margin-bottom: 25px; position: relative; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
+						<!-- Speech bubble pointer -->
+						<div style="position: absolute; top: -15px; left: 40px; width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 15px solid #bee17b;"></div>
+						<div style="position: absolute; top: -9px; left: 43px; width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-bottom: 12px solid #0a0a0a;"></div>
 
-			<div id="manager-buttons" style="display: flex; flex-direction: column; gap: 15px;">
-				<!-- Buttons added here via JavaScript -->
-			</div>
+						<p id="manager-dialog-text" style="color: #bee17b; font-size: 15px; line-height: 1.8; margin: 0;">
+							Hey there! I'm the Manager around here. I help coordinate social media and connections for the host. What can I do for you today?
+						</p>
+					</div>
 
+					<!-- Dialog Options -->
+					<div id="manager-buttons" style="display: flex; flex-direction: column; gap: 12px;">
+						<!-- Buttons added here via JavaScript -->
+					</div>
 
-				<div id="manager-response" style="margin-top: 25px; padding: 20px; background: #111; border: 2px solid #bee17b; border-radius: 4px; color: #bee17b; font-size: 13px; line-height: 1.6; display: none; min-height: 100px;"></div>
+					<!-- Response Area (for viewing links, etc) -->
+					<div id="manager-response" style="margin-top: 20px; padding: 0; display: none;"></div>
+				</div>
 			</div>
 		</div>
 	`;
@@ -15283,17 +15378,31 @@ window.decksMenuOpen = false;
 	const managerResponse = document.getElementById('manager-response');
 	const managerOptionBtns = document.querySelectorAll('.manager-option-btn');
 
-	// Add hover effects
-	managerOptionBtns.forEach(btn => {
-		btn.addEventListener('mouseenter', () => {
-			btn.style.background = '#bee17b';
-			btn.style.color = '#000';
-		});
-		btn.addEventListener('mouseleave', () => {
-			btn.style.background = '#000';
-			btn.style.color = '#bee17b';
-		});
+	// Close button hover effect
+	managerMenuClose.addEventListener('mouseenter', () => {
+		managerMenuClose.style.background = '#000';
+		managerMenuClose.style.color = '#bee17b';
 	});
+	managerMenuClose.addEventListener('mouseleave', () => {
+		managerMenuClose.style.background = 'rgba(0,0,0,0.3)';
+		managerMenuClose.style.color = '#000';
+	});
+
+	// Add hover effects for option buttons (set up later dynamically)
+	function setupButtonHoverEffects() {
+		document.querySelectorAll('.manager-option-btn').forEach(btn => {
+			btn.addEventListener('mouseenter', () => {
+				btn.style.background = '#bee17b';
+				btn.style.color = '#000';
+				btn.style.transform = 'translateX(5px)';
+			});
+			btn.addEventListener('mouseleave', () => {
+				btn.style.background = 'rgba(190, 225, 123, 0.1)';
+				btn.style.color = '#bee17b';
+				btn.style.transform = 'translateX(0)';
+			});
+		});
+	}
 
 	// Manager responses
 	const responses = {
@@ -15368,6 +15477,7 @@ window.decksMenuOpen = false;
 		// SPECTATORS: Auto-show social links when menu opens
 		if (isSpectatorMode) {
 			const managerMenuContent = document.getElementById('manager-buttons');
+			const managerDialogText = document.getElementById('manager-dialog-text');
 
 			if (managerMenuContent) {
 				// Hide all the default buttons
@@ -15376,20 +15486,31 @@ window.decksMenuOpen = false;
 
 			// Show links directly in the response area
 			if (window.managerLinks.length === 0) {
+				// Update dialog text for empty state
+				if (managerDialogText) {
+					managerDialogText.textContent = "Hey! I'd love to share the host's social links with you, but it looks like they haven't set any up yet. Check back soon!";
+				}
 				managerResponse.style.display = 'block';
 				managerResponse.innerHTML = `
-					<div style="text-align: center; padding: 20px;">
-						<div style="font-size: 18px; margin-bottom: 10px;">📭</div>
-						<div>> The host hasn't added any social links yet!</div>
-						<div style="margin-top: 10px; opacity: 0.7; font-size: 12px;">Check back later!</div>
+					<div style="text-align: center; padding: 30px; background: rgba(190, 225, 123, 0.05); border: 2px dashed #bee17b; border-radius: 12px;">
+						<div style="color: #bee17b; font-size: 16px; opacity: 0.8; font-weight: bold; margin-bottom: 8px;">[EMPTY]</div>
+						<div style="color: #bee17b; font-size: 14px; opacity: 0.6;">No links available yet...</div>
 					</div>
 				`;
 			} else {
+				// Update dialog text for links state
+				if (managerDialogText) {
+					managerDialogText.textContent = "Great! Here are all the social links from the host. Feel free to check them out and stay connected!";
+				}
+
 				const linksHTML = window.managerLinks.map(link => `
-					<a href="${link.url}" target="_blank" style="text-decoration: none; display: block; margin-bottom: 12px; padding: 12px; background: #000; border: 2px solid #bee17b; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#bee17b'; this.querySelector('.link-label').style.color='#000'; this.querySelector('.link-url').style.color='#000';" onmouseout="this.style.background='#000'; this.querySelector('.link-label').style.color='#bee17b'; this.querySelector('.link-url').style.color='#bee17b';">
-						<div class="link-label" style="color: #bee17b; font-size: 13px; font-weight: bold; margin-bottom: 5px; transition: all 0.2s;">${link.label}</div>
-						<div class="link-url" style="color: #bee17b; font-size: 12px; word-break: break-all; opacity: 0.9; transition: all 0.2s;">
-							${link.url} →
+					<a href="${link.url}" target="_blank" style="text-decoration: none; display: block; margin-bottom: 10px; padding: 16px 20px; background: rgba(190, 225, 123, 0.08); border: 2px solid #bee17b; border-radius: 10px; cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden;" onmouseover="this.style.background='#bee17b'; this.style.borderColor='#bee17b'; this.style.transform='translateX(5px)'; this.querySelector('.link-label').style.color='#000'; this.querySelector('.link-url').style.color='#000';" onmouseout="this.style.background='rgba(190, 225, 123, 0.08)'; this.style.borderColor='#bee17b'; this.style.transform='translateX(0)'; this.querySelector('.link-label').style.color='#bee17b'; this.querySelector('.link-url').style.color='#bee17b';">
+						<div class="link-label" style="color: #bee17b; font-size: 15px; font-weight: bold; margin-bottom: 6px; transition: all 0.3s; display: flex; align-items: center; gap: 8px;">
+							<span style="font-size: 16px; font-weight: bold;">&gt;</span>
+							${link.label}
+						</div>
+						<div class="link-url" style="color: #bee17b; font-size: 12px; word-break: break-all; opacity: 0.7; transition: all 0.3s;">
+							${link.url}
 						</div>
 					</a>
 				`).join('');
@@ -15445,6 +15566,7 @@ window.decksMenuOpen = false;
 
 		if (distance < 3 && !window.managerMenuOpen && !window.terminalOpen && !window.customizationOpen && !window.radioOpen && !window.settingsOpen) {
 			nearManager = true;
+			window.nearManager = true; // Update global
 			if (window.interactionPrompt) {
 				window.interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to talk to manager';
 				window.interactionPrompt.classList.add('show');
@@ -15452,6 +15574,7 @@ window.decksMenuOpen = false;
 		} else {
 			if (nearManager) {
 				nearManager = false;
+				window.nearManager = false; // Update global
 				// Only hide prompt if not near other interactables
 				if (window.interactionPrompt && !window.nearComputer && !window.nearDecks && !window.nearCar) {
 					window.interactionPrompt.classList.remove('show');
@@ -15494,24 +15617,34 @@ window.decksMenuOpen = false;
 	// Add link management button for HOST
 	if (!isSpectatorMode) {
 		const managerMenuContent = document.getElementById('manager-buttons');
+		const managerDialogText = document.getElementById('manager-dialog-text');
+
 		if (managerMenuContent) {
+			// Update dialog text for host
+			if (managerDialogText) {
+				managerDialogText.textContent = "Hey boss! I can help you manage your social media links. Want to add, edit, or remove any links for visitors to see?";
+			}
+
 			const manageLinksBtnHTML = `
-				<button class="manager-option-btn" id="manage-links-btn" style="padding: 20px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 14px; cursor: pointer; border-radius: 4px; transition: all 0.2s;">
-					[MANAGE SOCIAL LINKS] (HOST)
+				<button class="manager-option-btn" id="manage-links-btn" style="padding: 18px 24px; background: rgba(190, 225, 123, 0.1); border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 15px; cursor: pointer; border-radius: 10px; transition: all 0.3s; text-align: left; display: flex; align-items: center; gap: 12px; font-weight: 500;">
+					<span style="font-size: 16px; font-weight: bold;">&gt;</span>
+					<span>Manage Social Links</span>
 				</button>
 			`;
 			managerMenuContent.insertAdjacentHTML('beforeend', manageLinksBtnHTML);
 
 			const manageLinksBtn = document.getElementById('manage-links-btn');
-			
+
 			// Hover effect
 			manageLinksBtn.addEventListener('mouseenter', () => {
 				manageLinksBtn.style.background = '#bee17b';
 				manageLinksBtn.style.color = '#000';
+				manageLinksBtn.style.transform = 'translateX(5px)';
 			});
 			manageLinksBtn.addEventListener('mouseleave', () => {
-				manageLinksBtn.style.background = '#000';
+				manageLinksBtn.style.background = 'rgba(190, 225, 123, 0.1)';
 				manageLinksBtn.style.color = '#bee17b';
+				manageLinksBtn.style.transform = 'translateX(0)';
 			});
 
 			// Click handler - show link manager
@@ -15525,27 +15658,41 @@ window.decksMenuOpen = false;
 	// Link Manager Modal (HOST ONLY)
 	function showLinkManager() {
 		const linkManagerHTML = `
-			<div id="link-manager-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.98); z-index: 10001; display: flex; align-items: center; justify-content: center;">
-				<div style="background: #000; border: 3px solid #bee17b; border-radius: 8px; padding: 40px; max-width: 700px; width: 90%; font-family: 'Share', monospace; max-height: 80vh; overflow-y: auto;">
-					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-						<div style="font-size: 24px; font-weight: bold; color: #bee17b;">[SOCIAL MEDIA MANAGER]</div>
-						<button id="link-manager-close" style="background: none; border: none; color: #bee17b; font-size: 24px; cursor: pointer; font-family: 'Share', monospace; padding: 0 10px;">[X]</button>
+			<div id="link-manager-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 10001; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+				<div style="background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); border: 4px solid #bee17b; border-radius: 16px; padding: 0; max-width: 700px; width: 90%; font-family: 'Share', monospace; max-height: 85vh; overflow: hidden; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.9), 0 0 40px rgba(190, 225, 123, 0.3);">
+
+					<!-- Header -->
+					<div style="background: linear-gradient(90deg, #bee17b 0%, #8fb85f 100%); padding: 20px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #000;">
+						<div style="display: flex; align-items: center; gap: 12px;">
+							<div style="width: 40px; height: 40px; background: #000; border: 2px solid #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #bee17b; font-weight: bold;">L</div>
+							<div>
+								<div style="font-size: 20px; font-weight: bold; color: #000; text-shadow: 0 1px 2px rgba(255,255,255,0.3);">Link Manager</div>
+								<div style="font-size: 11px; color: #1a1a1a; opacity: 0.8;">Manage your social connections</div>
+							</div>
+						</div>
+						<button id="link-manager-close" style="background: rgba(0,0,0,0.3); border: 2px solid #000; color: #000; font-size: 18px; cursor: pointer; font-family: 'Share', monospace; padding: 5px 15px; border-radius: 8px; font-weight: bold; transition: all 0.2s;">[X]</button>
 					</div>
 
-					<p style="color: #bee17b; font-size: 13px; margin-bottom: 20px; opacity: 0.8;">
-						> Add your social media links. The manager will share them with spectators!
-					</p>
+					<!-- Content -->
+					<div style="padding: 25px 30px; max-height: calc(85vh - 180px); overflow-y: auto;">
+						<p style="color: #bee17b; font-size: 14px; margin-bottom: 20px; opacity: 0.9; line-height: 1.6; background: rgba(190, 225, 123, 0.05); padding: 12px; border-left: 3px solid #bee17b; border-radius: 6px;">
+							Add your social media links here. They'll be visible to all spectators who talk to me!
+						</p>
 
-					<div id="links-list" style="margin-bottom: 20px;"></div>
+						<div id="links-list" style="margin-bottom: 25px;"></div>
 
-					<div style="border-top: 2px solid #bee17b; padding-top: 20px; margin-top: 20px;">
-						<div style="font-size: 14px; color: #bee17b; margin-bottom: 15px; font-weight: bold;">ADD NEW LINK:</div>
-						<div style="display: flex; flex-direction: column; gap: 10px;">
-							<input type="text" id="link-label" placeholder="Label (e.g., Twitter, Instagram, Website)" style="padding: 12px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 13px; border-radius: 4px;" />
-							<input type="url" id="link-url" placeholder="URL (e.g., https://twitter.com/yourhandle)" style="padding: 12px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 13px; border-radius: 4px;" />
-							<button id="add-link-btn" style="padding: 15px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 14px; cursor: pointer; border-radius: 4px; transition: all 0.2s;">
-								[ADD LINK]
-							</button>
+						<div style="border-top: 3px solid rgba(190, 225, 123, 0.3); padding-top: 25px; margin-top: 20px;">
+							<div style="font-size: 15px; color: #bee17b; margin-bottom: 15px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+								<span style="font-size: 16px; font-weight: bold;">[+]</span>
+								<span>Add New Link</span>
+							</div>
+							<div style="display: flex; flex-direction: column; gap: 12px;">
+								<input type="text" id="link-label" placeholder="Label (e.g., Twitter, Instagram, Website)" style="padding: 14px; background: rgba(0, 0, 0, 0.6); border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 14px; border-radius: 8px; transition: all 0.2s;" />
+								<input type="url" id="link-url" placeholder="URL (e.g., https://twitter.com/yourhandle)" style="padding: 14px; background: rgba(0, 0, 0, 0.6); border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 14px; border-radius: 8px; transition: all 0.2s;" />
+								<button id="add-link-btn" style="padding: 16px; background: rgba(190, 225, 123, 0.1); border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 15px; cursor: pointer; border-radius: 8px; transition: all 0.3s; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+									<span style="font-size: 16px; font-weight: bold;">[ADD]</span>
+								</button>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -15564,17 +15711,20 @@ window.decksMenuOpen = false;
 		// Render existing links
 		function renderLinks() {
 			if (window.managerLinks.length === 0) {
-				linksList.innerHTML = '<div style="color: #bee17b; opacity: 0.6; font-size: 13px; padding: 20px; text-align: center;">No links added yet. Add your first social link below!</div>';
+				linksList.innerHTML = '<div style="color: #bee17b; opacity: 0.6; font-size: 14px; padding: 30px 20px; text-align: center; background: rgba(190, 225, 123, 0.05); border: 2px dashed rgba(190, 225, 123, 0.3); border-radius: 10px;">No links added yet. Add your first social link below!</div>';
 				return;
 			}
 
 			linksList.innerHTML = window.managerLinks.map((link, index) => `
-				<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #111; border: 2px solid #bee17b; border-radius: 4px; margin-bottom: 10px;">
-					<div style="flex: 1;">
-						<div style="color: #bee17b; font-size: 14px; font-weight: bold; margin-bottom: 5px;">${link.label}</div>
-						<div style="color: #bee17b; font-size: 12px; opacity: 0.7; word-break: break-all;">${link.url}</div>
+				<div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; background: rgba(190, 225, 123, 0.05); border: 2px solid #bee17b; border-radius: 10px; margin-bottom: 12px; transition: all 0.2s;">
+					<div style="flex: 1; display: flex; align-items: center; gap: 12px;">
+						<div style="font-size: 16px; font-weight: bold; color: #bee17b;">&gt;</div>
+						<div>
+							<div style="color: #bee17b; font-size: 15px; font-weight: bold; margin-bottom: 4px;">${link.label}</div>
+							<div style="color: #bee17b; font-size: 12px; opacity: 0.7; word-break: break-all;">${link.url}</div>
+						</div>
 					</div>
-					<button class="delete-link-btn" data-index="${index}" style="background: #200; border: 2px solid #f44; color: #f44; padding: 8px 15px; font-family: 'Share', monospace; font-size: 12px; cursor: pointer; border-radius: 4px; margin-left: 15px; transition: all 0.2s;">
+					<button class="delete-link-btn" data-index="${index}" style="background: rgba(255, 68, 68, 0.1); border: 2px solid #f44; color: #f44; padding: 8px 16px; font-family: 'Share', monospace; font-size: 13px; cursor: pointer; border-radius: 8px; margin-left: 15px; transition: all 0.3s; font-weight: 600; white-space: nowrap;">
 						[DELETE]
 					</button>
 				</div>
@@ -15601,14 +15751,42 @@ window.decksMenuOpen = false;
 
 		renderLinks();
 
+		// Close button hover effect
+		linkManagerClose.addEventListener('mouseenter', () => {
+			linkManagerClose.style.background = '#000';
+			linkManagerClose.style.color = '#bee17b';
+		});
+		linkManagerClose.addEventListener('mouseleave', () => {
+			linkManagerClose.style.background = 'rgba(0,0,0,0.3)';
+			linkManagerClose.style.color = '#000';
+		});
+
+		// Input focus effects
+		[linkLabel, linkUrl].forEach(input => {
+			input.addEventListener('focus', () => {
+				input.style.borderColor = '#bee17b';
+				input.style.background = 'rgba(0, 0, 0, 0.8)';
+				input.style.boxShadow = '0 0 15px rgba(190, 225, 123, 0.2)';
+			});
+			input.addEventListener('blur', () => {
+				input.style.borderColor = '#bee17b';
+				input.style.background = 'rgba(0, 0, 0, 0.6)';
+				input.style.boxShadow = 'none';
+			});
+		});
+
 		// Add link button hover
 		addLinkBtn.addEventListener('mouseenter', () => {
 			addLinkBtn.style.background = '#bee17b';
 			addLinkBtn.style.color = '#000';
+			addLinkBtn.style.transform = 'translateY(-2px)';
+			addLinkBtn.style.boxShadow = '0 4px 12px rgba(190, 225, 123, 0.3)';
 		});
 		addLinkBtn.addEventListener('mouseleave', () => {
-			addLinkBtn.style.background = '#000';
+			addLinkBtn.style.background = 'rgba(190, 225, 123, 0.1)';
 			addLinkBtn.style.color = '#bee17b';
+			addLinkBtn.style.transform = 'translateY(0)';
+			addLinkBtn.style.boxShadow = 'none';
 		});
 
 		// Add link handler
@@ -15764,6 +15942,15 @@ window.decksMenuOpen = false;
 	}
 
 	console.log('✅ Manager links WebSocket sync initialized');
+
+// ==========================================
+// MANAGER NPC PLAYER TRACKING
+// ==========================================
+// NOTE: Player tracking is now built into the ManagerAI class above (lines 5670-5736)
+// The custom AI intelligently switches between random movement and player tracking
+// - When player is >5 units away: Random walking/running behavior
+// - When player is <5 units away: Stop moving and face the player
+// This replaces the old rotation-based tracking system to avoid conflicts
 })();
 })();
 })();

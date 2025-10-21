@@ -5626,6 +5626,63 @@
 						console.log('🎮 Spectator character loaded and ready');
 					}
 
+				// ==========================================
+				// ADD NPC WITH AI
+				// ==========================================
+				console.log('🤖 Loading NPC character with AI...');
+				loadingManager.loadGLTF('build/assets/boxman.glb', (npcModel) => {
+					// Create NPC character
+					const npc = new Sketchbook.Character(npcModel);
+					// Apply manager colors (professional look)
+					npcModel.scene.traverse((child) => {
+						if (child.isMesh && child.material) {
+							const materialName = child.material.name.toLowerCase();
+							
+							// Skip TAPE and FACE materials
+							if (materialName.includes('tape') || (materialName.includes('face') && !materialName.includes('speaker'))) {
+								return;
+							}
+							
+							// Manager color scheme: white shirt, black pants/hat, tan skin
+							if (materialName.includes('skin')) {
+								child.material.color.set('#bee17b'); // Professional tan skin
+							} else if (materialName.includes('shirt')) {
+								child.material.color.set('#ffffff'); // White dress shirt
+							} else if (materialName.includes('pants')) {
+								child.material.color.set('#1a1a1a'); // Black dress pants
+							} else if (materialName.includes('hat')) {
+								child.material.color.set('#1a1a1a'); // Black (professional)
+							}
+							child.material.needsUpdate = true;
+						}
+					});
+
+
+					// Position NPC near the player
+					npc.setPosition(10, 15, 10);
+
+					// Set NPC orientation (facing forward)
+					npc.setOrientation(new THREE.Vector3(0, 0, -1), true);
+
+					// Add NPC to world
+					world.add(npc);
+
+					// Give NPC RandomBehaviour AI
+					// Lower frequency = more active (100 means actions trigger randomly at ~1% chance per frame)
+					const randomAI = new Sketchbook.RandomBehaviour(100);
+					npc.setBehaviour(randomAI);
+
+					// Create name tag for NPC
+					const npcNameTagSprite = window.createNameTagSprite('manager');
+					npcNameTagSprite.position.set(0, 0.75, 0);
+					npc.add(npcNameTagSprite);
+
+					console.log('✅ NPC spawned with RandomBehaviour AI at position (10, 15, 10)');
+
+					// Store NPC reference globally if needed
+					window.npc = npc;
+				});
+
 					// Create THREE.js sprite name tag for local character
 					const username = window.authState?.user?.username || window.authState?.user?.displayName || window.authState?.email?.split('@')[0] || 'USER';
 					const nameTagSprite = window.createNameTagSprite(username);
@@ -15186,6 +15243,521 @@ window.decksMenuOpen = false;
 					}
 				}
 			}
+
+// ==========================================
+// MANAGER INTERACTION SYSTEM
+// ==========================================
+(function() {
+	let nearManager = false;
+	window.managerMenuOpen = false;
+
+	// Create Manager Menu HTML
+	const managerMenuHTML = `
+		<div id="manager-menu" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 10000; align-items: center; justify-content: center;">
+			<div style="background: #000; border: 3px solid #bee17b; border-radius: 8px; padding: 40px; max-width: 600px; width: 90%; font-family: 'Share', monospace; box-shadow: 0 0 30px rgba(190, 225, 123, 0.3);">
+				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+					<div style="font-size: 24px; font-weight: bold; color: #bee17b;">[MANAGER CONSOLE]</div>
+					<button id="manager-menu-close" style="background: none; border: none; color: #bee17b; font-size: 24px; cursor: pointer; font-family: 'Share', monospace; padding: 0 10px;">[X]</button>
+				</div>
+
+				<p style="color: #bee17b; font-size: 14px; margin-bottom: 25px; opacity: 0.8; line-height: 1.6;">
+					> Hello, I'm the Manager. What can I help you with today?
+				</p>
+
+			<div id="manager-buttons" style="display: flex; flex-direction: column; gap: 15px;">
+				<!-- Buttons added here via JavaScript -->
+			</div>
+
+
+				<div id="manager-response" style="margin-top: 25px; padding: 20px; background: #111; border: 2px solid #bee17b; border-radius: 4px; color: #bee17b; font-size: 13px; line-height: 1.6; display: none; min-height: 100px;"></div>
+			</div>
+		</div>
+	`;
+
+	// Add menu to DOM
+	document.body.insertAdjacentHTML('beforeend', managerMenuHTML);
+
+	// Manager menu elements
+	const managerMenu = document.getElementById('manager-menu');
+	const managerMenuClose = document.getElementById('manager-menu-close');
+	const managerResponse = document.getElementById('manager-response');
+	const managerOptionBtns = document.querySelectorAll('.manager-option-btn');
+
+	// Add hover effects
+	managerOptionBtns.forEach(btn => {
+		btn.addEventListener('mouseenter', () => {
+			btn.style.background = '#bee17b';
+			btn.style.color = '#000';
+		});
+		btn.addEventListener('mouseleave', () => {
+			btn.style.background = '#000';
+			btn.style.color = '#bee17b';
+		});
+	});
+
+	// Manager responses
+	const responses = {
+		stats: () => {
+			const chars = world ? world.characters.length : 0;
+			const vehicles = world ? world.vehicles.length : 0;
+			const fps = world && world.params ? Math.round(1000 / world.stats.ms) : 60;
+			return `> WORLD STATISTICS:\n\n- Characters: ${chars}\n- Vehicles: ${vehicles}\n- FPS: ${fps}\n- Time Scale: ${world ? world.params.Time_Scale.toFixed(2) : '1.00'}\n- Physics: Active\n- Status: Operational`;
+		},
+		help: () => {
+			return `> CONTROLS:\n\n[WASD] - Move\n[SHIFT] - Sprint\n[SPACE] - Jump\n[C] - Customize Character\n[P] - Settings\n[F] - Interact\n[R] - Phone (in vehicle)\n[E] - Aim Mode\n[ESC] - Exit Menus\n\n> Need more help? Check the controls panel on the left!`;
+		},
+		about: () => {
+			return `> ABOUT SUBLAIR 3D:\n\nSublair is a multiplayer 3D social platform where you can:\n\n• Explore the world\n• Drive vehicles\n• Stream music as a DJ\n• Customize your character\n• Voice chat with others\n• Play mini-games\n\nBuilt with Three.js & Sketchbook engine.\n\n> Have fun exploring!`;
+		},
+		tip: () => {
+			const tips = [
+				'> TIP: You can wall jump by jumping towards a wall!',
+				'> TIP: Hold SHIFT while moving to sprint faster!',
+				'> TIP: Press E to enter aim mode for precision camera control!',
+				'> TIP: Press C to customize your character\'s colors and textures!',
+				'> TIP: You can enter vehicles by pressing F near them!',
+				'> TIP: In a vehicle, press R to open the phone and control music!',
+				'> TIP: The manager (me!) wanders around randomly. Come say hi!',
+				'> TIP: Press P to open settings and adjust audio levels!',
+				'> TIP: Multiple players can join the same world session!'
+			];
+			return tips[Math.floor(Math.random() * tips.length)];
+		}
+	};
+
+	// Handle option clicks
+	managerOptionBtns.forEach(btn => {
+		btn.addEventListener('click', () => {
+			const action = btn.getAttribute('data-action');
+			if (responses[action]) {
+				managerResponse.style.display = 'block';
+				managerResponse.textContent = responses[action]();
+			}
+		});
+	});
+
+	// Close button
+	managerMenuClose.addEventListener('click', closeManagerMenu);
+
+	// Click outside to close
+	managerMenu.addEventListener('click', (e) => {
+		// Only close if clicking the backdrop (not the content box)
+		if (e.target === managerMenu) {
+			closeManagerMenu();
+		}
+	});
+
+	// Open manager menu
+	function openManagerMenu() {
+		if (window.managerMenuOpen || window.customizationOpen || window.terminalOpen || window.radioOpen || window.settingsOpen) return;
+
+		managerMenu.style.display = 'flex';
+		window.managerMenuOpen = true;
+		managerResponse.style.display = 'none';
+		managerResponse.textContent = '';
+
+		// SPECTATORS: Auto-show social links when menu opens
+		if (isSpectatorMode) {
+			const managerMenuContent = document.getElementById('manager-buttons');
+
+			if (managerMenuContent) {
+				// Hide all the default buttons
+				managerMenuContent.style.display = 'none';
+			}
+
+			// Show links directly in the response area
+			if (window.managerLinks.length === 0) {
+				managerResponse.style.display = 'block';
+				managerResponse.innerHTML = `
+					<div style="text-align: center; padding: 20px;">
+						<div style="font-size: 18px; margin-bottom: 10px;">📭</div>
+						<div>> The host hasn't added any social links yet!</div>
+						<div style="margin-top: 10px; opacity: 0.7; font-size: 12px;">Check back later!</div>
+					</div>
+				`;
+			} else {
+				const linksHTML = window.managerLinks.map(link => `
+					<a href="${link.url}" target="_blank" style="text-decoration: none; display: block; margin-bottom: 12px; padding: 12px; background: #000; border: 2px solid #bee17b; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#bee17b'; this.querySelector('.link-label').style.color='#000'; this.querySelector('.link-url').style.color='#000';" onmouseout="this.style.background='#000'; this.querySelector('.link-label').style.color='#bee17b'; this.querySelector('.link-url').style.color='#bee17b';">
+						<div class="link-label" style="color: #bee17b; font-size: 13px; font-weight: bold; margin-bottom: 5px; transition: all 0.2s;">${link.label}</div>
+						<div class="link-url" style="color: #bee17b; font-size: 12px; word-break: break-all; opacity: 0.9; transition: all 0.2s;">
+							${link.url} →
+						</div>
+					</a>
+				`).join('');
+
+				managerResponse.style.display = 'block';
+				managerResponse.innerHTML = linksHTML;
+			}
+		}
+
+		// Disable character controls
+		if (character) {
+			world.inputManager.inputReceiver = window.dummyInputReceiver;
+		}
+
+		// Exit pointer lock
+		document.exitPointerLock();
+
+		console.log('💼 Manager menu opened');
+	}
+
+	// Close manager menu
+	function closeManagerMenu() {
+		managerMenu.style.display = 'none';
+		window.managerMenuOpen = false;
+		
+		// Re-enable character controls
+		if (character) {
+			character.takeControl();
+		}
+		
+		// Request pointer lock
+		if (world && world.params.Pointer_Lock) {
+			world.renderer.domElement.requestPointerLock();
+		}
+		
+		console.log('💼 Manager menu closed');
+	}
+
+	// ESC key to close
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && window.managerMenuOpen) {
+			closeManagerMenu();
+		}
+	});
+
+	// Check manager proximity every frame
+	function checkManagerProximity() {
+		if (!character || !window.npc) return;
+
+		const charPos = character.position;
+		const managerPos = window.npc.position;
+		const distance = charPos.distanceTo(managerPos);
+
+		if (distance < 3 && !window.managerMenuOpen && !window.terminalOpen && !window.customizationOpen && !window.radioOpen && !window.settingsOpen) {
+			nearManager = true;
+			if (window.interactionPrompt) {
+				window.interactionPrompt.innerHTML = 'Press <kbd>F</kbd> to talk to manager';
+				window.interactionPrompt.classList.add('show');
+			}
+		} else {
+			if (nearManager) {
+				nearManager = false;
+				// Only hide prompt if not near other interactables
+				if (window.interactionPrompt && !window.nearComputer && !window.nearDecks && !window.nearCar) {
+					window.interactionPrompt.classList.remove('show');
+				}
+			}
+		}
+	}
+
+	// Listen for F key to open manager menu
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'f' || e.key === 'F') {
+			if (nearManager && !window.managerMenuOpen) {
+				openManagerMenu();
+			}
+		}
+	});
+
+	// Add to render loop
+	const originalRender = world.render.bind(world);
+	world.render = function(w) {
+		originalRender(w);
+		checkManagerProximity();
+	};
+
+	console.log('✅ Manager interaction system initialized');
+
+// ==========================================
+// MANAGER SOCIAL MEDIA LINK SYSTEM
+// ==========================================
+(function() {
+	// Store manager links in localStorage (persistent across sessions)
+	window.managerLinks = JSON.parse(localStorage.getItem('managerLinks') || '[]');
+
+	// Save links to localStorage
+	window.saveManagerLinks = function() {
+		localStorage.setItem('managerLinks', JSON.stringify(window.managerLinks));
+		console.log('💾 Manager links saved:', window.managerLinks);
+	}
+
+	// Add link management button for HOST
+	if (!isSpectatorMode) {
+		const managerMenuContent = document.getElementById('manager-buttons');
+		if (managerMenuContent) {
+			const manageLinksBtnHTML = `
+				<button class="manager-option-btn" id="manage-links-btn" style="padding: 20px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 14px; cursor: pointer; border-radius: 4px; transition: all 0.2s;">
+					[MANAGE SOCIAL LINKS] (HOST)
+				</button>
+			`;
+			managerMenuContent.insertAdjacentHTML('beforeend', manageLinksBtnHTML);
+
+			const manageLinksBtn = document.getElementById('manage-links-btn');
+			
+			// Hover effect
+			manageLinksBtn.addEventListener('mouseenter', () => {
+				manageLinksBtn.style.background = '#bee17b';
+				manageLinksBtn.style.color = '#000';
+			});
+			manageLinksBtn.addEventListener('mouseleave', () => {
+				manageLinksBtn.style.background = '#000';
+				manageLinksBtn.style.color = '#bee17b';
+			});
+
+			// Click handler - show link manager
+			manageLinksBtn.addEventListener('click', () => {
+				showLinkManager();
+			});
+		}
+	}
+
+
+	// Link Manager Modal (HOST ONLY)
+	function showLinkManager() {
+		const linkManagerHTML = `
+			<div id="link-manager-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.98); z-index: 10001; display: flex; align-items: center; justify-content: center;">
+				<div style="background: #000; border: 3px solid #bee17b; border-radius: 8px; padding: 40px; max-width: 700px; width: 90%; font-family: 'Share', monospace; max-height: 80vh; overflow-y: auto;">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+						<div style="font-size: 24px; font-weight: bold; color: #bee17b;">[SOCIAL MEDIA MANAGER]</div>
+						<button id="link-manager-close" style="background: none; border: none; color: #bee17b; font-size: 24px; cursor: pointer; font-family: 'Share', monospace; padding: 0 10px;">[X]</button>
+					</div>
+
+					<p style="color: #bee17b; font-size: 13px; margin-bottom: 20px; opacity: 0.8;">
+						> Add your social media links. The manager will share them with spectators!
+					</p>
+
+					<div id="links-list" style="margin-bottom: 20px;"></div>
+
+					<div style="border-top: 2px solid #bee17b; padding-top: 20px; margin-top: 20px;">
+						<div style="font-size: 14px; color: #bee17b; margin-bottom: 15px; font-weight: bold;">ADD NEW LINK:</div>
+						<div style="display: flex; flex-direction: column; gap: 10px;">
+							<input type="text" id="link-label" placeholder="Label (e.g., Twitter, Instagram, Website)" style="padding: 12px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 13px; border-radius: 4px;" />
+							<input type="url" id="link-url" placeholder="URL (e.g., https://twitter.com/yourhandle)" style="padding: 12px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 13px; border-radius: 4px;" />
+							<button id="add-link-btn" style="padding: 15px; background: #000; border: 2px solid #bee17b; color: #bee17b; font-family: 'Share', monospace; font-size: 14px; cursor: pointer; border-radius: 4px; transition: all 0.2s;">
+								[ADD LINK]
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		`;
+
+		document.body.insertAdjacentHTML('beforeend', linkManagerHTML);
+
+		const linkManagerModal = document.getElementById('link-manager-modal');
+		const linkManagerClose = document.getElementById('link-manager-close');
+		const linksList = document.getElementById('links-list');
+		const addLinkBtn = document.getElementById('add-link-btn');
+		const linkLabel = document.getElementById('link-label');
+		const linkUrl = document.getElementById('link-url');
+
+		// Render existing links
+		function renderLinks() {
+			if (window.managerLinks.length === 0) {
+				linksList.innerHTML = '<div style="color: #bee17b; opacity: 0.6; font-size: 13px; padding: 20px; text-align: center;">No links added yet. Add your first social link below!</div>';
+				return;
+			}
+
+			linksList.innerHTML = window.managerLinks.map((link, index) => `
+				<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #111; border: 2px solid #bee17b; border-radius: 4px; margin-bottom: 10px;">
+					<div style="flex: 1;">
+						<div style="color: #bee17b; font-size: 14px; font-weight: bold; margin-bottom: 5px;">${link.label}</div>
+						<div style="color: #bee17b; font-size: 12px; opacity: 0.7; word-break: break-all;">${link.url}</div>
+					</div>
+					<button class="delete-link-btn" data-index="${index}" style="background: #200; border: 2px solid #f44; color: #f44; padding: 8px 15px; font-family: 'Share', monospace; font-size: 12px; cursor: pointer; border-radius: 4px; margin-left: 15px; transition: all 0.2s;">
+						[DELETE]
+					</button>
+				</div>
+			`).join('');
+
+			// Add delete handlers
+			document.querySelectorAll('.delete-link-btn').forEach(btn => {
+				btn.addEventListener('mouseenter', () => {
+					btn.style.background = '#f44';
+					btn.style.color = '#000';
+				});
+				btn.addEventListener('mouseleave', () => {
+					btn.style.background = '#200';
+					btn.style.color = '#f44';
+				});
+				btn.addEventListener('click', () => {
+					const index = parseInt(btn.getAttribute('data-index'));
+					window.managerLinks.splice(index, 1);
+					saveManagerLinks();
+					renderLinks();
+				});
+			});
+		}
+
+		renderLinks();
+
+		// Add link button hover
+		addLinkBtn.addEventListener('mouseenter', () => {
+			addLinkBtn.style.background = '#bee17b';
+			addLinkBtn.style.color = '#000';
+		});
+		addLinkBtn.addEventListener('mouseleave', () => {
+			addLinkBtn.style.background = '#000';
+			addLinkBtn.style.color = '#bee17b';
+		});
+
+		// Add link handler
+		addLinkBtn.addEventListener('click', () => {
+			const label = linkLabel.value.trim();
+			const url = linkUrl.value.trim();
+
+			if (!label || !url) {
+				alert('Please enter both a label and URL!');
+				return;
+			}
+
+			if (!url.startsWith('http://') && !url.startsWith('https://')) {
+				alert('URL must start with http:// or https://');
+				return;
+			}
+
+			window.managerLinks.push({ label, url });
+			saveManagerLinks();
+			renderLinks();
+
+			// Clear inputs
+			linkLabel.value = '';
+			linkUrl.value = '';
+
+			console.log('✅ Link added:', { label, url });
+		});
+
+		// Close handler
+		linkManagerClose.addEventListener('click', () => {
+			linkManagerModal.remove();
+		});
+	}
+
+	// Show social links to spectator
+	function showSocialLinksToSpectator() {
+		const managerResponse = document.getElementById('manager-response');
+		
+		if (window.managerLinks.length === 0) {
+			managerResponse.style.display = 'block';
+			managerResponse.innerHTML = `
+				<div style="text-align: center; padding: 20px;">
+					<div style="font-size: 18px; margin-bottom: 10px;">📭</div>
+					<div>> The host hasn't added any social links yet!</div>
+					<div style="margin-top: 10px; opacity: 0.7; font-size: 12px;">Check back later!</div>
+				</div>
+			`;
+			return;
+		}
+
+		const linksHTML = window.managerLinks.map(link => `
+			<a href="${link.url}" target="_blank" style="text-decoration: none; display: block; margin-bottom: 12px; padding: 12px; background: #000; border: 2px solid #bee17b; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#bee17b'; this.querySelector('.link-label').style.color='#000'; this.querySelector('.link-url').style.color='#000';" onmouseout="this.style.background='#000'; this.querySelector('.link-label').style.color='#bee17b'; this.querySelector('.link-url').style.color='#bee17b';">
+				<div class="link-label" style="color: #bee17b; font-size: 13px; font-weight: bold; margin-bottom: 5px; transition: all 0.2s;">${link.label}</div>
+				<div class="link-url" style="color: #bee17b; font-size: 12px; word-break: break-all; opacity: 0.9; transition: all 0.2s;">
+					${link.url} →
+				</div>
+			</a>
+		`).join('');
+
+		managerResponse.style.display = 'block';
+		managerResponse.innerHTML = `
+			<div style="margin-bottom: 15px; color: #bee17b; font-size: 14px; font-weight: bold;">
+				SOCIAL LINKS FROM HOST:
+			</div>
+			${linksHTML}
+			<div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #bee17b; text-align: center; opacity: 0.7; font-size: 12px;">
+				> Click any link to open in a new tab!
+			</div>
+		`;
+	}
+
+	console.log('✅ Manager social media system initialized');
+	console.log('📱 Current links:', window.managerLinks);
+
+// ==========================================
+// MANAGER LINKS WEBSOCKET SYNC
+// ==========================================
+(function() {
+	// Override saveManagerLinks to also broadcast via WebSocket
+	const originalSaveManagerLinks = window.saveManagerLinks || function() {
+		localStorage.setItem('managerLinks', JSON.stringify(window.managerLinks));
+		console.log('💾 Manager links saved:', window.managerLinks);
+	};
+
+	window.saveManagerLinks = function() {
+		// Save to localStorage
+		localStorage.setItem('managerLinks', JSON.stringify(window.managerLinks));
+		console.log('💾 Manager links saved:', window.managerLinks);
+
+		// Broadcast to spectators if hosting
+		if (window.isHosting && window.multiplayerWs && window.multiplayerWs.readyState === WebSocket.OPEN) {
+			window.multiplayerWs.send(JSON.stringify({
+				type: 'manager_links_update',
+				links: window.managerLinks
+			}));
+			console.log('📡 Broadcasting manager links to spectators:', window.managerLinks);
+		}
+	};
+
+	// Listen for manager links updates from host (spectator side)
+	if (window.isSpectatorMode && window.multiplayerWs) {
+		const originalOnMessage = window.multiplayerWs.onmessage;
+		
+		window.multiplayerWs.addEventListener('message', (event) => {
+			try {
+				const data = JSON.parse(event.data);
+				
+				if (data.type === 'manager_links_update') {
+					console.log('📥 Received manager links from host:', data.links);
+					window.managerLinks = data.links || [];
+					localStorage.setItem('managerLinks', JSON.stringify(window.managerLinks));
+					console.log('✅ Manager links synced from host');
+				}
+			} catch (e) {
+				// Ignore parse errors
+			}
+		});
+	}
+
+	// Request manager links from host when spectator joins
+	if (window.isSpectatorMode && window.multiplayerWs) {
+		const requestInterval = setInterval(() => {
+			if (window.multiplayerWs && window.multiplayerWs.readyState === WebSocket.OPEN) {
+				window.multiplayerWs.send(JSON.stringify({
+					type: 'request_manager_links'
+				}));
+				console.log('📤 Requesting manager links from host');
+				clearInterval(requestInterval);
+			}
+		}, 1000);
+	}
+
+	// Handle requests for manager links (host side)
+	if (!window.isSpectatorMode && window.multiplayerWs) {
+		window.multiplayerWs.addEventListener('message', (event) => {
+			try {
+				const data = JSON.parse(event.data);
+				
+				if (data.type === 'request_manager_links') {
+					console.log('📨 Spectator requesting manager links, sending...');
+					if (window.multiplayerWs.readyState === WebSocket.OPEN) {
+						window.multiplayerWs.send(JSON.stringify({
+							type: 'manager_links_update',
+							links: window.managerLinks
+						}));
+						console.log('✅ Sent manager links to spectator');
+					}
+				}
+			} catch (e) {
+				// Ignore parse errors
+			}
+		});
+	}
+
+	console.log('✅ Manager links WebSocket sync initialized');
+})();
+})();
+})();
 
 			// Add to update loop
 			const updateInterval = setInterval(() => {

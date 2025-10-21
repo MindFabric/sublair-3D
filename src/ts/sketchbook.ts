@@ -19,3 +19,6 @@ export { Airplane } from './vehicles/Airplane';
 export { Helicopter } from './vehicles/Helicopter';
 export { LoadingManager } from './core/LoadingManager';
 export { UIManager } from './core/UIManager';
+export { RandomBehaviour } from './characters/character_ai/RandomBehaviour';
+export { FollowPath } from './characters/character_ai/FollowPath';
+export { FollowTarget } from './characters/character_ai/FollowTarget';

@@ -11308,11 +11308,17 @@ createReverbImpulse() {
 						window.djFlvPlayer = flvjs.createPlayer({
 							type: 'flv',
 							isLive: true,
-							url: streamUrl
+							url: streamUrl,
+							hasAudio: true,
+							hasVideo: false
+						}, {
+							enableWorker: false,
+							enableStashBuffer: false,
+							stashInitialSize: 128,
+							autoCleanupSourceBuffer: true
 						});
 
 						window.djFlvPlayer.attachMediaElement(window.djAudioElement);
-						window.djFlvPlayer.load();
 
 						// Setup Web Audio API for stream analysis
 						// Create AudioContext if it doesn't exist (fallback for hosts)
@@ -11320,6 +11326,18 @@ createReverbImpulse() {
 							window.djAudioContext = new (window.AudioContext || window.webkitAudioContext)();
 							console.log('🎵 Created AudioContext (fallback)');
 						}
+
+						// Resume AudioContext immediately if suspended (before loading)
+						if (window.djAudioContext.state === 'suspended') {
+							console.log('🔊 Resuming AudioContext before FLV load...');
+							window.djAudioContext.resume().then(() => {
+								console.log('✅ AudioContext resumed successfully');
+							}).catch((err) => {
+								console.error('❌ Failed to resume AudioContext:', err);
+							});
+						}
+
+						window.djFlvPlayer.load();
 
 						// Only create source/analyser/gain once
 						if (!window.djAudioSource) {
@@ -11416,13 +11434,41 @@ createReverbImpulse() {
 						}, { once: true }); // Only attach once to prevent multiple listeners
 
 						window.djFlvPlayer.on(flvjs.Events.ERROR, (errorType, errorDetail, errorInfo) => {
-							console.error('❌ FLV player error:', errorType, errorDetail, errorInfo);
+							console.error('❌ FLV player error:');
+							console.error('  Error Type:', errorType);
+							console.error('  Error Detail:', errorDetail);
+							console.error('  Error Info:', errorInfo);
+
+							// More specific error messages
+							let errorMessage = 'ERROR';
+							if (errorType === 'NetworkError') {
+								errorMessage = 'NETWORK ERROR';
+								console.error('🌐 Network error - check if RTMP stream is active and HTTP-FLV is accessible');
+							} else if (errorType === 'MediaError') {
+								errorMessage = 'MEDIA ERROR';
+								console.error('🎵 Media error - audio codec may be incompatible. Ensure OBS is streaming AAC audio');
+							}
 
 							// Update status to error
 							if (streamStatus) {
-								streamStatus.textContent = 'ERROR';
+								streamStatus.textContent = errorMessage;
 								streamStatus.style.color = '#ff0000';
 							}
+						});
+
+						// Add stalled event handler
+						window.djAudioElement.addEventListener('stalled', () => {
+							console.warn('⚠️ Audio stream stalled - buffering issue');
+						});
+
+						// Add waiting event handler
+						window.djAudioElement.addEventListener('waiting', () => {
+							console.warn('⏸️ Audio waiting for data...');
+						});
+
+						// Add loadeddata event for debugging
+						window.djAudioElement.addEventListener('loadeddata', () => {
+							console.log('✅ Audio data loaded');
 						});
 
 						console.log('✅ DJ audio streaming ready:', streamUrl);

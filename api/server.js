@@ -1126,7 +1126,11 @@ const nmsConfig = {
   http: {
     port: HTTP_FLV_PORT,
     allow_origin: '*',
-    mediaroot: './media' // Store temporary media files
+    mediaroot: './media', // Store temporary media files
+    cors: {
+      origin: '*',
+      credentials: true
+    }
   },
   trans: {
     ffmpeg: '/usr/bin/ffmpeg', // Path to ffmpeg (Railway should have this)
@@ -1135,7 +1139,27 @@ const nmsConfig = {
         app: 'live',
         hls: true,
         hlsFlags: '[hls_time=2:hls_list_size=3:hls_flags=delete_segments]',
-        dash: false
+        dash: false,
+        // Audio codec settings for better compatibility
+        ac: 'aac', // Audio codec: AAC
+        ab: '128k', // Audio bitrate
+        ar: '44100' // Audio sample rate
+      }
+    ]
+  },
+  logType: isProduction ? 1 : 3, // Less verbose in production
+  fission: {
+    ffmpeg: '/usr/bin/ffmpeg',
+    tasks: [
+      {
+        rule: 'live/*',
+        model: [
+          {
+            ab: '128k',
+            ar: '44100',
+            ac: 'aac'
+          }
+        ]
       }
     ]
   }

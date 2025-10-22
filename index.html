@@ -3214,7 +3214,7 @@
 		Engine: <a href="https://github.com/swift502/Sketchbook" target="_blank">Sketchbook 0.4</a>
 	</div>
 
-	<script src="./node_modules/flv.js/dist/flv.min.js?v=2024"></script>
+	<script src="./build/flv.min.js?v=2024"></script>
 	<script src="./build/sketchbook.min.js?v=2024"></script>
 
 	<script>
@@ -8518,7 +8518,7 @@
 
 				// dB Meter setup
 				const dbMeterCanvas = document.getElementById('db-meter');
-				const dbMeterCtx = dbMeterCanvas ? dbMeterCanvas.getContext('2d') : null;
+				const dbMeterCtx = dbMeterCanvas ? dbMeterCanvas.getContext('2d', { willReadFrequently: true }) : null;
 				const clipIndicator = document.getElementById('clip-indicator');
 				let peakHold = -Infinity;
 				let peakHoldTime = 0;
@@ -14296,7 +14296,7 @@ createReverbImpulse() {
 				const animCanvas = document.createElement('canvas');
 				animCanvas.width = size;
 				animCanvas.height = size;
-				const animCtx = animCanvas.getContext('2d');
+				const animCtx = animCanvas.getContext('2d', { willReadFrequently: true });
 
 				// Create new texture from animated canvas
 				const normalizedTexture = new THREE.CanvasTexture(animCanvas);
@@ -18618,7 +18618,7 @@ window.decksMenuOpen = false;
 		// Stream dB meter render loop
 		function renderStreamDbMeter() {
 			const canvas = document.getElementById('stream-db-meter');
-			const ctx = canvas ? canvas.getContext('2d') : null;
+			const ctx = canvas ? canvas.getContext('2d', { willReadFrequently: true }) : null;
 
 			if (!ctx) {
 				requestAnimationFrame(renderStreamDbMeter);
@@ -18720,7 +18720,7 @@ window.decksMenuOpen = false;
 		let nowPlayingDbMeterDebugCount = 0;
 		function renderNowPlayingDbMeter() {
 			const canvas = document.getElementById('now-playing-db-meter');
-			const ctx = canvas ? canvas.getContext('2d') : null;
+			const ctx = canvas ? canvas.getContext('2d', { willReadFrequently: true }) : null;
 
 			if (!ctx) {
 				if (nowPlayingDbMeterDebugCount === 0) {

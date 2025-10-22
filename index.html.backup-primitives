@@ -3621,18 +3621,16 @@
 					return snappedCorner + cornerOffset;
 				}
 
-				// NEW: Simplified update function using PlacementSystem
+				// Separate function to update cursor in render loop
 				function updatePlacementCursorPosition() {
 					if (!placementCursorActive || !placementCursor) {
 						if (placementCursor) placementCursor.visible = false;
-						if (window.objectPreview) window.objectPreview.visible = false;
 						return;
 					}
 
 					// Don't show cursor when pointer is locked (in freecam mode)
 					if (document.pointerLockElement) {
 						placementCursor.visible = false;
-						if (window.objectPreview) window.objectPreview.visible = false;
 						return;
 					}
 
@@ -3643,11 +3641,68 @@
 					// Update raycaster
 					raycaster.setFromCamera(mouse, world.camera);
 
-					// Use the new PlacementSystem for all positioning logic
-					if (window.PlacementSystem && !rotationMode) {
-						window.PlacementSystem.update(raycaster, world, window.objectPreview, placementCursor);
+					// SURFACE-TO-SURFACE SNAPPING: Raycast against terrain AND placed objects
+					const validObjects = world.graphicsWorld.children.filter(obj => {
+						// Skip placement cursor
+						if (obj === placementCursor || obj.userData?.isPlacementCursor) return false;
+						// Skip preview objects
+						if (obj.userData?.isPreview) return false;
+						// INCLUDE placed objects for surface snapping!
+						return true;
+					});
+
+					const intersects = raycaster.intersectObjects(validObjects, true);
+
+					if (intersects.length > 0) {
+						const intersect = intersects[0]; // First hit (could be terrain or placed object)
+
+						// Get the intersection point
+						let x = intersect.point.x;
+						let y = intersect.point.y;
+						let z = intersect.point.z;
+
+						// Check if we hit a placed object for better visual feedback
+						let hitPlacedObject = false;
+						let hitObject = intersect.object;
+						while (hitObject) {
+							if (hitObject.userData?.isPlacedObject) {
+								hitPlacedObject = true;
+								break;
+							}
+							hitObject = hitObject.parent;
+						}
+
+						// Apply grid snapping if enabled
+						if (gridSnapEnabled) {
+							// Get preview object dimensions for face-based snapping
+							const preview = window.objectPreview;
+							if (preview) {
+								// Calculate bounding box to get object dimensions
+								const bbox = new THREE.Box3().setFromObject(preview);
+								const width = bbox.max.x - bbox.min.x;
+								const depth = bbox.max.z - bbox.min.z;
+								const height = bbox.max.y - bbox.min.y;
+
+								// Snap object faces to grid instead of center
+								x = snapObjectToGrid(x, width, GRID_SIZE);
+								z = snapObjectToGrid(z, depth, GRID_SIZE);
+								y = snapObjectToGrid(y, height, GRID_SIZE);
+							} else {
+								// Fallback to center snapping if no preview
+								x = snapToGrid(x, GRID_SIZE);
+								z = snapToGrid(z, GRID_SIZE);
+								y = snapToGrid(y, GRID_SIZE);
+							}
+						}
+
+						// Apply vertical offset from E/Q keys
+						y += verticalOffset;
+
+						placementCursor.position.set(x, y + 0.01, z);
+						placementCursor.visible = true;
+						// Change color based on what we're snapping to
+						placementCursor.material.color.setHex(hitPlacedObject ? 0x17e1ff : 0xbee17b);
 					} else {
-						// Fallback or rotation mode
 						placementCursor.visible = false;
 					}
 				}
@@ -3731,20 +3786,14 @@
 
 					// E key - move up (only when placement cursor is active)
 					if ((e.key === 'e' || e.key === 'E') && window.placementCursorActive) {
-						if (window.PlacementSystem) {
-							window.PlacementSystem.adjustVerticalOffset(GRID_SIZE);
-						} else {
-							verticalOffset += GRID_SIZE;
-						}
+						verticalOffset += GRID_SIZE;
+						console.log(`⬆️ Vertical offset: ${verticalOffset.toFixed(1)} units`);
 					}
 
 					// Q key - move down (only when placement cursor is active)
 					if ((e.key === 'q' || e.key === 'Q') && window.placementCursorActive) {
-						if (window.PlacementSystem) {
-							window.PlacementSystem.adjustVerticalOffset(-GRID_SIZE);
-						} else {
-							verticalOffset -= GRID_SIZE;
-						}
+						verticalOffset -= GRID_SIZE;
+						console.log(`⬇️ Vertical offset: ${verticalOffset.toFixed(1)} units`);
 					}
 				});
 
@@ -3803,258 +3852,6 @@
 				};
 
 				console.log('✨ 3D Placement Cursor System initialized');
-
-				// ===== PROFESSIONAL GRID PLACEMENT SYSTEM =====
-				// Industry-standard world builder snapping (Unity/Unreal style)
-				
-				const PlacementSystem = {
-					// Configuration
-					config: {
-						gridSize: 0.5,              // Grid cell size in world units
-						gridSnapEnabled: true,       // Toggle with G key
-						verticalOffset: 0,          // Adjusted with Q/E keys
-						cursorVisualOffset: 0.005,  // Tiny offset to prevent z-fighting
-					},
-				
-					// State
-					state: {
-						currentSurfacePoint: null,   // Raw raycast hit point
-						currentSurfaceNormal: null,  // Surface normal
-						isHittingObject: false,      // Hitting placed object vs terrain
-						snappedPosition: null,       // Final snapped position
-					targetedObject: null,        // The specific object being aimed at
-					targetedFace: null,          // Which face: top, bottom, left, right, front, back
-					},
-				
-					// ===== PHASE 1: SURFACE DETECTION =====
-					detectSurface: function(raycaster, world) {
-						// Get all valid objects to raycast against
-						const validObjects = world.graphicsWorld.children.filter(obj => {
-							if (obj === window.placementCursor) return false;
-							if (obj.userData?.isPlacementCursor) return false;
-							if (obj.userData?.isPreview) return false;
-							return true;
-						});
-					
-						const intersects = raycaster.intersectObjects(validObjects, true);
-					
-						if (intersects.length === 0) {
-							this.state.currentSurfacePoint = null;
-							this.state.currentSurfaceNormal = null;
-							this.state.isHittingObject = false;
-							this.state.targetedObject = null;
-							this.state.targetedFace = null;
-							return null;
-						}
-					
-						const hit = intersects[0];
-					
-						// Store raw hit data
-						this.state.currentSurfacePoint = hit.point.clone();
-						this.state.currentSurfaceNormal = hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0);
-					
-						// Determine if we hit a placed object
-						let hitObj = hit.object;
-						this.state.isHittingObject = false;
-						this.state.targetedObject = null;
-						this.state.targetedFace = null;
-						
-						while (hitObj) {
-							if (hitObj.userData?.isPlacedObject) {
-								this.state.isHittingObject = true;
-								this.state.targetedObject = hitObj;
-								
-								// PRECISE FACE DETECTION using surface normal
-								// Transform normal to world space
-								const worldNormal = hit.face.normal.clone();
-								worldNormal.transformDirection(hit.object.matrixWorld);
-								worldNormal.normalize();
-								
-								// Determine which face based on normal direction
-								const absX = Math.abs(worldNormal.x);
-								const absY = Math.abs(worldNormal.y);
-								const absZ = Math.abs(worldNormal.z);
-								
-								if (absY > absX && absY > absZ) {
-									// Vertical face (top/bottom)
-									this.state.targetedFace = worldNormal.y > 0 ? 'top' : 'bottom';
-								} else if (absX > absZ) {
-									// Left/Right face (X-axis)
-									this.state.targetedFace = worldNormal.x > 0 ? 'right' : 'left';
-								} else {
-									// Front/Back face (Z-axis)
-									this.state.targetedFace = worldNormal.z > 0 ? 'front' : 'back';
-								}
-								
-								break;
-							}
-							hitObj = hitObj.parent;
-						}
-					
-						return {
-							point: this.state.currentSurfacePoint,
-							normal: this.state.currentSurfaceNormal,
-							isObject: this.state.isHittingObject,
-							targetedObject: this.state.targetedObject,
-							targetedFace: this.state.targetedFace
-						};
-					},
-				
-					// ===== PHASE 2: GRID SNAPPING =====
-					applyGridSnapping: function(point, objectBounds, world) {
-						if (!this.config.gridSnapEnabled) {
-							return point.clone();
-						}
-					
-						const snapped = new THREE.Vector3();
-						const gs = this.config.gridSize;
-					
-						// Calculate dimensions of the object being placed
-						const objectWidth = objectBounds.max.x - objectBounds.min.x;
-						const objectDepth = objectBounds.max.z - objectBounds.min.z;
-						const objectHeight = objectBounds.max.y - objectBounds.min.y;
-					
-						// VERTICAL SNAPPING (Y) - Different logic for objects vs terrain
-						if (this.state.isHittingObject && this.state.targetedFace) {
-							// OBJECT STACKING: Use exact surface height (no grid snap)
-							snapped.y = point.y;
-						} else {
-							// TERRAIN PLACEMENT: Snap to grid for clean alignment
-							snapped.y = Math.round(point.y / gs) * gs;
-						}
-					
-						// HORIZONTAL SNAPPING (X, Z) - PRECISE FACE-BASED ALIGNMENT
-						if (this.state.isHittingObject && this.state.targetedObject && this.state.targetedFace) {
-							// User is aiming at a specific face - snap PRECISELY to that face
-							const targetBBox = new THREE.Box3().setFromObject(this.state.targetedObject);
-							const face = this.state.targetedFace;
-							
-							// Snap based on the EXACT face being targeted
-							if (face === 'right') {
-								// Snap to RIGHT of target: place our left face against their right face
-								snapped.x = targetBBox.max.x + (objectWidth / 2);
-								snapped.z = Math.round(point.z / gs) * gs; // Grid snap Z
-							} else if (face === 'left') {
-								// Snap to LEFT of target: place our right face against their left face
-								snapped.x = targetBBox.min.x - (objectWidth / 2);
-								snapped.z = Math.round(point.z / gs) * gs; // Grid snap Z
-							} else if (face === 'front') {
-								// Snap to FRONT of target: place our back face against their front face
-								snapped.z = targetBBox.max.z + (objectDepth / 2);
-								snapped.x = Math.round(point.x / gs) * gs; // Grid snap X
-							} else if (face === 'back') {
-								// Snap to BACK of target: place our front face against their back face
-								snapped.z = targetBBox.min.z - (objectDepth / 2);
-								snapped.x = Math.round(point.x / gs) * gs; // Grid snap X
-							} else {
-								// Top or bottom face - just use grid snapping for X/Z
-								snapped.x = Math.round(point.x / gs) * gs;
-								snapped.z = Math.round(point.z / gs) * gs;
-							}
-						} else {
-							// OPEN SPACE: Standard grid snapping
-							snapped.x = Math.round(point.x / gs) * gs;
-							snapped.z = Math.round(point.z / gs) * gs;
-						}
-					
-						return snapped;
-					},
-				
-					// ===== PHASE 3: PREVIEW POSITIONING =====
-					positionPreview: function(preview, snappedPoint) {
-						if (!preview) return;
-				
-						// Calculate object bounds at current scale
-						const bbox = new THREE.Box3().setFromObject(preview);
-						const objectBottomOffset = bbox.min.y - preview.position.y;
-				
-						// Position preview: snapped point is where the BOTTOM face should be
-						preview.position.x = snappedPoint.x;
-						preview.position.z = snappedPoint.z;
-						preview.position.y = snappedPoint.y - objectBottomOffset + this.config.verticalOffset;
-				
-						return preview.position.clone();
-					},
-				
-					// ===== PHASE 4: CURSOR VISUALIZATION =====
-					updateCursor: function(cursor, snappedPoint) {
-						if (!cursor || !snappedPoint) return;
-				
-						// Position cursor at snapped point with tiny visual offset
-						cursor.position.set(
-							snappedPoint.x,
-							snappedPoint.y + this.config.cursorVisualOffset,
-							snappedPoint.z
-						);
-				
-						// Color code: cyan for objects, green for terrain
-						const color = this.state.isHittingObject ? 0x17e1ff : 0xbee17b;
-						cursor.material.color.setHex(color);
-						cursor.visible = true;
-					},
-				
-					// ===== MAIN UPDATE FUNCTION =====
-					update: function(raycaster, world, preview, cursor) {
-						// Phase 1: Detect surface
-						const surface = this.detectSurface(raycaster, world);
-						if (!surface) {
-							if (cursor) cursor.visible = false;
-							if (preview) preview.visible = false;
-							return null;
-						}
-				
-						// Phase 2: Apply grid snapping
-						const previewBounds = preview ? new THREE.Box3().setFromObject(preview) : new THREE.Box3();
-						const snappedPoint = this.applyGridSnapping(surface.point, previewBounds, world);
-						this.state.snappedPosition = snappedPoint;
-				
-						// Phase 3: Position preview
-						if (preview) {
-							this.positionPreview(preview, snappedPoint);
-							preview.visible = true;
-						}
-				
-						// Phase 4: Update cursor
-						if (cursor) {
-							this.updateCursor(cursor, snappedPoint);
-						}
-				
-						return snappedPoint;
-					},
-				
-					// ===== HELPER: GET PLACEMENT POSITION =====
-					getPlacementPosition: function(preview) {
-						// Return the EXACT position where the preview is
-						// This is the source of truth for placement
-						return preview ? preview.position.clone() : null;
-					},
-				
-					// ===== HELPER: TOGGLE GRID SNAP =====
-					toggleGridSnap: function() {
-						this.config.gridSnapEnabled = !this.config.gridSnapEnabled;
-						const status = this.config.gridSnapEnabled ? 'ON' : 'OFF';
-						console.log('Grid snap: ' + status);
-						return this.config.gridSnapEnabled;
-					},
-				
-					// ===== HELPER: ADJUST VERTICAL OFFSET =====
-					adjustVerticalOffset: function(delta) {
-						this.config.verticalOffset += delta;
-						console.log('Vertical offset: ' + this.config.verticalOffset.toFixed(2) + ' units');
-						return this.config.verticalOffset;
-					},
-				
-					// ===== HELPER: RESET VERTICAL OFFSET =====
-					resetVerticalOffset: function() {
-						this.config.verticalOffset = 0;
-					}
-				};
-				
-				// Make globally accessible
-				window.PlacementSystem = PlacementSystem;
-				console.log('✨ Professional Placement System initialized');
-				
-
 
 				// ===== DEBUG HITBOX VISUALIZATION SYSTEM =====
 				let debugHitboxesVisible = false;
@@ -4170,19 +3967,14 @@
 						// Don't toggle if typing in an input field
 						if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-						if (window.PlacementSystem) {
-							const enabled = window.PlacementSystem.toggleGridSnap();
-							// Toggle grid visibility when in placement mode
-							if (window.placementCursorActive && gridHelper) {
-								gridHelper.visible = enabled;
-							}
-						} else {
-							gridSnapEnabled = !gridSnapEnabled;
-							if (window.placementCursorActive && gridHelper) {
-								gridHelper.visible = gridSnapEnabled;
-							}
-							console.log('Grid snap: ' + (gridSnapEnabled ? 'ON' : 'OFF'));
+						gridSnapEnabled = !gridSnapEnabled;
+
+						// Toggle grid visibility when in placement mode
+						if (window.placementCursorActive && gridHelper) {
+							gridHelper.visible = gridSnapEnabled;
 						}
+
+						console.log(`🔲 Grid snap: ${gridSnapEnabled ? 'ON' : 'OFF'}`);
 					}
 				});
 
@@ -4578,9 +4370,8 @@
 							preview.position.z = placementCursor.position.z;
 
 							// Position Y so the bottom of the object sits exactly on the cursor surface
-							// Use actualSurfaceY (without z-fighting offset) for accurate positioning
-							const surfaceY = window.actualSurfaceY !== undefined ? window.actualSurfaceY : placementCursor.position.y;
-							preview.position.y = surfaceY - objectBottom;
+							// Cursor position.y is the ground surface, so add half height minus bottom offset
+							preview.position.y = placementCursor.position.y - objectBottom;
 						}
 						// No auto-rotation anymore - controlled by user with R key
 					} else {
@@ -4706,13 +4497,7 @@
 
 					// IMPORTANT: The preview is already positioned correctly with all snapping and surface detection
 					// We should just copy its exact position instead of recalculating
-					// Use PlacementSystem for accurate positioning
-				let placementPosition;
-				if (window.PlacementSystem && preview) {
-					placementPosition = window.PlacementSystem.getPlacementPosition(preview);
-				} else {
-					placementPosition = (preview && preview.visible) ? preview.position.clone() : cursor.position.clone();
-				}
+					const placementPosition = (preview && preview.visible) ? preview.position.clone() : cursor.position.clone();
 
 					console.log(`📍 Placing object at preview position: (${placementPosition.x.toFixed(2)}, ${placementPosition.y.toFixed(2)}, ${placementPosition.z.toFixed(2)})`);
 

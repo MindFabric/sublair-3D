@@ -243,14 +243,38 @@ Server: rtmp://3d.sublair.com:1935/live
 Stream Key: [Your 32-character session stream key]
 ```
 
-**Recommended OBS Settings:**
+**Recommended OBS Settings for 1080p 60fps (The Sphere Quality!):**
 ```
-Encoder: x264
-Rate Control: CBR
-Bitrate: 2500 Kbps
-Keyframe Interval: 2
-CPU Usage Preset: veryfast
-Profile: main
+Video:
+  Base Resolution: 1920x1080
+  Output Resolution: 1920x1080
+  FPS: 60
+
+Output:
+  Encoder: x264 (CPU) or NVENC H.264 (NVIDIA GPU recommended)
+  Rate Control: CBR
+  Bitrate: 6000-8000 Kbps (6000 for standard, 8000 for high quality)
+  Keyframe Interval: 2
+  CPU Usage Preset: veryfast (x264) or P4/P5 (NVENC)
+  Profile: high
+  Tune: (none)
+
+Audio:
+  Audio Bitrate: 192 Kbps
+  Sample Rate: 48 kHz
+```
+
+**For 720p 60fps (Lower Bandwidth):**
+```
+  Output Resolution: 1280x720
+  Bitrate: 4500 Kbps
+```
+
+**For 1080p 30fps (Balanced):**
+```
+  Output Resolution: 1920x1080
+  FPS: 30
+  Bitrate: 4500 Kbps
 ```
 
 ### How It Works

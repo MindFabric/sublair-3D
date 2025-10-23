@@ -1140,10 +1140,12 @@ const nmsConfig = {
         hls: true,
         hlsFlags: '[hls_time=2:hls_list_size=3:hls_flags=delete_segments]',
         dash: false,
+        // High-quality video settings for 1080p60 streaming
+        vc: 'copy', // Video codec: copy (passthrough for max quality)
         // Audio codec settings for better compatibility
         ac: 'aac', // Audio codec: AAC
-        ab: '128k', // Audio bitrate
-        ar: '44100' // Audio sample rate
+        ab: '192k', // Audio bitrate (increased from 128k)
+        ar: '48000' // Audio sample rate (increased to 48kHz for better quality)
       }
     ]
   },
@@ -1155,8 +1157,9 @@ const nmsConfig = {
         rule: 'live/*',
         model: [
           {
-            ab: '128k',
-            ar: '44100',
+            vc: 'copy', // Video passthrough
+            ab: '192k', // Higher audio bitrate
+            ar: '48000', // 48kHz audio
             ac: 'aac'
           }
         ]

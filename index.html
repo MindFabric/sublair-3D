@@ -11408,56 +11408,52 @@ createReverbImpulse() {
 								// The texture already has 270° rotation for the computer screen (set above)
 								// The dome shader will handle its own vertical flip independently
 
-								// Create custom shader material with seam feathering for seamless projection
+								// Create custom shader material using EQUIRECTANGULAR MAPPING (The Sphere's method!)
 								window.domeProjectionMesh.material = new THREE.ShaderMaterial({
 									uniforms: {
-										videoTexture: { value: window.djVideoTexture },
-										emissiveIntensity: { value: 0.5 }, // Reduced emission
-										seamBlendWidth: { value: 0.02 } // Blend 2% on each side of seam
+										videoTexture: { value: window.djVideoTexture }
 									},
 									vertexShader: `
+										varying vec3 vWorldPosition;
 										varying vec2 vUv;
+
 										void main() {
 											vUv = uv;
+											// Pass world position for spherical coordinate calculation
+											vec4 worldPos = modelMatrix * vec4(position, 1.0);
+											vWorldPosition = worldPos.xyz;
 											gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 										}
 									`,
 									fragmentShader: `
+										#define PI 3.14159265359
+
 										uniform sampler2D videoTexture;
-										uniform float emissiveIntensity;
-										uniform float seamBlendWidth;
+										varying vec3 vWorldPosition;
 										varying vec2 vUv;
 
 										void main() {
-											// Flip UVs vertically for dome orientation (texture is already rotated 270° for screen)
-											vec2 uv = vec2(vUv.x, 1.0 - vUv.y); // Flip vertically to correct orientation
+											// EQUIRECTANGULAR PROJECTION (MSG Sphere technique!)
+											// Convert 3D position on sphere to spherical coordinates
+											vec3 dir = normalize(vWorldPosition);
 
-											// Calculate blend factor for seam (0.0 at edges, 1.0 in middle)
-											float seamBlend = 1.0;
+											// Calculate spherical coordinates (phi, theta)
+											// phi = horizontal angle (0 to 2π)
+											// theta = vertical angle (0 to π)
+											float phi = atan(dir.z, dir.x); // Horizontal angle
+											float theta = acos(dir.y);       // Vertical angle from top
 
-											// Detect if we're near the U seam (left or right edge)
-											if (uv.x < seamBlendWidth) {
-												// Near left edge (U=0) - blend with right edge (U=1)
-												float blend = uv.x / seamBlendWidth;
-												vec4 leftSample = texture2D(videoTexture, uv);
-												vec4 rightSample = texture2D(videoTexture, vec2(uv.x + 1.0, uv.y));
-												vec4 color = mix(rightSample, leftSample, blend);
-												color.rgb *= (1.0 + emissiveIntensity);
-												gl_FragColor = color;
-											} else if (uv.x > (1.0 - seamBlendWidth)) {
-												// Near right edge (U=1) - blend with left edge (U=0)
-												float blend = (1.0 - uv.x) / seamBlendWidth;
-												vec4 rightSample = texture2D(videoTexture, uv);
-												vec4 leftSample = texture2D(videoTexture, vec2(uv.x - 1.0, uv.y));
-												vec4 color = mix(leftSample, rightSample, blend);
-												color.rgb *= (1.0 + emissiveIntensity);
-												gl_FragColor = color;
-											} else {
-												// Normal area - just sample and apply emissive
-												vec4 color = texture2D(videoTexture, uv);
-												color.rgb *= (1.0 + emissiveIntensity);
-												gl_FragColor = color;
-											}
+											// Convert to UV coordinates (0 to 1)
+											// This naturally wraps around 360° with NO SEAM!
+											vec2 sphericalUV;
+											sphericalUV.x = (phi / (2.0 * PI)) + 0.5;  // 0 to 1 wrapping horizontally
+											sphericalUV.y = 1.0 - (theta / PI);        // Flipped: 1 to 0 from top to bottom
+
+											// Sample texture using spherical coordinates (seamless!)
+											vec4 color = texture2D(videoTexture, sphericalUV);
+
+											// Raw video - no emission or color modifications
+											gl_FragColor = color;
 										}
 									`,
 									side: THREE.BackSide,

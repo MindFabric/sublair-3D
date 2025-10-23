@@ -11362,7 +11362,7 @@ createReverbImpulse() {
 						}
 
 						// ========================================
-						// CREATE VIDEO TEXTURE FOR COMPUTER SCREEN
+						// CREATE VIDEO TEXTURE FOR COMPUTER SCREEN & DOME PROJECTION
 						// ========================================
 						if (window.computerScreenMesh && window.djVideoElement) {
 							// Create VideoTexture from the video element
@@ -11395,6 +11395,81 @@ createReverbImpulse() {
 							}
 
 							console.log('📺 Video texture applied to computer screen with rotation fix!');
+
+							// ========================================
+							// ALSO APPLY TO DOME PROJECTION (THE SPHERE!)
+							// ========================================
+							if (window.domeProjectionMesh) {
+								// Store original projection material for restoration
+								if (!window.domeProjectionOriginalMaterial) {
+									window.domeProjectionOriginalMaterial = window.domeProjectionMesh.material.clone();
+								}
+
+								// The texture already has 270° rotation for the computer screen (set above)
+								// The dome shader will handle its own vertical flip independently
+
+								// Create custom shader material with seam feathering for seamless projection
+								window.domeProjectionMesh.material = new THREE.ShaderMaterial({
+									uniforms: {
+										videoTexture: { value: window.djVideoTexture },
+										emissiveIntensity: { value: 0.5 }, // Reduced emission
+										seamBlendWidth: { value: 0.02 } // Blend 2% on each side of seam
+									},
+									vertexShader: `
+										varying vec2 vUv;
+										void main() {
+											vUv = uv;
+											gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+										}
+									`,
+									fragmentShader: `
+										uniform sampler2D videoTexture;
+										uniform float emissiveIntensity;
+										uniform float seamBlendWidth;
+										varying vec2 vUv;
+
+										void main() {
+											// Flip UVs vertically for dome orientation (texture is already rotated 270° for screen)
+											vec2 uv = vec2(vUv.x, 1.0 - vUv.y); // Flip vertically to correct orientation
+
+											// Calculate blend factor for seam (0.0 at edges, 1.0 in middle)
+											float seamBlend = 1.0;
+
+											// Detect if we're near the U seam (left or right edge)
+											if (uv.x < seamBlendWidth) {
+												// Near left edge (U=0) - blend with right edge (U=1)
+												float blend = uv.x / seamBlendWidth;
+												vec4 leftSample = texture2D(videoTexture, uv);
+												vec4 rightSample = texture2D(videoTexture, vec2(uv.x + 1.0, uv.y));
+												vec4 color = mix(rightSample, leftSample, blend);
+												color.rgb *= (1.0 + emissiveIntensity);
+												gl_FragColor = color;
+											} else if (uv.x > (1.0 - seamBlendWidth)) {
+												// Near right edge (U=1) - blend with left edge (U=0)
+												float blend = (1.0 - uv.x) / seamBlendWidth;
+												vec4 rightSample = texture2D(videoTexture, uv);
+												vec4 leftSample = texture2D(videoTexture, vec2(uv.x - 1.0, uv.y));
+												vec4 color = mix(leftSample, rightSample, blend);
+												color.rgb *= (1.0 + emissiveIntensity);
+												gl_FragColor = color;
+											} else {
+												// Normal area - just sample and apply emissive
+												vec4 color = texture2D(videoTexture, uv);
+												color.rgb *= (1.0 + emissiveIntensity);
+												gl_FragColor = color;
+											}
+										}
+									`,
+									side: THREE.BackSide,
+									transparent: false,
+									toneMapped: false
+								});
+
+								// Make projection visible during stream
+								window.domeProjectionMesh.visible = true;
+
+								console.log('🌐 THE SPHERE ACTIVATED! Video texture applied with enhanced emission!');
+							}
 						}
 
 						// Update stream status indicator
@@ -11547,7 +11622,7 @@ createReverbImpulse() {
 						}
 
 						// ========================================
-						// RESTORE COMPUTER SCREEN MATERIAL
+						// RESTORE COMPUTER SCREEN & DOME PROJECTION MATERIALS
 						// ========================================
 						if (window.computerScreenMesh && window.computerScreenOriginalMaterial) {
 							// Dispose of video texture
@@ -11567,6 +11642,14 @@ createReverbImpulse() {
 							}
 
 							console.log('📺 Computer screen restored to default state');
+						}
+
+						// Restore dome projection material and hide it
+						if (window.domeProjectionMesh && window.domeProjectionOriginalMaterial) {
+							window.domeProjectionMesh.material.dispose();
+							window.domeProjectionMesh.material = window.domeProjectionOriginalMaterial.clone();
+							window.domeProjectionMesh.visible = false;
+							console.log('🌐 THE SPHERE DEACTIVATED - Dome projection hidden');
 						}
 						break;
 					}
@@ -15050,6 +15133,16 @@ createReverbImpulse() {
 
 				// Add to world
 				world.graphicsWorld.add(dome);
+
+				// Store projection mesh reference and make invisible by default
+				dome.traverse((child) => {
+					if (child.isMesh && (child.name.toLowerCase().includes('projection') ||
+						(child.material && child.material.name && child.material.name.toLowerCase().includes('projection')))) {
+						child.visible = false;
+						window.domeProjectionMesh = child; // Store globally for video streaming
+						console.log('🎭 Projection mesh found and hidden by default:', child.name);
+					}
+				});
 
 				// Play dome animation if it exists
 				if (domeModel.animations && domeModel.animations.length > 0) {

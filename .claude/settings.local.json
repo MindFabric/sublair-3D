@@ -39,7 +39,8 @@
       "Bash(sed:*)",
       "Bash(chmod:*)",
       "Bash(cp:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "WebFetch(domain:www.thesphere.com)"
     ],
     "deny": [],
     "ask": []

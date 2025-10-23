@@ -11286,15 +11286,17 @@ createReverbImpulse() {
 							break;
 						}
 
-						// Create audio element if it doesn't exist
-						if (!window.djAudioElement) {
-							window.djAudioElement = document.createElement('audio');
-							window.djAudioElement.controls = false; // Set to true for debugging
-							document.body.appendChild(window.djAudioElement);
-							console.log('🎵 Created DJ audio element');
+						// Create video element (not audio) for video+audio streaming
+						if (!window.djVideoElement) {
+							window.djVideoElement = document.createElement('video');
+							window.djVideoElement.muted = false; // Allow audio playback
+							window.djVideoElement.playsInline = true;
+							window.djVideoElement.style.display = 'none'; // Hidden - used for texture
+							document.body.appendChild(window.djVideoElement);
+							console.log('📹 Created DJ video element for streaming');
 						}
 
-						// Create FLV player
+						// Create FLV player with VIDEO support
 						const streamKey = data.streamKey;
 						// Use current hostname for FLV stream URL
 						// In production, use nginx proxy at /live (no port)
@@ -11310,7 +11312,7 @@ createReverbImpulse() {
 							isLive: true,
 							url: streamUrl,
 							hasAudio: true,
-							hasVideo: false
+							hasVideo: true // ✅ ENABLE VIDEO STREAMING
 						}, {
 							enableWorker: false,
 							enableStashBuffer: false,
@@ -11318,7 +11320,7 @@ createReverbImpulse() {
 							autoCleanupSourceBuffer: true
 						});
 
-						window.djFlvPlayer.attachMediaElement(window.djAudioElement);
+						window.djFlvPlayer.attachMediaElement(window.djVideoElement);
 
 						// Setup Web Audio API for stream analysis
 						// Create AudioContext if it doesn't exist (fallback for hosts)
@@ -11341,7 +11343,7 @@ createReverbImpulse() {
 
 						// Only create source/analyser/gain once
 						if (!window.djAudioSource) {
-							window.djAudioSource = window.djAudioContext.createMediaElementSource(window.djAudioElement);
+							window.djAudioSource = window.djAudioContext.createMediaElementSource(window.djVideoElement);
 							window.djAudioAnalyser = window.djAudioContext.createAnalyser();
 							window.djAudioAnalyser.fftSize = 2048;
 
@@ -11357,6 +11359,42 @@ createReverbImpulse() {
 
 							console.log('🎵 DJ stream audio analyser ready');
 							console.log(`🎵 AudioContext state after setup: ${window.djAudioContext.state}`);
+						}
+
+						// ========================================
+						// CREATE VIDEO TEXTURE FOR COMPUTER SCREEN
+						// ========================================
+						if (window.computerScreenMesh && window.djVideoElement) {
+							// Create VideoTexture from the video element
+							window.djVideoTexture = new THREE.VideoTexture(window.djVideoElement);
+							window.djVideoTexture.minFilter = THREE.LinearFilter;
+							window.djVideoTexture.magFilter = THREE.LinearFilter;
+							window.djVideoTexture.format = THREE.RGBFormat;
+
+							// Fix rotation - rotate 270 degrees (or -90 degrees)
+							window.djVideoTexture.center.set(0.5, 0.5); // Set rotation center
+							window.djVideoTexture.rotation = (3 * Math.PI) / 2; // 270 degrees (flips it right-side up)
+
+							// Store original material for restoration later
+							if (!window.computerScreenOriginalMaterial) {
+								window.computerScreenOriginalMaterial = window.computerScreenMesh.material.clone();
+							}
+
+							// Apply video texture to screen
+							window.computerScreenMesh.material = new THREE.MeshBasicMaterial({
+								map: window.djVideoTexture,
+								emissive: new THREE.Color(0x111111),
+								emissiveMap: window.djVideoTexture,
+								emissiveIntensity: 0.3
+							});
+
+							// Update screen light to match video glow
+							if (window.computerScreenLight) {
+								window.computerScreenLight.color.setHex(0x4488ff);
+								window.computerScreenLight.intensity = 2;
+							}
+
+							console.log('📺 Video texture applied to computer screen with rotation fix!');
 						}
 
 						// Update stream status indicator
@@ -11402,9 +11440,9 @@ createReverbImpulse() {
 							}
 						}
 
-						// Auto-play when audio element can play
-						window.djAudioElement.addEventListener('canplay', async () => {
-							console.log('✅ Audio element can play');
+						// Auto-play when video element can play
+						window.djVideoElement.addEventListener('canplay', async () => {
+							console.log('✅ Video element can play');
 
 							// Resume audio context if suspended (required for autoplay)
 							if (window.djAudioContext && window.djAudioContext.state === 'suspended') {
@@ -11412,11 +11450,12 @@ createReverbImpulse() {
 								await window.djAudioContext.resume();
 							}
 
-							window.djAudioElement.play()
+							window.djVideoElement.play()
 								.then(() => {
-									console.log('✅ Audio playing successfully');
+									console.log('✅ Video playing successfully');
 									console.log(`🎵 Audio context state: ${window.djAudioContext?.state}`);
 									console.log(`🔊 Current gain: ${window.djGainNode?.gain.value}`);
+									console.log('📺 Video is playing, texture should update now!');
 									// Update status to live
 									if (streamStatus) {
 										streamStatus.textContent = 'LIVE';
@@ -11424,7 +11463,7 @@ createReverbImpulse() {
 									}
 								})
 								.catch(e => {
-									console.warn('⚠️ DJ audio autoplay blocked:', e);
+									console.warn('⚠️ DJ video autoplay blocked:', e);
 									// Still update to live, but user may need to click
 									if (streamStatus) {
 										streamStatus.textContent = 'LIVE (Click to play)';
@@ -11457,21 +11496,21 @@ createReverbImpulse() {
 						});
 
 						// Add stalled event handler
-						window.djAudioElement.addEventListener('stalled', () => {
-							console.warn('⚠️ Audio stream stalled - buffering issue');
+						window.djVideoElement.addEventListener('stalled', () => {
+							console.warn('⚠️ Video stream stalled - buffering issue');
 						});
 
 						// Add waiting event handler
-						window.djAudioElement.addEventListener('waiting', () => {
-							console.warn('⏸️ Audio waiting for data...');
+						window.djVideoElement.addEventListener('waiting', () => {
+							console.warn('⏸️ Video waiting for data...');
 						});
 
 						// Add loadeddata event for debugging
-						window.djAudioElement.addEventListener('loadeddata', () => {
-							console.log('✅ Audio data loaded');
+						window.djVideoElement.addEventListener('loadeddata', () => {
+							console.log('✅ Video data loaded');
 						});
 
-						console.log('✅ DJ audio streaming ready:', streamUrl);
+						console.log('✅ DJ video streaming ready:', streamUrl);
 						break;
 
 					case 'dj_audio_chunk':
@@ -11501,10 +11540,33 @@ createReverbImpulse() {
 							window.djFlvPlayer = null;
 						}
 
-						// Cleanup audio element
-						if (window.djAudioElement) {
-							window.djAudioElement.pause();
-							window.djAudioElement.src = '';
+						// Cleanup video element
+						if (window.djVideoElement) {
+							window.djVideoElement.pause();
+							window.djVideoElement.src = '';
+						}
+
+						// ========================================
+						// RESTORE COMPUTER SCREEN MATERIAL
+						// ========================================
+						if (window.computerScreenMesh && window.computerScreenOriginalMaterial) {
+							// Dispose of video texture
+							if (window.djVideoTexture) {
+								window.djVideoTexture.dispose();
+								window.djVideoTexture = null;
+							}
+
+							// Restore original material
+							window.computerScreenMesh.material.dispose();
+							window.computerScreenMesh.material = window.computerScreenOriginalMaterial.clone();
+
+							// Reset screen light
+							if (window.computerScreenLight) {
+								window.computerScreenLight.color.setHex(0x000000);
+								window.computerScreenLight.intensity = 0;
+							}
+
+							console.log('📺 Computer screen restored to default state');
 						}
 						break;
 					}
@@ -15887,6 +15949,11 @@ window.decksMenuOpen = false;
 	world.render = function(w) {
 		originalRender(w);
 		checkManagerProximity();
+
+		// Update DJ video texture if active
+		if (window.djVideoTexture && window.djVideoElement && !window.djVideoElement.paused) {
+			window.djVideoTexture.needsUpdate = true;
+		}
 	};
 
 	console.log('✅ Manager interaction system initialized');
@@ -18630,7 +18697,7 @@ window.decksMenuOpen = false;
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 			// Check if DJ stream audio analyser exists and is active
-			if (window.djAudioAnalyser && window.djAudioElement && !window.djAudioElement.paused) {
+			if (window.djAudioAnalyser && window.djVideoElement && !window.djVideoElement.paused) {
 				const bufferLength = window.djAudioAnalyser.frequencyBinCount;
 				const timeDataArray = new Uint8Array(bufferLength);
 				window.djAudioAnalyser.getByteTimeDomainData(timeDataArray);
@@ -18744,8 +18811,8 @@ window.decksMenuOpen = false;
 			if (nowPlayingDbMeterDebugCount % 100 === 0) {
 				console.log('🎚️ Now Playing dB meter check:', {
 					hasAnalyser: !!window.djAudioAnalyser,
-					hasElement: !!window.djAudioElement,
-					isPaused: window.djAudioElement?.paused,
+					hasElement: !!window.djVideoElement,
+					isPaused: window.djVideoElement?.paused,
 					canvasVisible: canvas?.style.display !== 'none'
 				});
 			}
@@ -18762,7 +18829,7 @@ window.decksMenuOpen = false;
 
 			// Calculate peak level if analyser is available
 			let normalizedPeak = 0;
-			if (window.djAudioAnalyser && window.djAudioElement && !window.djAudioElement.paused) {
+			if (window.djAudioAnalyser && window.djVideoElement && !window.djVideoElement.paused) {
 				const bufferLength = window.djAudioAnalyser.frequencyBinCount;
 				const timeDataArray = new Uint8Array(bufferLength);
 				window.djAudioAnalyser.getByteTimeDomainData(timeDataArray);

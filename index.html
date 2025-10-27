@@ -6548,7 +6548,7 @@
 							</div>
 						</div>
 					</div>
-					<div class="customization-content" id="objects-tab" style="display: none;">
+					<div class="customization-content" id="objects-tab" style="display: none; flex-direction: column; height: 100%;">
 						<!-- Primitive Selection Section -->
 						<div class="customization-section">
 							<div class="section-label">Select Primitive</div>
@@ -6564,55 +6564,31 @@
 							</div>
 						</div>
 
-						<!-- Primitive Color Section -->
-						<div class="customization-section">
-							<div class="section-label">Primitive Color</div>
-							<div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
-								<input type="color" id="primitive-color-picker" value="#8c8c8c" style="width: 60px; height: 60px; border: 3px solid #bee17b; border-radius: 8px; cursor: pointer; background: transparent;">
-								<div style="flex: 1;">
-									<div style="font-size: 12px; color: rgba(190, 225, 123, 0.7); margin-bottom: 4px;">Current Color</div>
-									<div id="primitive-color-hex" style="font-family: 'Share Tech Mono', monospace; font-size: 16px; color: #bee17b; font-weight: bold;">#8C8C8C</div>
-								</div>
+					<!-- Primitive Color Section -->
+					<div class="customization-section">
+						<div class="section-label">Primitive Color</div>
+						<div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+							<input type="color" id="primitive-color-picker" value="#8c8c8c" style="width: 60px; height: 60px; border: 3px solid #bee17b; border-radius: 8px; cursor: pointer; background: transparent;">
+							<div style="flex: 1;">
+								<div style="font-size: 12px; color: rgba(190, 225, 123, 0.7); margin-bottom: 4px;">Current Color</div>
+								<div id="primitive-color-hex" style="font-family: 'Share Tech Mono', monospace; font-size: 16px; color: #bee17b; font-weight: bold;">#8C8C8C</div>
 							</div>
 						</div>
-
-						<!-- Clear Objects Section -->
-						<div class="customization-section">
-							<button id="clear-objects-btn" style="width: 100%; padding: 12px; background: rgba(231, 76, 60, 0.2); border: 2px solid #e74c3c; border-radius: 8px; color: #e74c3c; font-family: 'Share Tech Mono', monospace; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1px;">
-								Clear All Objects
-							</button>
-						</div>
-
-						<div class="customization-section">
-							<div class="section-label">Object Placer Instructions</div>
-							<p style="color: rgba(190, 225, 123, 0.6); font-size: 10px; line-height: 1.5; margin: 0;">
-								<strong style="color: #bee17b;">GETTING STARTED:</strong><br>
-								• Click any primitive below to enter placement mode<br>
-								• A preview will appear - move mouse to position it<br>
-								<br>
-								<strong style="color: #bee17b;">FREE CAM MODE:</strong><br>
-								• Left-click empty space - Lock camera & enter free cam<br>
-								• WASD + Mouse - Fly around while camera is locked<br>
-								• Right-click - Exit free cam & unlock camera<br>
-								• ESC key - Also exits free cam<br>
-								<br>
-								<strong style="color: #bee17b;">POSITIONING:</strong><br>
-								• Scroll wheel - Scale size (hold Shift for fine control)<br>
-								• Q/E keys - Adjust height up/down<br>
-								• G key - Toggle grid snap on/off<br>
-								<br>
-								<strong style="color: #bee17b;">ROTATION:</strong><br>
-								• Hold R + move mouse - Free rotation (all axes)<br>
-								<br>
-								<strong style="color: #bee17b;">PLACEMENT:</strong><br>
-								• Left-click - Place object in world<br>
-								• Right-click - Delete object under cursor<br>
-								• Left-click existing object - Paint it with current color<br>
-								<br>
-								• Press C to close this menu when done
-							</p>
-						</div>
 					</div>
+
+					<!-- Spacer to push buttons to bottom -->
+					<div style="flex: 1; min-height: 20px;"></div>
+
+					<!-- Bottom Action Buttons -->
+					<div class="customization-section" style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(190, 225, 123, 0.2);">
+						<button id="show-instructions-btn" style="width: 100%; padding: 12px; background: rgba(190, 225, 123, 0.1); border: 2px solid #bee17b; border-radius: 8px; color: #bee17b; font-family: 'Share Tech Mono', monospace; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;">
+							Controls
+						</button>
+						<button id="clear-objects-btn" style="width: 100%; padding: 12px; background: rgba(231, 76, 60, 0.2); border: 2px solid #e74c3c; border-radius: 8px; color: #e74c3c; font-family: 'Share Tech Mono', monospace; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1px;">
+							Clear All Objects
+						</button>
+					</div>
+				</div>
 					<div class="customization-footer">
 						<button class="reset-defaults-button" id="reset-defaults-btn">Reset to Defaults</button>
 					</div>
@@ -6626,6 +6602,218 @@
 				crosshair.id = 'customization-crosshair';
 				document.body.appendChild(crosshair);
 
+			// Create instructions modal
+			const modalHTML = `
+				<style>
+					.instructions-modal-overlay {
+						position: fixed;
+						top: 0;
+						left: 0;
+						width: 100%;
+						height: 100%;
+						background: rgba(0, 0, 0, 0.8);
+						backdrop-filter: blur(8px);
+						z-index: 999999;
+						display: none;
+						align-items: center;
+						justify-content: center;
+						animation: instructionsFadeIn 0.3s ease;
+					}
+					.instructions-modal-overlay.active {
+						display: flex;
+					}
+					.instructions-modal {
+						background: rgba(20, 20, 20, 0.95);
+						border: 2px solid #bee17b;
+						border-radius: 12px;
+						max-width: 600px;
+						width: 90%;
+						max-height: 80vh;
+						overflow-y: auto;
+						box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(190, 225, 123, 0.3);
+						animation: instructionsSlideUp 0.3s ease;
+					}
+					.instructions-modal-header {
+						padding: 20px;
+						background: rgba(190, 225, 123, 0.1);
+						border-bottom: 2px solid rgba(190, 225, 123, 0.3);
+						display: flex;
+						justify-content: space-between;
+						align-items: center;
+					}
+					.instructions-modal-header h2 {
+						margin: 0;
+						font-family: 'Share Tech Mono', monospace;
+						font-size: 18px;
+						color: #bee17b;
+						text-transform: uppercase;
+						letter-spacing: 2px;
+					}
+					.instructions-modal-close {
+						background: none;
+						border: none;
+						color: #bee17b;
+						font-size: 24px;
+						cursor: pointer;
+						padding: 0;
+						width: 30px;
+						height: 30px;
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						border-radius: 4px;
+						transition: all 0.2s ease;
+					}
+					.instructions-modal-close:hover {
+						background: rgba(190, 225, 123, 0.2);
+						transform: rotate(90deg);
+					}
+					.instructions-modal-content {
+						padding: 24px;
+						color: rgba(190, 225, 123, 0.8);
+						font-family: 'Share Tech Mono', monospace;
+						font-size: 13px;
+						line-height: 1.8;
+					}
+					.instructions-modal-content h3 {
+						color: #bee17b;
+						font-size: 14px;
+						margin: 20px 0 10px 0;
+						text-transform: uppercase;
+						letter-spacing: 1px;
+					}
+					.instructions-modal-content h3:first-child {
+						margin-top: 0;
+					}
+					.instructions-modal-content ul {
+						margin: 8px 0;
+						padding-left: 20px;
+						list-style: none;
+					}
+					.instructions-modal-content li {
+						margin: 6px 0;
+						padding-left: 20px;
+						position: relative;
+					}
+					.instructions-modal-content li:before {
+						content: "•";
+						position: absolute;
+						left: 0;
+						color: #bee17b;
+					}
+					.instructions-modal-content kbd {
+						background: rgba(190, 225, 123, 0.1);
+						border: 1px solid rgba(190, 225, 123, 0.3);
+						border-radius: 4px;
+						padding: 2px 6px;
+						font-family: 'Share Tech Mono', monospace;
+						font-size: 11px;
+						color: #bee17b;
+					}
+					@keyframes instructionsFadeIn {
+						from { opacity: 0; }
+						to { opacity: 1; }
+					}
+					@keyframes instructionsSlideUp {
+						from {
+							opacity: 0;
+							transform: translateY(30px);
+						}
+						to {
+							opacity: 1;
+							transform: translateY(0);
+						}
+					}
+				</style>
+				<div class="instructions-modal-overlay" id="instructions-modal">
+					<div class="instructions-modal">
+						<div class="instructions-modal-header">
+							<h2>Object Placer Controls</h2>
+							<button class="instructions-modal-close" id="close-instructions">×</button>
+						</div>
+						<div class="instructions-modal-content">
+							<h3>Getting Started</h3>
+							<ul>
+								<li>Click any primitive to enter placement mode</li>
+								<li>A preview will appear - move mouse to position it</li>
+							</ul>
+
+							<h3>Free Cam Mode</h3>
+							<ul>
+								<li>Left-click empty space - Lock camera & enter free cam</li>
+								<li><kbd>WASD</kbd> + Mouse - Fly around while camera is locked</li>
+								<li>Right-click - Exit free cam & unlock camera</li>
+								<li><kbd>ESC</kbd> - Also exits free cam</li>
+							</ul>
+
+							<h3>Positioning</h3>
+							<ul>
+								<li>Scroll wheel - Scale size (hold <kbd>Shift</kbd> for fine control)</li>
+								<li><kbd>Q</kbd> / <kbd>E</kbd> - Adjust height up/down</li>
+								<li><kbd>G</kbd> - Toggle grid snap on/off</li>
+							</ul>
+
+							<h3>Rotation</h3>
+							<ul>
+								<li>Hold <kbd>R</kbd> + move mouse - Free rotation (all axes)</li>
+							</ul>
+
+							<h3>Placement</h3>
+							<ul>
+								<li>Left-click - Place object in world</li>
+								<li>Right-click - Delete object under cursor</li>
+								<li>Left-click existing object - Paint it with current color</li>
+							</ul>
+
+							<h3>Exit</h3>
+							<ul>
+								<li>Press <kbd>C</kbd> to close customization menu</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			`;
+
+			const modalContainer = document.createElement('div');
+			modalContainer.innerHTML = modalHTML;
+			document.body.appendChild(modalContainer);
+
+			// Setup modal controls
+			const instructionsModal = document.getElementById('instructions-modal');
+			const showInstructionsBtn = document.getElementById('show-instructions-btn');
+			const closeInstructionsBtn = document.getElementById('close-instructions');
+
+			if (showInstructionsBtn && instructionsModal) {
+				showInstructionsBtn.addEventListener('click', () => {
+					instructionsModal.classList.add('active');
+				});
+
+				showInstructionsBtn.addEventListener('mouseenter', () => {
+					showInstructionsBtn.style.background = 'rgba(190, 225, 123, 0.2)';
+					showInstructionsBtn.style.transform = 'translateY(-2px)';
+				});
+
+				showInstructionsBtn.addEventListener('mouseleave', () => {
+					showInstructionsBtn.style.background = 'rgba(190, 225, 123, 0.1)';
+					showInstructionsBtn.style.transform = 'translateY(0)';
+				});
+			}
+
+			if (closeInstructionsBtn && instructionsModal) {
+				closeInstructionsBtn.addEventListener('click', () => {
+					instructionsModal.classList.remove('active');
+				});
+			}
+
+			// Close modal when clicking outside
+			if (instructionsModal) {
+				instructionsModal.addEventListener('click', (e) => {
+					if (e.target === instructionsModal) {
+						instructionsModal.classList.remove('active');
+					}
+				});
+			}
+
 				// Tab switching logic
 				let objectThumbnailsCreated = false;
 				const tabs = customizationDiv.querySelectorAll('.customization-tab');
@@ -6636,7 +6824,7 @@
 
 						const tabName = tab.getAttribute('data-tab');
 						document.getElementById('colors-tab').style.display = tabName === 'colors' ? 'block' : 'none';
-						document.getElementById('objects-tab').style.display = tabName === 'objects' ? 'block' : 'none';
+						document.getElementById('objects-tab').style.display = tabName === 'objects' ? 'flex' : 'none';
 
 						// Create thumbnails when Objects tab is first opened
 						if (tabName === 'objects' && !objectThumbnailsCreated) {

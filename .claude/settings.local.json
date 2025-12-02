@@ -40,7 +40,8 @@
       "Bash(chmod:*)",
       "Bash(cp:*)",
       "Bash(echo:*)",
-      "WebFetch(domain:www.thesphere.com)"
+      "WebFetch(domain:www.thesphere.com)",
+      "Read(//home/user/.config/**)"
     ],
     "deny": [],
     "ask": []
